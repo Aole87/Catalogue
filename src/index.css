@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Open Sans', system-ui, sans-serif;
+}
+
+body {
+  background-color: #f1f2f7;
+  color: #797979;
+}
+
+/* FlatLab Style Overrides */
+.flatlab-sidebar {
+  background: #35404d;
+}
+
+.flatlab-header {
+  background: #ffffff;
+  border-bottom: 1px solid #eff2f7;
+}
+
+.flatlab-card {
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: none;
+  border: none;
+  margin-bottom: 20px;
+}
+
+.flatlab-panel-heading {
+  border-color: #eff2f7;
+  font-size: 16px;
+  font-weight: 300;
+  padding: 10px 15px;
+  border-bottom: 1px solid #eff2f7;
+}
+
+.flatlab-btn {
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  transition: all 0.3s;
+}
+
+.flatlab-btn-danger {
+  background: #ff6c60;
+  color: #fff;
+}
+
+.flatlab-btn-success {
+  background: #a9d86e;
+  color: #fff;
+}
+
+.flatlab-btn-info {
+  background: #41cac0;
+  color: #fff;
+}
+
+.flatlab-btn-warning {
+  background: #f1c40f;
+  color: #fff;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f2f7;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
