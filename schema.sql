@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS brands (
 -- Car Brands table
 CREATE TABLE IF NOT EXISTS car_brands (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
+    name TEXT UNIQUE NOT NULL,
+    image_url TEXT
 );
 
 -- Car Models table

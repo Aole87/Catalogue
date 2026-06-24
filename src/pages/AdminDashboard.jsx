@@ -109,9 +109,9 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
                </div>
 
                {activeTab === 'dashboard' && <DashboardView stats={stats} />}
-               {activeTab === 'categories' && <EntityManager table="categories" title="Category" fields={['name']} />}
-               {activeTab === 'brands' && <EntityManager table="brands" title="Brand" fields={['name']} />}
-               {activeTab === 'car-brands' && <EntityManager table="car_brands" title="Car Brand" fields={['name']} />}
+               {activeTab === 'categories' && <EntityManager table="categories" title="Category" fields={['name', 'image_url']} />}
+               {activeTab === 'brands' && <EntityManager table="brands" title="Brand" fields={['name', 'image_url']} />}
+               {activeTab === 'car-brands' && <EntityManager table="car_brands" title="Car Brand" fields={['name', 'image_url']} />}
                {activeTab === 'car-models' && <CarModelManager />}
                {activeTab === 'car-years' && <EntityManager table="car_years" title="Car Year" fields={['year']} />}
                {activeTab === 'products' && <ProductManager />}
@@ -204,19 +204,64 @@ const EntityManager = ({ table, title, fields = ['name'] }) => {
       <div className="space-y-6">
          <div className="bg-white rounded shadow-sm">
             <div className="p-4 border-b border-gray-100 font-semibold text-gray-600">{editId ? 'Edit' : 'Add New'} {title}</div>
-            <div className="p-6 flex flex-wrap gap-4">
-               {fields.map(f => (
-                  <div key={f} className="flex-1 min-w-[200px]">
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">{f.replace('_', ' ')}</label>
-                     <input
-                        type="text"
-                        className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                        value={formData[f] || ''}
-                        onChange={e => setFormData({ ...formData, [f]: e.target.value })}
-                     />
-                  </div>
-               ))}
-               <div className="flex items-end gap-2">
+            <div className="p-6 flex flex-wrap gap-4 items-end">
+               {fields.map(f => {
+                  if (f === 'image_url') {
+                     return (
+                        <div key={f} className="flex-1 min-w-[200px]">
+                           <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">{f.replace('_', ' ')}</label>
+                           <div className="flex items-center gap-3 mt-1">
+                              {formData[f] ? (
+                                 <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden group">
+                                    <img src={formData[f]} alt="Uploaded" className="w-full h-full object-cover" />
+                                    <button
+                                       type="button"
+                                       onClick={() => setFormData({ ...formData, [f]: '' })}
+                                       className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                       <X className="w-2.5 h-2.5" />
+                                    </button>
+                                 </div>
+                              ) : (
+                                 <label className="w-12 h-12 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:text-[#41cac0] hover:border-[#41cac0] transition-colors cursor-pointer">
+                                    <Upload className="w-4 h-4" />
+                                    <input
+                                       type="file"
+                                       accept="image/*"
+                                       className="hidden"
+                                       onChange={e => {
+                                          const file = e.target.files[0];
+                                          if (file) {
+                                             const reader = new FileReader();
+                                             reader.onload = (ev) => {
+                                                setFormData({ ...formData, [f]: ev.target.result });
+                                             };
+                                             reader.readAsDataURL(file);
+                                          }
+                                       }}
+                                    />
+                                 </label>
+                              )}
+                              <span className="text-xs text-gray-400">
+                                 {formData[f] ? 'Click X to remove image' : 'Upload PNG/JPG'}
+                              </span>
+                           </div>
+                        </div>
+                     );
+                  }
+                  return (
+                     <div key={f} className="flex-1 min-w-[200px]">
+                        <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">{f.replace('_', ' ')}</label>
+                        <input
+                           type="text"
+                           className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
+                           value={formData[f] || ''}
+                           onChange={e => setFormData({ ...formData, [f]: e.target.value })}
+                        />
+                     </div>
+                  );
+               })}
+               <div className="flex items-end gap-2 pb-1">
                   <button onClick={handleSave} className="bg-[#a9d86e] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-[#8ebc5a] transition-colors">
                      {editId ? 'Update' : 'Save'}
                   </button>
@@ -238,7 +283,19 @@ const EntityManager = ({ table, title, fields = ['name'] }) => {
                   {items.map(item => (
                      <tr key={item.id} className="border-b border-gray-50 last:border-none hover:bg-gray-50 transition-colors">
                         <td className="p-4 text-sm text-gray-400">#{item.id}</td>
-                        {fields.map(f => <td key={f} className="p-4 text-sm text-gray-600">{item[f]}</td>)}
+                        {fields.map(f => (
+                           <td key={f} className="p-4 text-sm text-gray-600">
+                              {f === 'image_url' ? (
+                                 item[f] ? (
+                                    <img src={item[f]} alt="logo" className="w-10 h-10 object-contain rounded border bg-white" />
+                                 ) : (
+                                    <span className="text-gray-300 text-xs font-normal italic">No image</span>
+                                 )
+                              ) : (
+                                 item[f]
+                              )}
+                           </td>
+                        ))}
                         <td className="p-4 text-right">
                            <button onClick={() => { setEditId(item.id); setFormData(item); }} className="text-blue-400 hover:text-blue-600 p-1 mr-2"><Edit className="w-4 h-4" /></button>
                            <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>

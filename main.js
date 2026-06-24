@@ -14,7 +14,8 @@ let db;
     await db.exec(`
       CREATE TABLE IF NOT EXISTS car_brands (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT UNIQUE NOT NULL
+          name TEXT UNIQUE NOT NULL,
+          image_url TEXT
       );
       CREATE TABLE IF NOT EXISTS car_models (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +29,13 @@ let db;
           year TEXT UNIQUE NOT NULL
       );
     `);
+
+    // Safe migration for existing databases:
+    try {
+      await db.exec("ALTER TABLE car_brands ADD COLUMN image_url TEXT;");
+    } catch (e) {
+      // Column already exists, ignore
+    }
 
     // Migrate existing data from products table if any
     const existingBrands = await db.all("SELECT DISTINCT car_brand FROM products WHERE car_brand IS NOT NULL AND car_brand != ''");

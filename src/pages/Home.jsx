@@ -288,6 +288,7 @@ const renderBrandLogo = (brandName) => {
 const Home = ({ navigate, user }) => {
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [carBrands, setCarBrands] = useState([]);
 
   // Vehicle Selector Dropdowns Data
   const [makes, setMakes] = useState([]);
@@ -359,6 +360,15 @@ const Home = ({ navigate, user }) => {
         { id: 8, name: 'Sakura' }
       ];
     }
+    if (upperSql.includes('FROM CAR_BRANDS')) {
+      return [
+        { id: 1, name: 'Toyota', image_url: '' },
+        { id: 2, name: 'Honda', image_url: '' },
+        { id: 3, name: 'Mazda', image_url: '' },
+        { id: 4, name: 'Ford', image_url: '' },
+        { id: 5, name: 'BMW', image_url: '' }
+      ];
+    }
     if (upperSql.includes('DISTINCT CAR_BRAND')) {
       return [
         { car_brand: 'Toyota' },
@@ -396,8 +406,10 @@ const Home = ({ navigate, user }) => {
       try {
         const cats = await dbQuery('SELECT * FROM categories');
         const brs = await dbQuery('SELECT * FROM brands');
+        const cbrs = await dbQuery('SELECT * FROM car_brands ORDER BY name ASC');
         setCategories(cats);
         setBrands(brs);
+        setCarBrands(cbrs);
       } catch (err) {
         console.error(err);
       }
@@ -817,14 +829,18 @@ const Home = ({ navigate, user }) => {
               <h2 className="text-lg font-black text-gray-800 tracking-wide mb-4">Featured manufacturers</h2>
 
               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-3">
-                {POPULAR_MAKES.map(make => (
+                {carBrands.map(brand => (
                   <div
-                    key={make.name}
-                    onClick={() => navigate('product-list', { filters: { car_brand: make.name } })}
+                    key={brand.id || brand.name}
+                    onClick={() => navigate('product-list', { filters: { car_brand: brand.name } })}
                     className="flex flex-col items-center justify-center"
                   >
-                    <div className="w-12 h-12 bg-white rounded-full border border-gray-200 flex items-center justify-center shadow-sm cursor-pointer transition-all duration-300 hover:scale-110 hover:border-[#ff6c60]/40 hover:shadow-md text-gray-700 hover:text-[#ff6c60]">
-                      {renderBrandLogo(make.name)}
+                    <div className="w-12 h-12 bg-white rounded-full border border-gray-200 flex items-center justify-center shadow-sm cursor-pointer transition-all duration-300 hover:scale-110 hover:border-[#ff6c60]/40 hover:shadow-md text-gray-700 hover:text-[#ff6c60] overflow-hidden">
+                      {brand.image_url ? (
+                        <img src={brand.image_url} alt={brand.name} className="w-full h-full object-contain" />
+                      ) : (
+                        renderBrandLogo(brand.name)
+                      )}
                     </div>
                   </div>
                 ))}
