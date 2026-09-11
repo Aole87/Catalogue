@@ -1,0 +1,11 @@
+{
+  "name": "@car-parts/api",
+  "version": "1.0.0",
+  "description": "Fastify TypeScript Backend API Server",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  }
+}

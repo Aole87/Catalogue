@@ -1,165 +1,829 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Package, Tag, Layers, Users, Shield, LogOut, Plus, Trash2, Edit, Save, X, Search, Menu, Bell, Mail, ChevronDown, Upload, FileSpreadsheet, Image, CheckCircle, AlertCircle, Download, Eye, RefreshCw, Car, Sliders, Calendar } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Package,
+  Tag,
+  Layers,
+  Users,
+  Shield,
+  LogOut,
+  Plus,
+  Trash2,
+  Edit,
+  Save,
+  X,
+  Search,
+  Menu,
+  Bell,
+  Mail,
+  ChevronDown,
+  Upload,
+  FileSpreadsheet,
+  Image,
+  CheckCircle,
+  AlertCircle,
+  Download,
+  Eye,
+  RefreshCw,
+  Car,
+  Sliders,
+  Calendar,
+  ShoppingBag,
+  Warehouse,
+  Truck,
+  Megaphone,
+  UserCheck,
+  Percent,
+  TrendingUp,
+  TrendingDown,
+  MousePointer,
+  DollarSign,
+  Monitor,
+  LogIn,
+  Touchpad,
+  Rocket,
+  ArrowUpRight,
+  ChevronRight,
+  BarChart3,
+  CreditCard,
+  Settings,
+  HelpCircle,
+} from 'lucide-react';
+import OrderManager from '../components/admin/OrderManager';
+import InventoryManager from '../components/admin/InventoryManager';
+import ProcurementManager from '../components/admin/ProcurementManager';
+import CrmManager from '../components/admin/CrmManager';
+import MarketingManager from '../components/admin/MarketingManager';
 
 const AdminDashboard = ({ navigate, setIsAdmin }) => {
-   const [activeTab, setActiveTab] = useState('dashboard');
-   const [stats, setStats] = useState({ users: 0, products: 0, categories: 0, brands: 0 });
-   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [stats, setStats] = useState({ users: 0, products: 0, categories: 0, brands: 0 });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedDateRange, setSelectedDateRange] = useState('May 12 – May 18, 2024');
 
-   useEffect(() => {
-      setIsAdmin(true);
-      const fetchStats = async () => {
-         try {
-            const u = await window.electronAPI.query('SELECT COUNT(*) as count FROM users');
-            const p = await window.electronAPI.query('SELECT COUNT(*) as count FROM products');
-            const c = await window.electronAPI.query('SELECT COUNT(*) as count FROM categories');
-            const b = await window.electronAPI.query('SELECT COUNT(*) as count FROM brands');
-            setStats({ users: u[0].count, products: p[0].count, categories: c[0].count, brands: b[0].count });
-         } catch (err) { console.error(err); }
-      };
-      fetchStats();
-   }, []);
+  useEffect(() => {
+    setIsAdmin(true);
+    const fetchStats = async () => {
+      try {
+        if (window.electronAPI && typeof window.electronAPI.query === 'function') {
+          const u = await window.electronAPI.query('SELECT COUNT(*) as count FROM users');
+          const p = await window.electronAPI.query('SELECT COUNT(*) as count FROM products');
+          const c = await window.electronAPI.query('SELECT COUNT(*) as count FROM categories');
+          const b = await window.electronAPI.query('SELECT COUNT(*) as count FROM brands');
+          setStats({ users: u?.[0]?.count || 32, products: p?.[0]?.count || 120, categories: c?.[0]?.count || 18, brands: b?.[0]?.count || 8 });
+        } else {
+          setStats({ users: 32, products: 120, categories: 18, brands: 8 });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchStats();
+  }, []);
 
-   const handleLogout = () => {
-      setIsAdmin(false);
-      navigate('home');
-   };
+  const handleLogout = () => {
+    setIsAdmin(false);
+    navigate('home');
+  };
 
-   const SidebarItem = ({ id, icon: Icon, label }) => (
-      <div
-         onClick={() => setActiveTab(id)}
-         className={`flex items-center gap-3 py-3 px-5 cursor-pointer transition-all border-l-4 ${activeTab === id ? 'bg-[#2e3844] text-[#ff6c60] border-[#ff6c60]' : 'text-[#aeb2b7] border-transparent hover:text-white hover:bg-[#2e3844]'}`}
+  const SidebarItem = ({ id, icon: Icon, label, badge }) => {
+    const isActive = activeTab === id;
+    return (
+      <button
+        onClick={() => setActiveTab(id)}
+        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-medium ${
+          isActive
+            ? 'bg-[#144349] text-white shadow-sm'
+            : 'text-[#8daab0] hover:text-white hover:bg-[#10373d]'
+        }`}
       >
-         <Icon className="w-4 h-4" />
-         <span className="text-sm font-normal">{label}</span>
-      </div>
-   );
+        <div className="flex items-center gap-3">
+          <Icon className={`w-4 h-4 ${isActive ? 'text-[#ff6b2b]' : 'text-[#729299]'}`} />
+          <span>{label}</span>
+        </div>
+        {badge && (
+          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#ff6b2b] text-white">
+            {badge}
+          </span>
+        )}
+      </button>
+    );
+  };
 
-   return (
-      <div className="flex h-screen bg-[#f1f2f7]">
-         {/* Sidebar */}
-         <aside className={`${isSidebarOpen ? 'w-60' : 'w-0 overflow-hidden'} bg-[#35404d] flex flex-col transition-all duration-300 z-30`}>
-            <div className="h-16 flex items-center px-6 bg-[#2e3844]">
-               <span className="text-white text-xl font-bold tracking-tighter">FLAT<span className="text-[#ff6c60]">LAB</span></span>
+  return (
+    <div className="flex h-screen bg-[#f3f6f8] text-gray-800 font-sans antialiased selection:bg-[#ff6b2b] selection:text-white">
+      {/* ADNEX Dark Teal Sidebar */}
+      <aside
+        className={`${
+          isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
+        } bg-[#0c2b2f] flex flex-col transition-all duration-300 z-30 shrink-0 border-r border-[#133d42]`}
+      >
+        {/* Brand Logo Header */}
+        <div className="h-20 flex items-center px-6 gap-3 border-b border-[#133d42]/60">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ff5500] to-[#ff8c42] flex items-center justify-center shadow-lg shadow-orange-950/40">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white fill-current">
+              <path d="M12 2L2 19.5h20L12 2zm0 4.5l6.5 11h-13L12 6.5z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-white text-lg font-black tracking-wider flex items-center gap-1">
+              ADNEX <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#ff6b2b]/20 text-[#ff8c42] font-semibold tracking-normal border border-[#ff6b2b]/30">PRO</span>
+            </div>
+            <div className="text-[10px] text-[#6d8e94] font-medium tracking-wide">Automotive Commerce</div>
+          </div>
+        </div>
+
+        {/* Sidebar Nav */}
+        <nav className="flex-1 px-4 py-5 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-[#16474e]">
+          <div className="px-3 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Main Analytics</div>
+          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Overview" />
+          <SidebarItem id="marketing" icon={Megaphone} label="Campaigns & Ads" />
+          <SidebarItem id="crm" icon={UserCheck} label="Audience & CRM" />
+          <SidebarItem id="orders" icon={ShoppingBag} label="Reports & Orders" />
+
+          <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Commerce & Supply</div>
+          <SidebarItem id="inventory" icon={Warehouse} label="Inventory & Stock" />
+          <SidebarItem id="procurement" icon={Truck} label="Procurement & POs" />
+          <SidebarItem id="products" icon={Package} label="Catalog Products" />
+          <SidebarItem id="import" icon={FileSpreadsheet} label="Import Data" />
+
+          <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Vehicle & Setup</div>
+          <SidebarItem id="categories" icon={Layers} label="Categories" />
+          <SidebarItem id="brands" icon={Tag} label="Brands" />
+          <SidebarItem id="car-brands" icon={Car} label="Car Brands" />
+          <SidebarItem id="car-models" icon={Sliders} label="Car Models" />
+          <SidebarItem id="car-years" icon={Calendar} label="Car Years" />
+
+          <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Access & Admin</div>
+          <SidebarItem id="members" icon={Users} label="Members" />
+          <SidebarItem id="admins" icon={Shield} label="Administrators" />
+        </nav>
+
+        {/* Pro Plan Card */}
+        <div className="p-4 border-t border-[#133d42]/60">
+          <div className="bg-[#081e21] rounded-2xl p-4 border border-[#174e54]/50 relative overflow-hidden shadow-inner">
+            <div className="w-8 h-8 rounded-xl bg-[#ff6b2b]/15 text-[#ff8c42] flex items-center justify-center mb-2.5 border border-[#ff6b2b]/30">
+              <Rocket className="w-4 h-4" />
+            </div>
+            <h4 className="text-xs font-bold text-white mb-1">Unlock more with Pro Plan</h4>
+            <p className="text-[11px] text-[#71969d] mb-3 leading-relaxed">
+              Get advanced insights, export reports and automated marketing.
+            </p>
+            <button
+              onClick={() => setActiveTab('marketing')}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#ff5500] to-[#ff7324] hover:from-[#e04b00] hover:to-[#ff5500] text-white text-xs font-bold transition-all shadow-md shadow-orange-950/40 flex items-center justify-center gap-1.5"
+            >
+              <span>Upgrade Now</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* User Profile Bar */}
+        <div className="p-4 border-t border-[#133d42]/60 flex items-center justify-between bg-[#081e21]/60">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative">
+              <div className="w-9 h-9 rounded-full bg-[#164e54] text-white flex items-center justify-center font-bold text-xs border border-[#2dd4bf]/40">
+                JD
+              </div>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#2dd4bf] border-2 border-[#0c2b2f]"></span>
+            </div>
+            <div className="truncate">
+              <div className="text-xs font-bold text-white truncate">John Doe</div>
+              <div className="text-[10px] text-[#72979e] truncate">john.doe@adnex.com</div>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Logout"
+            className="p-1.5 rounded-lg text-[#72979e] hover:text-[#ff6b2b] hover:bg-[#10373d] transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Modern Top Header */}
+        <header className="h-20 bg-white border-b border-gray-200/80 flex items-center justify-between px-8 shrink-0 z-20">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 rounded-xl text-gray-500 hover:text-[#0c2b2f] hover:bg-gray-100 transition-all"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                Welcome back, John! 👋
+              </h1>
+              <p className="text-xs text-gray-500">Here's what's happening with your ad campaigns and commerce platform.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5">
+            {/* Date Range Selector Pill */}
+            <div className="flex items-center gap-2 bg-white border border-gray-200/90 rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:border-gray-300 transition-all cursor-pointer">
+              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              <span>{selectedDateRange}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-gray-400 ml-1" />
             </div>
 
-            <nav className="flex-1 mt-4">
-               <SidebarItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
-               <div className="px-5 py-4 text-[10px] uppercase text-[#6d767d] font-bold">Inventory</div>
-               <SidebarItem id="products" icon={Package} label="Products" />
-               <SidebarItem id="import" icon={FileSpreadsheet} label="Import Excel" />
-               <SidebarItem id="categories" icon={Layers} label="Categories" />
-               <SidebarItem id="brands" icon={Tag} label="Brands" />
-               <SidebarItem id="car-brands" icon={Car} label="Car Brands" />
-               <SidebarItem id="car-models" icon={Sliders} label="Car Models" />
-               <SidebarItem id="car-years" icon={Calendar} label="Car Years" />
-               <div className="px-5 py-4 text-[10px] uppercase text-[#6d767d] font-bold">User Management</div>
-               <SidebarItem id="members" icon={Users} label="Members" />
-               <SidebarItem id="admins" icon={Shield} label="Administrators" />
-            </nav>
+            {/* Export Report Action */}
+            <button
+              onClick={() => alert('Exporting ad campaigns & performance report (CSV/PDF)...')}
+              className="flex items-center gap-2 bg-[#0c2b2f] hover:bg-[#071f22] text-white rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all"
+            >
+              <Download className="w-3.5 h-3.5 text-[#2dd4bf]" />
+              <span>Export Report</span>
+            </button>
 
-            <div className="p-4 border-t border-[#2e3844]">
-               <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2 text-[#aeb2b7] hover:text-white w-full">
-                   <LogOut className="w-4 h-4" />
-                   <span className="text-sm">Logout</span>
-               </button>
-            </div>
-         </aside>
+            {/* View Storefront */}
+            <button
+              onClick={() => {
+                setIsAdmin(false);
+                navigate('home');
+              }}
+              className="flex items-center gap-2 bg-white border border-gray-200 hover:border-[#ff6b2b] hover:text-[#ff6b2b] text-gray-700 rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all"
+            >
+              <Eye className="w-3.5 h-3.5 text-[#ff6b2b]" />
+              <span>Storefront</span>
+            </button>
+          </div>
+        </header>
 
-         {/* Main Content */}
-         <div className="flex-1 flex flex-col min-w-0">
-            {/* Header */}
-            <header className="h-16 bg-white flex justify-between items-center px-6 shadow-sm z-20">
-               <div className="flex items-center gap-4">
-                  <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-500">
-                     <Menu className="w-5 h-5" />
-                  </button>
-                  <div className="relative hidden md:block">
-                     <input type="text" placeholder="Search" className="bg-[#f1f2f7] border-none rounded py-1.5 px-4 text-sm w-64 focus:ring-1 focus:ring-gray-300" />
-                  </div>
-               </div>
-
-               <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2 cursor-pointer group">
-                     <div className="w-8 h-8 bg-gray-200 rounded overflow-hidden">
-                        <div className="w-full h-full bg-[#ff6c60] flex items-center justify-center text-white font-bold">A</div>
-                     </div>
-                     <span className="text-sm font-semibold text-gray-600">Admin User</span>
-                     <ChevronDown className="w-3 h-3 text-gray-400" />
-                  </div>
-               </div>
-            </header>
-
-            {/* Page Content */}
-            <main className="flex-1 overflow-auto p-8">
-               <div className="mb-8">
-                  <h2 className="text-2xl font-light text-[#39435c] mb-1">
-                     {activeTab === 'dashboard' && 'Dashboard'}
-                     {activeTab === 'products' && 'Product List'}
-                     {activeTab === 'import' && 'Import Products from Excel'}
-                     {activeTab === 'categories' && 'Categories'}
-                     {activeTab === 'brands' && 'Brands'}
-                     {activeTab === 'car-brands' && 'Car Brands'}
-                     {activeTab === 'car-models' && 'Car Models'}
-                     {activeTab === 'car-years' && 'Car Years'}
-                     {activeTab === 'members' && 'Member Management'}
-                     {activeTab === 'admins' && 'Admin Management'}
-                  </h2>
-                  <div className="text-xs text-gray-400">Home / {activeTab}</div>
-               </div>
-
-               {activeTab === 'dashboard' && <DashboardView stats={stats} />}
-               {activeTab === 'categories' && <EntityManager table="categories" title="Category" fields={['name', 'image_url']} />}
-               {activeTab === 'brands' && <EntityManager table="brands" title="Brand" fields={['name', 'image_url']} />}
-               {activeTab === 'car-brands' && <EntityManager table="car_brands" title="Car Brand" fields={['name', 'image_url']} />}
-               {activeTab === 'car-models' && <CarModelManager />}
-               {activeTab === 'car-years' && <EntityManager table="car_years" title="Car Year" fields={['year']} />}
-               {activeTab === 'products' && <ProductManager />}
-               {activeTab === 'import' && <ExcelImporter />}
-               {activeTab === 'members' && <EntityManager table="users" title="Member" fields={['first_name', 'last_name', 'email', 'business_type']} />}
-               {activeTab === 'admins' && <EntityManager table="admins" title="Admin" fields={['username', 'role']} />}
-            </main>
-         </div>
+        {/* Page Content Scrollable Area */}
+        <main className="flex-1 overflow-y-auto p-8 bg-[#f3f6f8] space-y-8">
+          {activeTab === 'dashboard' && <AdnexDashboardOverview stats={stats} setActiveTab={setActiveTab} />}
+          {activeTab === 'orders' && <OrderManager />}
+          {activeTab === 'crm' && <CrmManager />}
+          {activeTab === 'marketing' && <MarketingManager />}
+          {activeTab === 'inventory' && <InventoryManager />}
+          {activeTab === 'procurement' && <ProcurementManager />}
+          {activeTab === 'categories' && <EntityManager table="categories" title="Category" fields={['name', 'image_url']} />}
+          {activeTab === 'brands' && <EntityManager table="brands" title="Brand" fields={['name', 'image_url']} />}
+          {activeTab === 'car-brands' && <EntityManager table="car_brands" title="Car Brand" fields={['name', 'image_url']} />}
+          {activeTab === 'car-models' && <CarModelManager />}
+          {activeTab === 'car-years' && <EntityManager table="car_years" title="Car Year" fields={['year']} />}
+          {activeTab === 'products' && <ProductManager />}
+          {activeTab === 'import' && <ExcelImporter />}
+          {activeTab === 'members' && <EntityManager table="users" title="Member" fields={['first_name', 'last_name', 'email', 'business_type']} />}
+          {activeTab === 'admins' && <EntityManager table="admins" title="Admin" fields={['username', 'role']} />}
+        </main>
       </div>
-   );
+    </div>
+  );
 };
 
-const DashboardView = ({ stats }) => (
-   <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-         <StatBox title="NEW USERS" value={stats.users} color="#ff6c60" icon={Users} />
-         <StatBox title="PRODUCTS" value={stats.products} color="#41cac0" icon={Package} />
-         <StatBox title="CATEGORIES" value={stats.categories} color="#f1c40f" icon={Layers} />
-         <StatBox title="BRANDS" value={stats.brands} color="#a9d86e" icon={Tag} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         <div className="lg:col-span-2 bg-white rounded shadow-sm">
-            <div className="p-4 border-b border-gray-100 font-semibold text-gray-600">Site Statistics</div>
-            <div className="p-10 h-64 flex items-center justify-center text-gray-300 border-2 border-dashed m-4 rounded">
-               [ Chart Placeholder ]
+/**
+ * ADNEX-style Dashboard Overview Component matching the user reference design
+ */
+const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
+  return (
+    <div className="space-y-6">
+      {/* Row 1: 4 Key Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Metric 1: Total Impressions */}
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-start justify-between">
+          <div>
+            <div className="text-[11px] font-medium text-gray-500 mb-1">Total Impressions</div>
+            <div className="text-2xl font-black text-gray-900 tracking-tight mb-2">24.68M</div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>↑ 18.6%</span>
+              <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
             </div>
-         </div>
-         <div className="bg-[#41cac0] rounded shadow-sm text-white p-6">
-            <h3 className="text-lg font-light mb-4">Total Revenue</h3>
-            <div className="text-4xl font-bold mb-6">฿ 45,000</div>
-            <div className="text-sm opacity-80">This month performance is 15% higher than last month.</div>
-         </div>
-      </div>
-   </div>
-);
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-[#0c2b2f] text-[#2dd4bf] flex items-center justify-center shrink-0 shadow-sm">
+            <Eye className="w-5 h-5" />
+          </div>
+        </div>
 
-const StatBox = ({ title, value, color, icon: Icon }) => (
-   <div className="bg-white rounded shadow-sm flex overflow-hidden">
-      <div className="w-1/3 flex items-center justify-center py-6" style={{ backgroundColor: color }}>
-         <Icon className="text-white w-8 h-8" />
+        {/* Metric 2: Total Clicks */}
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-start justify-between">
+          <div>
+            <div className="text-[11px] font-medium text-gray-500 mb-1">Total Clicks</div>
+            <div className="text-2xl font-black text-gray-900 tracking-tight mb-2">312.47K</div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>↑ 22.4%</span>
+              <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-[#ff6b2b] text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+            <MousePointer className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Metric 3: Avg. CTR */}
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-start justify-between">
+          <div>
+            <div className="text-[11px] font-medium text-gray-500 mb-1">Avg. CTR</div>
+            <div className="text-2xl font-black text-gray-900 tracking-tight mb-2">1.27%</div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>↑ 6.3%</span>
+              <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-[#082226] text-[#34d399] flex items-center justify-center shrink-0 shadow-sm">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Metric 4: Total Spend */}
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-start justify-between">
+          <div>
+            <div className="text-[11px] font-medium text-gray-500 mb-1">Total Spend</div>
+            <div className="text-2xl font-black text-gray-900 tracking-tight mb-2">$18,732.48</div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+              <TrendingDown className="w-3.5 h-3.5" />
+              <span>↓ 4.8%</span>
+              <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
+            </div>
+          </div>
+          <div className="w-11 h-11 rounded-2xl bg-[#ff5500] text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+            <DollarSign className="w-5 h-5" />
+          </div>
+        </div>
       </div>
-      <div className="w-2/3 p-4 flex flex-col justify-center">
-         <div className="text-2xl font-bold text-gray-700">{value}</div>
-         <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{title}</div>
+
+      {/* Row 2: 3 Category/Ad Channel Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Channel 1: Banner Ads (Teal) */}
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#0c2b2f] text-[#2dd4bf] flex items-center justify-center">
+                  <Monitor className="w-4 h-4" />
+                </div>
+                <span className="font-bold text-sm text-gray-900">Banner Ads</span>
+              </div>
+              <button
+                onClick={() => setActiveTab('marketing')}
+                className="text-xs font-semibold text-[#0c2b2f] hover:text-[#ff6b2b] flex items-center gap-1 transition-colors"
+              >
+                <span>View Details</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="text-[11px] text-gray-400 mb-0.5">Impressions</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-gray-900">12.45M</span>
+                <span className="text-xs font-bold text-emerald-600">↑ 19.3%</span>
+              </div>
+            </div>
+
+            {/* Sparkline Graphic (Teal Area) */}
+            <div className="h-28 w-full mb-4">
+              <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
+                <defs>
+                  <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0c2b2f" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#0c2b2f" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 0,65 Q 40,75 75,55 T 150,60 T 225,45 T 300,30 L 300,100 L 0,100 Z"
+                  fill="url(#tealGradient)"
+                />
+                <path
+                  d="M 0,65 Q 40,75 75,55 T 150,60 T 225,45 T 300,30"
+                  fill="none"
+                  stroke="#0c2b2f"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <circle cx="75" cy="55" r="3" fill="#0c2b2f" />
+                <circle cx="150" cy="60" r="3" fill="#0c2b2f" />
+                <circle cx="225" cy="45" r="3" fill="#0c2b2f" />
+                <circle cx="300" cy="30" r="3.5" fill="#2dd4bf" stroke="#0c2b2f" strokeWidth="2" />
+              </svg>
+              <div className="flex justify-between text-[10px] text-gray-400 pt-1">
+                <span>May 12</span>
+                <span>May 14</span>
+                <span>May 16</span>
+                <span>May 18</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Rows */}
+          <div className="pt-4 border-t border-gray-100 space-y-2.5 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Clicks</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>162.45K</span>
+                <span className="text-[11px] font-semibold text-emerald-600">↑ 21.1%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">CTR</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>1.31%</span>
+                <span className="text-[11px] font-semibold text-emerald-600">↑ 6.4%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Spend</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>$9,652.21</span>
+                <span className="text-[11px] font-semibold text-rose-500">↓ 3.7%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-gray-500">Top Campaign</span>
+              <span className="font-semibold text-[#0c2b2f] hover:underline cursor-pointer">Summer Sale Banner</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Channel 2: Login Ads (Orange) */}
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#ff6b2b] text-white flex items-center justify-center">
+                  <LogIn className="w-4 h-4" />
+                </div>
+                <span className="font-bold text-sm text-gray-900">Login Ads</span>
+              </div>
+              <button
+                onClick={() => setActiveTab('marketing')}
+                className="text-xs font-semibold text-[#ff6b2b] hover:text-[#e04b00] flex items-center gap-1 transition-colors"
+              >
+                <span>View Details</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="text-[11px] text-gray-400 mb-0.5">Impressions</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-gray-900">7.83M</span>
+                <span className="text-xs font-bold text-emerald-600">↑ 16.8%</span>
+              </div>
+            </div>
+
+            {/* Sparkline Graphic (Orange Area) */}
+            <div className="h-28 w-full mb-4">
+              <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
+                <defs>
+                  <linearGradient id="orangeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#ff6b2b" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#ff6b2b" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 0,70 Q 50,85 100,65 T 200,55 T 300,40 L 300,100 L 0,100 Z"
+                  fill="url(#orangeGradient)"
+                />
+                <path
+                  d="M 0,70 Q 50,85 100,65 T 200,55 T 300,40"
+                  fill="none"
+                  stroke="#ff6b2b"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <circle cx="100" cy="65" r="3" fill="#ff6b2b" />
+                <circle cx="200" cy="55" r="3" fill="#ff6b2b" />
+                <circle cx="300" cy="40" r="3.5" fill="#ff8c42" stroke="#ff5500" strokeWidth="2" />
+              </svg>
+              <div className="flex justify-between text-[10px] text-gray-400 pt-1">
+                <span>May 12</span>
+                <span>May 14</span>
+                <span>May 16</span>
+                <span>May 18</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Rows */}
+          <div className="pt-4 border-t border-gray-100 space-y-2.5 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Clicks</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>98.21K</span>
+                <span className="text-[11px] font-semibold text-emerald-600">↑ 20.7%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">CTR</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>1.25%</span>
+                <span className="text-[11px] font-semibold text-emerald-600">↑ 5.8%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Spend</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>$6,342.18</span>
+                <span className="text-[11px] font-semibold text-rose-500">↓ 5.2%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-gray-500">Top Campaign</span>
+              <span className="font-semibold text-[#ff6b2b] hover:underline cursor-pointer">Login Fest May</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Channel 3: Swipe Ads (Green/Cyan) */}
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#097969] text-white flex items-center justify-center">
+                  <Touchpad className="w-4 h-4" />
+                </div>
+                <span className="font-bold text-sm text-gray-900">Swipe Ads</span>
+              </div>
+              <button
+                onClick={() => setActiveTab('marketing')}
+                className="text-xs font-semibold text-[#097969] hover:text-[#0c2b2f] flex items-center gap-1 transition-colors"
+              >
+                <span>View Details</span>
+                <span>→</span>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="text-[11px] text-gray-400 mb-0.5">Impressions</div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-gray-900">4.40M</span>
+                <span className="text-xs font-bold text-emerald-600">↑ 17.2%</span>
+              </div>
+            </div>
+
+            {/* Sparkline Graphic (Cyan Area) */}
+            <div className="h-28 w-full mb-4">
+              <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
+                <defs>
+                  <linearGradient id="cyanGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0d9488" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#0d9488" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 0,75 Q 40,80 80,60 T 160,65 T 240,45 T 300,35 L 300,100 L 0,100 Z"
+                  fill="url(#cyanGradient)"
+                />
+                <path
+                  d="M 0,75 Q 40,80 80,60 T 160,65 T 240,45 T 300,35"
+                  fill="none"
+                  stroke="#0d9488"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <circle cx="80" cy="60" r="3" fill="#0d9488" />
+                <circle cx="160" cy="65" r="3" fill="#0d9488" />
+                <circle cx="240" cy="45" r="3" fill="#0d9488" />
+                <circle cx="300" cy="35" r="3.5" fill="#5eead4" stroke="#0f766e" strokeWidth="2" />
+              </svg>
+              <div className="flex justify-between text-[10px] text-gray-400 pt-1">
+                <span>May 12</span>
+                <span>May 14</span>
+                <span>May 16</span>
+                <span>May 18</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown Rows */}
+          <div className="pt-4 border-t border-gray-100 space-y-2.5 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Clicks</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>51.81K</span>
+                <span className="text-[11px] font-semibold text-emerald-600">↑ 17.3%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">CTR</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>1.18%</span>
+                <span className="text-[11px] font-semibold text-emerald-600">↑ 4.9%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Spend</span>
+              <div className="flex items-center gap-1.5 font-bold text-gray-900">
+                <span>$2,738.09</span>
+                <span className="text-[11px] font-semibold text-rose-500">↓ 6.1%</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-gray-500">Top Campaign</span>
+              <span className="font-semibold text-[#097969] hover:underline cursor-pointer">Swipe & Win</span>
+            </div>
+          </div>
+        </div>
       </div>
-   </div>
-);
+
+      {/* Row 3: Main Line Chart & Donut Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Impressions Over Time (2 Columns) */}
+        <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="font-bold text-base text-gray-900">Impressions Over Time (All Channels)</h3>
+                <div className="flex items-center gap-4 mt-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0c2b2f]"></span>
+                    <span className="text-gray-600 font-medium">Banner Ads</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff6b2b]"></span>
+                    <span className="text-gray-600 font-medium">Login Ads</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#2dd4bf]"></span>
+                    <span className="text-gray-600 font-medium">Swipe Ads</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+                <span>Daily</span>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+              </div>
+            </div>
+
+            {/* SVG Multi-Line Chart */}
+            <div className="h-64 w-full relative">
+              <svg viewBox="0 0 600 200" className="w-full h-full overflow-visible">
+                {/* Horizontal Grid lines */}
+                <line x1="40" y1="20" x2="590" y2="20" stroke="#f1f5f9" strokeWidth="1" />
+                <line x1="40" y1="65" x2="590" y2="65" stroke="#f1f5f9" strokeWidth="1" />
+                <line x1="40" y1="110" x2="590" y2="110" stroke="#f1f5f9" strokeWidth="1" />
+                <line x1="40" y1="155" x2="590" y2="155" stroke="#f1f5f9" strokeWidth="1" />
+                <line x1="40" y1="195" x2="590" y2="195" stroke="#f1f5f9" strokeWidth="1" />
+
+                {/* Y Axis Labels */}
+                <text x="10" y="24" className="text-[10px] fill-gray-400 font-medium">8M</text>
+                <text x="10" y="69" className="text-[10px] fill-gray-400 font-medium">6M</text>
+                <text x="10" y="114" className="text-[10px] fill-gray-400 font-medium">4M</text>
+                <text x="10" y="159" className="text-[10px] fill-gray-400 font-medium">2M</text>
+                <text x="25" y="198" className="text-[10px] fill-gray-400 font-medium">0</text>
+
+                {/* Line 1: Banner Ads (Teal) */}
+                <path
+                  d="M 60,135 Q 140,150 220,120 T 380,100 T 480,95 T 570,60"
+                  fill="none"
+                  stroke="#0c2b2f"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                <circle cx="60" cy="135" r="4" fill="#0c2b2f" />
+                <circle cx="140" cy="142" r="4" fill="#0c2b2f" />
+                <circle cx="220" cy="120" r="4" fill="#0c2b2f" />
+                <circle cx="300" cy="115" r="4" fill="#0c2b2f" />
+                <circle cx="380" cy="100" r="4" fill="#0c2b2f" />
+                <circle cx="480" cy="95" r="4" fill="#0c2b2f" />
+                <circle cx="570" cy="60" r="5" fill="#2dd4bf" stroke="#0c2b2f" strokeWidth="2.5" />
+
+                {/* Line 2: Login Ads (Orange) */}
+                <path
+                  d="M 60,150 Q 140,165 220,148 T 380,130 T 480,138 T 570,110"
+                  fill="none"
+                  stroke="#ff6b2b"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <circle cx="60" cy="150" r="3.5" fill="#ff6b2b" />
+                <circle cx="140" cy="160" r="3.5" fill="#ff6b2b" />
+                <circle cx="220" cy="148" r="3.5" fill="#ff6b2b" />
+                <circle cx="300" cy="152" r="3.5" fill="#ff6b2b" />
+                <circle cx="380" cy="130" r="3.5" fill="#ff6b2b" />
+                <circle cx="480" cy="138" r="3.5" fill="#ff6b2b" />
+                <circle cx="570" cy="110" r="4" fill="#ff8c42" stroke="#ff5500" strokeWidth="2" />
+
+                {/* Line 3: Swipe Ads (Cyan) */}
+                <path
+                  d="M 60,175 Q 140,185 220,172 T 380,165 T 480,160 T 570,145"
+                  fill="none"
+                  stroke="#2dd4bf"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <circle cx="60" cy="175" r="3" fill="#2dd4bf" />
+                <circle cx="140" cy="180" r="3" fill="#2dd4bf" />
+                <circle cx="220" cy="172" r="3" fill="#2dd4bf" />
+                <circle cx="300" cy="170" r="3" fill="#2dd4bf" />
+                <circle cx="380" cy="165" r="3" fill="#2dd4bf" />
+                <circle cx="480" cy="160" r="3" fill="#2dd4bf" />
+                <circle cx="570" cy="145" r="3.5" fill="#5eead4" stroke="#0f766e" strokeWidth="1.5" />
+              </svg>
+            </div>
+
+            <div className="flex justify-between text-xs text-gray-400 pl-10 pr-4 pt-2">
+              <span>May 12</span>
+              <span>May 13</span>
+              <span>May 14</span>
+              <span>May 15</span>
+              <span>May 16</span>
+              <span>May 17</span>
+              <span>May 18</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Impressions by Channel (Donut Chart) */}
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold text-base text-gray-900 mb-6">Impressions by Channel</h3>
+
+            <div className="flex flex-col items-center justify-center my-2">
+              {/* Donut Chart SVG */}
+              <div className="relative w-48 h-48 flex items-center justify-center">
+                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                  {/* Total circumference = 2 * PI * 35 = ~220 */}
+                  {/* Segment 1: Banner Ads 50.5% (111) */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke="#0c2b2f"
+                    strokeWidth="16"
+                    strokeDasharray="111 220"
+                    strokeDashoffset="0"
+                  />
+                  {/* Segment 2: Login Ads 31.7% (70) */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke="#ff6b2b"
+                    strokeWidth="16"
+                    strokeDasharray="70 220"
+                    strokeDashoffset="-111"
+                  />
+                  {/* Segment 3: Swipe Ads 17.8% (39) */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="transparent"
+                    stroke="#2dd4bf"
+                    strokeWidth="16"
+                    strokeDasharray="39 220"
+                    strokeDashoffset="-181"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <span className="text-xl font-black text-gray-900 tracking-tight">24.68M</span>
+                  <span className="text-[11px] font-medium text-gray-400">Total</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Legend List */}
+            <div className="space-y-3 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 font-medium text-gray-700">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0c2b2f]"></span>
+                  <span>Banner Ads</span>
+                </div>
+                <span className="font-bold text-gray-900">12.45M (50.5%)</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 font-medium text-gray-700">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#ff6b2b]"></span>
+                  <span>Login Ads</span>
+                </div>
+                <span className="font-bold text-gray-900">7.83M (31.7%)</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 font-medium text-gray-700">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#2dd4bf]"></span>
+                  <span>Swipe Ads</span>
+                </div>
+                <span className="font-bold text-gray-900">4.40M (17.8%)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 mt-2">
+            <button
+              onClick={() => setActiveTab('marketing')}
+              className="text-xs font-bold text-[#0c2b2f] hover:text-[#ff6b2b] flex items-center justify-center gap-1.5 w-full py-2 bg-gray-50 hover:bg-orange-50/50 rounded-xl transition-all"
+            >
+              <span>View Full Breakdown</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EntityManager = ({ table, title, fields = ['name'] }) => {
    const [items, setItems] = useState([]);

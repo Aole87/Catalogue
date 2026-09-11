@@ -1,0 +1,17 @@
+{
+  "name": "@car-parts/database",
+  "version": "1.0.0",
+  "description": "Database access layer with Prisma and PostgreSQL",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.4.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.4.1",
+    "typescript": "^5.7.3"
+  }
+}

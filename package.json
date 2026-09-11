@@ -7,7 +7,31 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:start": "electron ."
+    "electron:start": "electron .",
+    "db:format": "prisma format",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:health": "tsx scripts/db-health.ts",
+    "db:test": "tsx scripts/db-test.ts",
+    "api:dev": "tsx apps/api/src/server.ts",
+    "api:test": "tsx scripts/api-test.ts",
+    "m3:test": "tsx scripts/m3-test.ts",
+    "m4:test": "tsx scripts/m4-test.ts",
+    "m5:test": "tsx scripts/m5-test.ts",
+    "m6:test": "tsx scripts/m6-test.ts",
+    "m7:test": "tsx scripts/m7-test.ts",
+    "m8:test": "tsx scripts/m8-test.ts",
+    "m9:test": "tsx scripts/m9-test.ts",
+    "m10:test": "tsx scripts/m10-test.ts",
+    "m11:test": "tsx scripts/m11-test.ts",
+    "m12:test": "tsx scripts/m12-test.ts",
+    "test": "npm run db:test && npm run api:test && npm run m3:test && npm run m4:test && npm run m5:test && npm run m6:test && npm run m7:test && npm run m8:test && npm run m9:test && npm run m10:test && npm run m11:test && npm run m12:test"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -15,17 +39,32 @@
   "type": "commonjs",
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
+    "@types/node": "^26.5.0",
     "@vitejs/plugin-react": "^6.0.2",
     "electron": "^42.3.3",
+    "prisma": "6.4.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
     "vite": "^8.0.16"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "@prisma/client": "6.4.1",
+    "@types/bcryptjs": "^2.4.6",
+    "argon2": "^0.45.1",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.3",
     "lucide-react": "^1.17.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.5.4"
   }
 }
