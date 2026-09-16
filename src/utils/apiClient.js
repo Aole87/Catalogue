@@ -593,6 +593,73 @@ class ApiClient {
     });
   }
 
+  static async deleteAdminCustomer(id) {
+    return this.request(`/admin/customers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // --- Admin Master Data (Categories, Brands, Vehicles) ---
+  static async createCategory(data) {
+    return this.request('/admin/categories', { method: 'POST', body: data });
+  }
+
+  static async updateCategory(id, data) {
+    return this.request(`/admin/categories/${id}`, { method: 'PATCH', body: data });
+  }
+
+  static async deleteCategory(id) {
+    return this.request(`/admin/categories/${id}`, { method: 'DELETE' });
+  }
+
+  static async createBrand(data) {
+    return this.request('/admin/brands', { method: 'POST', body: data });
+  }
+
+  static async updateBrand(id, data) {
+    return this.request(`/admin/brands/${id}`, { method: 'PATCH', body: data });
+  }
+
+  static async deleteBrand(id) {
+    return this.request(`/admin/brands/${id}`, { method: 'DELETE' });
+  }
+
+  static async createVehicleMake(data) {
+    return this.request('/admin/vehicles/makes', { method: 'POST', body: data });
+  }
+
+  static async updateVehicleMake(id, data) {
+    return this.request(`/admin/vehicles/makes/${id}`, { method: 'PATCH', body: data });
+  }
+
+  static async deleteVehicleMake(id) {
+    return this.request(`/admin/vehicles/makes/${id}`, { method: 'DELETE' });
+  }
+
+  static async createVehicleModel(data) {
+    return this.request('/admin/vehicles/models', { method: 'POST', body: data });
+  }
+
+  static async updateVehicleModel(id, data) {
+    return this.request(`/admin/vehicles/models/${id}`, { method: 'PATCH', body: data });
+  }
+
+  static async deleteVehicleModel(id) {
+    return this.request(`/admin/vehicles/models/${id}`, { method: 'DELETE' });
+  }
+
+  static async createVehicleGeneration(data) {
+    return this.request('/admin/vehicles/generations', { method: 'POST', body: data });
+  }
+
+  static async updateVehicleGeneration(id, data) {
+    return this.request(`/admin/vehicles/generations/${id}`, { method: 'PATCH', body: data });
+  }
+
+  static async deleteVehicleGeneration(id) {
+    return this.request(`/admin/vehicles/generations/${id}`, { method: 'DELETE' });
+  }
+
   static async getAdminCustomerActivity(id) {
     return this.request(`/admin/customers/${id}/activity`);
   }

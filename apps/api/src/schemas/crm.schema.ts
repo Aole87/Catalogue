@@ -33,6 +33,10 @@ export const updateAdminCustomerSchema = z.object({
   taxId: z.string().max(50).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  isActive: z.boolean().optional(),
+  firstName: z.string().max(100).optional(),
+  lastName: z.string().max(100).optional(),
+  email: z.string().email().optional(),
 });
 
 export const createTagSchema = z.object({

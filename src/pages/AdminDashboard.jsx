@@ -57,6 +57,9 @@ import MarketingManager from '../components/admin/MarketingManager';
 import SettingsManager from '../components/admin/SettingsManager';
 import ArticleManager from '../components/admin/ArticleManager';
 import { FileText } from 'lucide-react';
+import ApiClient from '../utils/apiClient';
+import { CategoryManager, CarBrandManager, CarModelManager as CarModelAdminManager, CarYearManager as CarYearAdminManager } from '../components/admin/MasterDataManager';
+import MemberManager from '../components/admin/MemberManager';
 
 const AdminDashboard = ({ navigate, setIsAdmin }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -266,17 +269,17 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
           {activeTab === 'marketing' && <MarketingManager />}
           {activeTab === 'inventory' && <InventoryManager />}
           {activeTab === 'procurement' && <ProcurementManager />}
-          {activeTab === 'categories' && <EntityManager table="categories" title="Category" fields={['name', 'image_url']} />}
-          {activeTab === 'brands' && <EntityManager table="brands" title="Brand" fields={['name', 'image_url']} />}
-          {activeTab === 'car-brands' && <EntityManager table="car_brands" title="Car Brand" fields={['name', 'image_url']} />}
-          {activeTab === 'car-models' && <CarModelManager />}
-          {activeTab === 'car-years' && <EntityManager table="car_years" title="Car Year" fields={['year']} />}
+          {activeTab === 'categories' && <CategoryManager />}
+          {activeTab === 'brands' && <CategoryManager />}
+          {activeTab === 'car-brands' && <CarBrandManager />}
+          {activeTab === 'car-models' && <CarModelAdminManager />}
+          {activeTab === 'car-years' && <CarYearAdminManager />}
           {activeTab === 'products' && <ProductManager />}
           {activeTab === 'import' && <ExcelImporter />}
           {activeTab === 'settings' && <SettingsManager />}
           {activeTab === 'articles' && <ArticleManager />}
-          {activeTab === 'members' && <EntityManager table="users" title="Member" fields={['first_name', 'last_name', 'email', 'business_type']} />}
-          {activeTab === 'admins' && <EntityManager table="admins" title="Admin" fields={['username', 'role']} />}
+          {activeTab === 'members' && <MemberManager />}
+          {activeTab === 'admins' && <MemberManager />}
         </main>
       </div>
     </div>

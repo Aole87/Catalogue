@@ -51,6 +51,10 @@ export default function Checkout({ onNavigate, user }) {
     postalCode: '',
     customerNotes: '',
     paymentMethod: 'PROMPTPAY',
+    needInvoice: false,
+    invoiceRecipientName: user?.companyName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''),
+    invoiceTaxId: user?.taxId || '',
+    invoiceAddress: '',
   });
 
   // Coupon State
@@ -148,6 +152,10 @@ export default function Checkout({ onNavigate, user }) {
       setIsSubmitting(true);
       setErrorMessage(null);
 
+      const invoiceNote = formData.needInvoice
+        ? `\n[ขอใบกำกับภาษีเต็มรูปแบบ]: ออกในนาม "${formData.invoiceRecipientName}" (Tax ID: ${formData.invoiceTaxId || '-'}) ที่อยู่: ${formData.invoiceAddress || 'ใช้ที่อยู่จัดส่ง'}`
+        : '';
+
       const orderPayload = {
         recipientName: formData.recipientName,
         phone: formData.phone,
@@ -157,7 +165,7 @@ export default function Checkout({ onNavigate, user }) {
         province: formData.province,
         postalCode: formData.postalCode,
         country: 'TH',
-        customerNotes: formData.customerNotes,
+        customerNotes: `${formData.customerNotes || ''}${invoiceNote}`.trim(),
         paymentMethod: formData.paymentMethod,
         shippingMethodId: selectedShipping.id,
         shippingFee: shippingFeeNum,
@@ -394,6 +402,71 @@ export default function Checkout({ onNavigate, user }) {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Tax Invoice & Receipt Details Card */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-black text-[#0e1932] flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-teal-600" />
+                  <span>4. ออกใบกำกับภาษี / ใบเสร็จรับเงิน (Tax Invoice / Receipt)</span>
+                </h2>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200">
+                  <input
+                    type="checkbox"
+                    checked={formData.needInvoice}
+                    onChange={(e) => setFormData({ ...formData, needInvoice: e.target.checked })}
+                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span>ต้องการใบกำกับภาษีเต็มรูปแบบ</span>
+                </label>
+              </div>
+
+              {formData.needInvoice ? (
+                <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+                  <div className="font-bold text-slate-700">กำหนดรายละเอียดในใบกำกับภาษี / ใบเสร็จ:</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">ชื่อผู้เสียภาษี / ออกในนามบริษัท หรือบุคคล *</label>
+                      <input
+                        type="text"
+                        required={formData.needInvoice}
+                        value={formData.invoiceRecipientName}
+                        onChange={(e) => setFormData({ ...formData, invoiceRecipientName: e.target.value })}
+                        placeholder="เช่น บริษัท อู่ยนต์การช่าง จำกัด / นายสมชาย ใจดี"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-900 font-semibold outline-none focus:border-teal-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">เลขประจำตัวผู้เสียภาษี (Tax ID) *</label>
+                      <input
+                        type="text"
+                        required={formData.needInvoice}
+                        value={formData.invoiceTaxId}
+                        onChange={(e) => setFormData({ ...formData, invoiceTaxId: e.target.value })}
+                        placeholder="เลข 13 หลัก"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-900 font-semibold outline-none focus:border-teal-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">ที่อยู่ออกใบกำกับภาษี (หากต่างจากที่อยู่จัดส่ง)</label>
+                    <input
+                      type="text"
+                      value={formData.invoiceAddress}
+                      onChange={(e) => setFormData({ ...formData, invoiceAddress: e.target.value })}
+                      placeholder="ถ้าเว้นว่างจะใช้ที่อยู่จัดส่งเดียวกัน"
+                      className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-900 font-semibold outline-none focus:border-teal-600"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  ระบบจะออกใบเสร็จรับเงินอย่างย่อตามชื่อบัญชีสมาชิก หากต้องการใบกำกับภาษีเต็มรูปแบบ สามารถติ๊กเลือกที่ช่องด้านบนได้ครับ
+                </p>
+              )}
             </div>
           </div>
 

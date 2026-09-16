@@ -66,6 +66,33 @@ export class AdminCrmController {
   }
 
   /**
+   * DELETE /api/v1/admin/customers/:id
+   */
+  static async deleteCustomer(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as { id: string };
+    const customer = await CrmRepository.findCustomerById(id);
+    if (!customer) {
+      throw new NotFoundException('Customer profile not found');
+    }
+
+    await CrmRepository.deleteCustomer(customer.id);
+
+    if (request.user) {
+      await AuditRepository.record({
+        userId: request.user.id,
+        action: 'CRM_CUSTOMER_DELETED',
+        resource: 'CustomerProfile',
+        resourceId: customer.id,
+        before: { customerType: customer.customerType, email: customer.user?.email },
+      });
+    }
+
+    return reply.status(200).send({
+      message: 'Customer profile deleted successfully',
+    });
+  }
+
+  /**
    * GET /api/v1/admin/customers/:id/activity
    */
   static async getCustomerActivity(request: FastifyRequest, reply: FastifyReply) {

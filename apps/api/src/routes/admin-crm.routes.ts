@@ -9,6 +9,7 @@ export async function adminCrmRoutes(app: FastifyInstance) {
   app.get('/admin/customers', { preHandler: [requireRole(crmRoles)] }, AdminCrmController.listCustomers);
   app.get('/admin/customers/:id', { preHandler: [requireRole(crmRoles)] }, AdminCrmController.getCustomerById);
   app.patch('/admin/customers/:id', { preHandler: [requireRole(crmRoles)] }, AdminCrmController.updateCustomer);
+  app.delete('/admin/customers/:id', { preHandler: [requireRole(crmRoles)] }, AdminCrmController.deleteCustomer);
   app.get('/admin/customers/:id/activity', { preHandler: [requireRole(crmRoles)] }, AdminCrmController.getCustomerActivity);
   app.get('/admin/customers/:id/orders', { preHandler: [requireRole(crmRoles)] }, AdminCrmController.getCustomerOrders);
 

@@ -239,7 +239,7 @@ export class CrmRepository {
   }
 
   /**
-   * Update customer profile.
+   * Update customer profile and linked user.
    */
   static async updateCustomerProfile(id: string, data: {
     customerType?: CustomerType;
@@ -247,10 +247,75 @@ export class CrmRepository {
     taxId?: string | null;
     phone?: string | null;
     notes?: string | null;
+    isActive?: boolean;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
   }) {
-    return prisma.customerProfile.update({
-      where: { id },
-      data,
+    const { isActive, firstName, lastName, email, ...profileData } = data;
+    
+    return prisma.$transaction(async (tx) => {
+      const updatedProfile = await tx.customerProfile.update({
+        where: { id },
+        data: profileData,
+      });
+
+      if (updatedProfile.userId && (isActive !== undefined || firstName || lastName || email || data.phone)) {
+        const userData: Prisma.UserUpdateInput = {};
+        if (isActive !== undefined) userData.isActive = isActive;
+        if (firstName !== undefined) userData.firstName = firstName;
+        if (lastName !== undefined) userData.lastName = lastName;
+        if (email !== undefined) userData.email = email;
+        if (data.phone !== undefined) userData.phone = data.phone;
+
+        await tx.user.update({
+          where: { id: updatedProfile.userId },
+          data: userData,
+        });
+      }
+
+      return tx.customerProfile.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              displayName: true,
+              phone: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * Soft-delete customer profile and linked user.
+   */
+  static async deleteCustomer(id: string) {
+    const customer = await prisma.customerProfile.findUnique({ where: { id } });
+    if (!customer) return null;
+
+    return prisma.$transaction(async (tx) => {
+      const now = new Date();
+      if (customer.userId) {
+        await tx.user.update({
+          where: { id: customer.userId },
+          data: {
+            deletedAt: now,
+            isActive: false,
+          },
+        });
+      }
+
+      return tx.customerProfile.update({
+        where: { id },
+        data: { deletedAt: now },
+      });
     });
   }
 
