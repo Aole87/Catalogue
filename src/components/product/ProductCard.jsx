@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Package, ExternalLink, ShieldCheck, ShoppingBag, Star, Heart, Eye } from 'lucide-react';
+import { Package, ExternalLink, ShieldCheck, ShoppingBag, Star, Heart, Eye, Lock } from 'lucide-react';
 import PriceDisplay from './PriceDisplay';
 import CompatibilityBadge from './CompatibilityBadge';
 import { useVehicle } from '../../context/VehicleContext';
 import { useCart } from '../../context/CartContext';
+import { useLanguage } from '../../context/LanguageContext';
 
-export const ProductCard = ({ product, onClick, onQuickView }) => {
+export const ProductCard = ({ product, user, onClick, onQuickView, onRequireLogin }) => {
   const { selectedVehicle, isVehicleSelected } = useVehicle();
   const { addToCart } = useCart();
+  const { t, lang } = useLanguage();
   const [imageError, setImageError] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [addedAnimation, setAddedAnimation] = useState(false);
@@ -50,28 +52,22 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
           onClick?.();
         }
       }}
-      className="group bg-white rounded-3xl border border-slate-200/90 hover:border-[#215ada] p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#215ada] cursor-pointer relative"
+      className="group bg-white rounded-3xl border border-slate-200/90 hover:border-[#0d3c90] p-4 flex flex-col justify-between transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-[#0d3c90] cursor-pointer relative"
     >
       <div>
         {/* Top Badges & Wishlist Action */}
         <div className="flex items-center justify-between gap-2 mb-2">
-          {discountPct ? (
-            <span className="px-2 py-0.5 rounded-lg bg-[#ff4c1a] text-white text-[10px] font-black tracking-tight shadow-xs">
+          {discountPct && user ? (
+            <span className="px-2 py-0.5 rounded-lg bg-[#f97316] text-white text-[10px] font-black tracking-tight shadow-xs">
               -{discountPct}%
             </span>
           ) : (
-            <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-[#215ada] text-[10px] font-bold">
+            <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-[#0d3c90] text-[10px] font-bold">
               GENUINE
             </span>
           )}
 
           <div className="flex items-center gap-1.5">
-            {/* Live Viewers Indicator */}
-            <div className="bg-slate-50 border border-slate-200/80 px-1.5 py-0.5 rounded-full flex items-center gap-1 text-[9px] text-slate-500 font-bold">
-              <Eye className="w-2.5 h-2.5 text-[#215ada]" />
-              <span>2</span>
-            </div>
-
             <button
               type="button"
               onClick={(e) => {
@@ -88,7 +84,7 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
           </div>
         </div>
 
-        {/* Product Image Container with Hover Quick View */}
+        {/* Product Image Container */}
         <div className="w-full aspect-[4/3] bg-[#f8fafc] rounded-2xl overflow-hidden mb-3 relative flex items-center justify-center border border-slate-100 group-hover:bg-blue-50/20 transition-colors">
           {imageUrl ? (
             <img
@@ -105,13 +101,6 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
             </div>
           )}
 
-          {/* Quick SKU / OEM Tag */}
-          {product.sku && (
-            <span className="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-slate-100 text-[9px] font-mono font-medium px-2 py-0.5 rounded-md shadow-xs">
-              {product.sku}
-            </span>
-          )}
-
           {/* Hover Quick View Trigger Pill */}
           {onQuickView && (
             <div className="absolute inset-x-0 bottom-2 flex justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
@@ -121,10 +110,10 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
                   e.stopPropagation();
                   onQuickView(product);
                 }}
-                className="px-3 py-1 rounded-full bg-white/95 text-slate-800 text-[11px] font-bold shadow-md flex items-center gap-1.5 hover:bg-[#215ada] hover:text-white transition-colors"
+                className="px-3 py-1 rounded-full bg-white/95 text-slate-800 text-[11px] font-bold shadow-md flex items-center gap-1.5 hover:bg-[#0d3c90] hover:text-white transition-colors"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>Quick View</span>
+                <span>{t('quickView')}</span>
               </button>
             </div>
           )}
@@ -132,7 +121,7 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
 
         {/* Brand & Star Rating */}
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#215ada]">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#0d3c90]">
             {brandName}
           </span>
           <div className="flex items-center text-amber-400 text-[10px]">
@@ -142,7 +131,7 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
         </div>
 
         {/* Product Name */}
-        <h4 className="text-xs sm:text-sm font-bold text-[#0e1932] line-clamp-2 leading-snug group-hover:text-[#215ada] transition-colors mb-2.5">
+        <h4 className="text-xs sm:text-sm font-bold text-[#0e1932] line-clamp-2 leading-snug group-hover:text-[#0d3c90] transition-colors mb-2.5">
           {product.name}
         </h4>
 
@@ -160,31 +149,51 @@ export const ProductCard = ({ product, onClick, onQuickView }) => {
         </div>
       </div>
 
-      {/* Footer Area: Price & Add to Cart Button */}
+      {/* Footer Area: Price & Member Access Control */}
       <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-        <PriceDisplay
-          price={price}
-          compareAtPrice={compareAtPrice}
-          tier={tier}
-          size="md"
-        />
+        {user ? (
+          <>
+            <PriceDisplay
+              price={price}
+              compareAtPrice={compareAtPrice}
+              tier={tier}
+              size="md"
+            />
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setAddedAnimation(true);
-            addToCart(product.id, 1, selectedVehicle?.variantId || null, true);
-            setTimeout(() => setAddedAnimation(false), 400);
-          }}
-          className={`w-10 h-10 rounded-2xl bg-[#215ada] hover:bg-[#163d94] text-white flex items-center justify-center transition-all shadow-md shadow-blue-600/20 hover:scale-105 shrink-0 ${
-            addedAnimation ? 'bg-emerald-600 scale-95' : ''
-          }`}
-          title="เพิ่มลงตะกร้า"
-          aria-label="Add to cart"
-        >
-          <ShoppingBag className="w-4 h-4" />
-        </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAddedAnimation(true);
+                addToCart(product.id, 1, selectedVehicle?.variantId || null, true);
+                setTimeout(() => setAddedAnimation(false), 400);
+              }}
+              className={`w-10 h-10 rounded-2xl bg-[#0d3c90] hover:bg-[#072a63] text-white flex items-center justify-center transition-all shadow-md hover:scale-105 shrink-0 ${
+                addedAnimation ? 'bg-emerald-600 scale-95' : ''
+              }`}
+              title="Add to Cart"
+            >
+              <ShoppingBag className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <div className="w-full flex items-center justify-between gap-2 bg-amber-50/80 border border-amber-200/80 p-2 rounded-2xl">
+            <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1">
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+              <span>{t('loginToViewPrice')}</span>
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequireLogin?.();
+              }}
+              className="px-3 py-1 rounded-xl bg-[#f97316] hover:bg-[#ea580c] text-white text-[10px] font-bold shadow-xs transition-colors shrink-0"
+            >
+              {t('signIn')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

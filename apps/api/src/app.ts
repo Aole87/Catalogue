@@ -29,6 +29,8 @@ import { adminCrmRoutes } from './routes/admin-crm.routes';
 import { adminPromotionRoutes } from './routes/admin-promotion.routes';
 import { adminLoyaltyRoutes } from './routes/admin-loyalty.routes';
 import { adminCampaignRoutes } from './routes/admin-campaign.routes';
+import { articleRoutes } from './routes/article.routes';
+import { settingsRoutes } from './routes/settings.routes';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -116,6 +118,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(adminPromotionRoutes, { prefix: '/api/v1' });
   await app.register(adminLoyaltyRoutes, { prefix: '/api/v1' });
   await app.register(adminCampaignRoutes, { prefix: '/api/v1' });
+  await app.register(articleRoutes);
+  await app.register(settingsRoutes);
 
   return app;
 }

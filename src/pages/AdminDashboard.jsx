@@ -54,6 +54,9 @@ import InventoryManager from '../components/admin/InventoryManager';
 import ProcurementManager from '../components/admin/ProcurementManager';
 import CrmManager from '../components/admin/CrmManager';
 import MarketingManager from '../components/admin/MarketingManager';
+import SettingsManager from '../components/admin/SettingsManager';
+import ArticleManager from '../components/admin/ArticleManager';
+import { FileText } from 'lucide-react';
 
 const AdminDashboard = ({ navigate, setIsAdmin }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -155,6 +158,8 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
           <SidebarItem id="car-years" icon={Calendar} label="Car Years" />
 
           <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Access & Admin</div>
+          <SidebarItem id="settings" icon={Settings} label="System & Payment API" badge="NEW" />
+          <SidebarItem id="articles" icon={FileText} label="Article CMS" />
           <SidebarItem id="members" icon={Users} label="Members" />
           <SidebarItem id="admins" icon={Shield} label="Administrators" />
         </nav>
@@ -268,6 +273,8 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
           {activeTab === 'car-years' && <EntityManager table="car_years" title="Car Year" fields={['year']} />}
           {activeTab === 'products' && <ProductManager />}
           {activeTab === 'import' && <ExcelImporter />}
+          {activeTab === 'settings' && <SettingsManager />}
+          {activeTab === 'articles' && <ArticleManager />}
           {activeTab === 'members' && <EntityManager table="users" title="Member" fields={['first_name', 'last_name', 'email', 'business_type']} />}
           {activeTab === 'admins' && <EntityManager table="admins" title="Admin" fields={['username', 'role']} />}
         </main>

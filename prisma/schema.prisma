@@ -1754,3 +1754,36 @@ model CampaignEvent {
   @@index([eventType])
   @@map("campaign_events")
 }
+
+// ==============================================================================
+// 14. ARTICLES & SYSTEM SETTINGS DOMAIN
+// ==============================================================================
+
+model Article {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titleTh     String   @map("title_th")
+  titleEn     String   @map("title_en")
+  slug        String   @unique
+  contentTh   String   @map("content_th")
+  contentEn   String   @map("content_en")
+  coverImage  String?  @map("cover_image")
+  category    String   @default("General")
+  published   Boolean  @default(true)
+  author      String   @default("Admin")
+  views       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("articles")
+}
+
+model SystemSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique
+  value     Json
+  category  String   @default("GENERAL") // PAYMENT, SHIPPING, MENU, GENERAL
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
