@@ -3,12 +3,17 @@
 # ==============================================================================
 
 # Stage 1: Build the SPA bundle
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Skip downloading Electron binaries during Docker image build
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+
 COPY package.json package-lock.json ./
-RUN npm ci
+
+# Install frontend dependencies without running unnecessary native build scripts
+RUN npm ci --ignore-scripts
 
 COPY . .
 
