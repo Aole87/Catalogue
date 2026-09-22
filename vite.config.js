@@ -3,7 +3,15 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [react()],
+  mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+  },
+  plugins: [
+    react({
+      jsxRuntime: 'automatic',
+    }),
+  ],
   base: './',
   resolve: {
     alias: {
