@@ -15,6 +15,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:health": "tsx scripts/db-health.ts",
+    "db:production-reset": "tsx scripts/prepare-production-db.ts",
     "db:test": "tsx scripts/db-test.ts",
     "api:dev": "tsx apps/api/src/server.ts",
     "api:test": "tsx scripts/api-test.ts",

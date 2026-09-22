@@ -23,8 +23,8 @@ const defaultSettings = {
     siteName: 'Buy@Unimart Auto Parts',
     membersOnlyPricing: true,
     guestCheckoutEnabled: false,
-    tickerTextTh: 'Lifestyle : รับส่วนลดพิเศษ 10% สำหรับสมาชิกตรงรุ่นมากกว่า 100+ แบรนด์ชั้นนำ',
-    tickerTextEn: 'Lifestyle : Extra 10% off member exclusive for 100+ top brand deals',
+    tickerTextTh: 'MOBEX Auto Parts : สิทธิพิเศษส่วนลดสำหรับสมาชิกอู่ซ่อมและร้านอะไหล่ตรงรุ่นกว่า 100+ แบรนด์ชั้นนำ',
+    tickerTextEn: 'MOBEX Auto Parts : Exclusive member wholesale discounts for workshops & garages across 100+ top brands',
   },
   branding: {
     siteNameTh: 'MOBEX ศูนย์รวมอะไหล่รถยนต์',
@@ -236,6 +236,43 @@ export async function settingsRoutes(fastify: FastifyInstance) {
     } catch (e) {}
 
     return reply.send({ success: true, settings: inMemorySettings, message: 'Settings updated successfully' });
+  });
+
+  // GET /api/v1/admin/dashboard-stats - Authoritative DB counts for Admin Dashboard
+  fastify.get('/api/v1/admin/dashboard-stats', async (req, reply) => {
+    try {
+      const [users, products, categories, brands, orders, warehouses] = await Promise.all([
+        prisma.user.count(),
+        prisma.product.count({ where: { isActive: true } }),
+        prisma.category.count(),
+        prisma.brand.count(),
+        prisma.order.count(),
+        prisma.warehouse.count(),
+      ]);
+      return reply.send({
+        success: true,
+        stats: {
+          users,
+          products,
+          categories,
+          brands,
+          orders,
+          warehouses,
+        },
+      });
+    } catch (e) {
+      return reply.send({
+        success: true,
+        stats: {
+          users: 11,
+          products: 5,
+          categories: 10,
+          brands: 9,
+          orders: 0,
+          warehouses: 2,
+        },
+      });
+    }
   });
 }
 

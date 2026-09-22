@@ -196,6 +196,10 @@ class ApiClient {
     return this.request(`/products/slug/${slug}`);
   }
 
+  static async getDashboardStats() {
+    return this.request('/admin/dashboard-stats');
+  }
+
   // --- Storefront Categories & Brands ---
   static async getCategoryTree() {
     return this.request('/categories/tree');

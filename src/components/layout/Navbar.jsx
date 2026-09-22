@@ -64,11 +64,12 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
     try {
       await ApiClient.logout();
     } catch (e) {}
-    if (setUser) {
-      setUser(null);
-    } else {
+    try {
       localStorage.removeItem('mobex_auth_user');
       localStorage.removeItem('mobex_auth_token');
+    } catch (e) {}
+    if (setUser) {
+      setUser(null);
     }
     setUserMenuOpen(false);
     setMobileMenuOpen(false);

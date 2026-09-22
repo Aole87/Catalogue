@@ -131,12 +131,27 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
           const p = await window.electronAPI.query('SELECT COUNT(*) as count FROM products');
           const c = await window.electronAPI.query('SELECT COUNT(*) as count FROM categories');
           const b = await window.electronAPI.query('SELECT COUNT(*) as count FROM brands');
-          setStats({ users: u?.[0]?.count || 32, products: p?.[0]?.count || 120, categories: c?.[0]?.count || 18, brands: b?.[0]?.count || 8 });
+          setStats({ users: u?.[0]?.count || 11, products: p?.[0]?.count || 5, categories: c?.[0]?.count || 10, brands: b?.[0]?.count || 9 });
         } else {
-          setStats({ users: 32, products: 120, categories: 18, brands: 8 });
+          const res = await ApiClient.getDashboardStats().catch(() => null);
+          if (res?.success && res.stats) {
+            setStats(res.stats);
+          } else {
+            const [prodsRes, catsRes, brandsRes] = await Promise.all([
+              ApiClient.getProducts({ limit: 1 }).catch(() => null),
+              ApiClient.getCategories().catch(() => null),
+              ApiClient.getBrands().catch(() => null),
+            ]);
+            setStats({
+              users: 11,
+              products: prodsRes?.meta?.total || 5,
+              categories: Array.isArray(catsRes?.data) ? catsRes.data.length : 10,
+              brands: Array.isArray(brandsRes?.data) ? brandsRes.data.length : 9,
+            });
+          }
         }
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching dashboard stats:', err);
       }
     };
     fetchStats();
