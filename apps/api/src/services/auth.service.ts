@@ -124,21 +124,25 @@ export class AuthService {
    * Authenticate a user via email and Argon2id password hash check.
    */
   static async login(input: LoginInput, metadata: RequestMetadata) {
-    const normalizedEmail = input.email.toLowerCase().trim();
+    const rawIdentifier = (input.username || input.email).toLowerCase().trim();
+    const normalizedEmail = rawIdentifier.includes('@') ? rawIdentifier : `${rawIdentifier}@mobex.co.th`;
 
-    // 1. Find user by email
-    const user = await UserRepository.findByEmail(normalizedEmail);
+    // 1. Find user by email or username-based email
+    let user = await UserRepository.findByEmail(normalizedEmail);
+    if (!user && !rawIdentifier.includes('@')) {
+      user = await UserRepository.findByEmail(rawIdentifier);
+    }
     if (!user) {
       // Record failed login audit with no user ID (prevents email enumeration via timing or response)
       await AuditRepository.record({
         action: 'LOGIN_FAILED',
         resource: 'User',
-        before: { attemptedEmail: normalizedEmail },
+        before: { attemptedEmail: rawIdentifier },
         ipAddress: metadata.ipAddress,
         userAgent: metadata.userAgent,
       });
 
-      throw new UnauthorizedError('Invalid email or password', 'AUTH_INVALID_CREDENTIALS');
+      throw new UnauthorizedError('Invalid username or password', 'AUTH_INVALID_CREDENTIALS');
     }
 
     // 2. Verify password with Argon2id

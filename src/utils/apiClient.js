@@ -123,10 +123,12 @@ class ApiClient {
     return this.request('/auth/me');
   }
 
-  static async login(email, password) {
+  static async login(usernameOrEmail, password) {
+    const raw = (usernameOrEmail || '').trim();
+    const email = raw.includes('@') ? raw : `${raw}@mobex.co.th`;
     const res = await this.request('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { email, username: raw, password },
     });
     const token = res?.data?.sessionToken || res?.sessionToken;
     if (token && typeof window !== 'undefined') {
