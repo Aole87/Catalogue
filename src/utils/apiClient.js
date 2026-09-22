@@ -3,6 +3,8 @@
  * Connects directly to the Fastify Backend API (/api/v1)
  */
 
+import OfflineDataStore from './offlineDataStore';
+
 const API_BASE = '/api/v1';
 
 class ApiClient {
@@ -53,7 +55,13 @@ class ApiClient {
       config.body = JSON.stringify(config.body);
     }
 
-    const response = await fetch(url, config);
+    let response;
+    try {
+      response = await fetch(url, config);
+    } catch (networkErr) {
+      console.warn(`[ApiClient] Network unreachable for ${endpoint}, using local offline store:`, networkErr.message);
+      return OfflineDataStore.handle(endpoint, options);
+    }
 
     // Save session token if returned in header
     const returnedSessionToken = response.headers.get('x-session-token');
@@ -64,6 +72,12 @@ class ApiClient {
     // Handle 204 No Content
     if (response.status === 204) {
       return null;
+    }
+
+    // When backend returns 502 Bad Gateway / 503 Service Unavailable / 504 on static/Plesk host:
+    if (response.status === 502 || response.status === 503 || response.status === 504 || response.status === 404) {
+      console.warn(`[ApiClient] Server returned HTTP ${response.status} for ${endpoint}, fallback to local store`);
+      return OfflineDataStore.handle(endpoint, options);
     }
 
     const json = await response.json().catch(() => ({}));
