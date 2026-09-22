@@ -212,6 +212,18 @@ class ApiClient {
     return this.request(`/products/slug/${slug}`);
   }
 
+  static async createProduct(payload) {
+    return this.post('/admin/products', payload);
+  }
+
+  static async updateProduct(id, payload) {
+    return this.patch(`/admin/products/${id}`, payload);
+  }
+
+  static async deleteProduct(id) {
+    return this.delete(`/admin/products/${id}`);
+  }
+
   static async getDashboardStats() {
     return this.request('/admin/dashboard-stats');
   }
@@ -225,13 +237,49 @@ class ApiClient {
     return this.request('/categories');
   }
 
+  static async createCategory(payload) {
+    return this.post('/admin/categories', payload);
+  }
+
+  static async updateCategory(id, payload) {
+    return this.patch(`/admin/categories/${id}`, payload);
+  }
+
+  static async deleteCategory(id) {
+    return this.delete(`/admin/categories/${id}`);
+  }
+
   static async getBrands() {
     return this.request('/brands');
   }
 
-  // --- Storefront Vehicle Hierarchy ---
+  static async createBrand(payload) {
+    return this.post('/admin/brands', payload);
+  }
+
+  static async updateBrand(id, payload) {
+    return this.patch(`/admin/brands/${id}`, payload);
+  }
+
+  static async deleteBrand(id) {
+    return this.delete(`/admin/brands/${id}`);
+  }
+
+  // --- Storefront Vehicle Hierarchy & Master Data ---
   static async getMakes(isActive = true) {
     return this.request(`/vehicles/makes?isActive=${isActive}`);
+  }
+
+  static async createVehicleMake(payload) {
+    return this.post('/admin/vehicles/makes', payload);
+  }
+
+  static async updateVehicleMake(id, payload) {
+    return this.patch(`/admin/vehicles/makes/${id}`, payload);
+  }
+
+  static async deleteVehicleMake(id) {
+    return this.delete(`/admin/vehicles/makes/${id}`);
   }
 
   static async getModels(makeId, isActive = true) {
@@ -241,11 +289,35 @@ class ApiClient {
     return this.request(`/vehicles/models?${query.toString()}`);
   }
 
+  static async createVehicleModel(payload) {
+    return this.post('/admin/vehicles/models', payload);
+  }
+
+  static async updateVehicleModel(id, payload) {
+    return this.patch(`/admin/vehicles/models/${id}`, payload);
+  }
+
+  static async deleteVehicleModel(id) {
+    return this.delete(`/admin/vehicles/models/${id}`);
+  }
+
   static async getGenerations(modelId, isActive = true) {
     const query = new URLSearchParams();
     if (modelId) query.set('modelId', modelId);
     if (isActive !== undefined) query.set('isActive', String(isActive));
     return this.request(`/vehicles/generations?${query.toString()}`);
+  }
+
+  static async createVehicleYear(payload) {
+    return this.post('/admin/vehicles/generations', payload);
+  }
+
+  static async updateVehicleYear(id, payload) {
+    return this.patch(`/admin/vehicles/generations/${id}`, payload);
+  }
+
+  static async deleteVehicleYear(id) {
+    return this.delete(`/admin/vehicles/generations/${id}`);
   }
 
   static async getEngines() {

@@ -29,7 +29,7 @@ export async function brandRoutes(app: FastifyInstance) {
   });
 
   // Protected Admin Routes
-  app.get('/admin/brands', {
+  const adminReadOpts = {
     preHandler: [authenticate, requirePermission('brand.read', 'product.read')],
     schema: {
       description: 'List all brands including inactive ones (Admin)',
@@ -37,9 +37,10 @@ export async function brandRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: BrandController.listAdmin,
-  });
+  };
+  app.get('/admin/brands', adminReadOpts);
 
-  app.post('/admin/brands', {
+  const adminCreateOpts = {
     preHandler: [authenticate, requirePermission('brand.create', 'product.create')],
     schema: {
       description: 'Create a new manufacturer/brand (Admin)',
@@ -47,9 +48,11 @@ export async function brandRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: BrandController.create,
-  });
+  };
+  app.post('/admin/brands', adminCreateOpts);
+  app.post('/brands', adminCreateOpts);
 
-  app.patch('/admin/brands/:id', {
+  const adminUpdateOpts = {
     preHandler: [authenticate, requirePermission('brand.update', 'product.update')],
     schema: {
       description: 'Update brand information (Admin)',
@@ -57,9 +60,13 @@ export async function brandRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: BrandController.update,
-  });
+  };
+  app.patch('/admin/brands/:id', adminUpdateOpts);
+  app.put('/admin/brands/:id', adminUpdateOpts);
+  app.patch('/brands/:id', adminUpdateOpts);
+  app.put('/brands/:id', adminUpdateOpts);
 
-  app.delete('/admin/brands/:id', {
+  const adminDeleteOpts = {
     preHandler: [authenticate, requirePermission('brand.delete', 'product.delete')],
     schema: {
       description: 'Soft-delete brand with active product association safety checks (Admin)',
@@ -67,5 +74,7 @@ export async function brandRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: BrandController.delete,
-  });
+  };
+  app.delete('/admin/brands/:id', adminDeleteOpts);
+  app.delete('/brands/:id', adminDeleteOpts);
 }

@@ -158,7 +158,10 @@ class OfflineDataStore {
 
   static handle(endpoint, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
-    const cleanPath = endpoint.split('?')[0].replace(/^\/api\/v1/, '').replace(/^\/api/, '');
+    let cleanPath = endpoint.split('?')[0].replace(/^\/api\/v1/, '').replace(/^\/api/, '');
+    if (cleanPath.startsWith('/admin') && cleanPath !== '/admin/dashboard-stats') {
+      cleanPath = cleanPath.replace(/^\/admin/, '');
+    }
     let body = {};
     if (options.body) {
       try {

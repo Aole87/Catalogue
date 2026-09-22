@@ -37,7 +37,7 @@ export async function categoryRoutes(app: FastifyInstance) {
   });
 
   // Protected Admin Routes
-  app.get('/admin/categories', {
+  const adminReadOpts = {
     preHandler: [authenticate, requirePermission('category.read', 'product.read')],
     schema: {
       description: 'List all categories including inactive ones (Admin)',
@@ -45,9 +45,10 @@ export async function categoryRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: CategoryController.listAdmin,
-  });
+  };
+  app.get('/admin/categories', adminReadOpts);
 
-  app.post('/admin/categories', {
+  const adminCreateOpts = {
     preHandler: [authenticate, requirePermission('category.create', 'product.create')],
     schema: {
       description: 'Create a new category (Admin)',
@@ -55,9 +56,11 @@ export async function categoryRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: CategoryController.create,
-  });
+  };
+  app.post('/admin/categories', adminCreateOpts);
+  app.post('/categories', adminCreateOpts);
 
-  app.patch('/admin/categories/:id', {
+  const adminUpdateOpts = {
     preHandler: [authenticate, requirePermission('category.update', 'product.update')],
     schema: {
       description: 'Update category details and hierarchy with cycle prevention (Admin)',
@@ -65,9 +68,13 @@ export async function categoryRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: CategoryController.update,
-  });
+  };
+  app.patch('/admin/categories/:id', adminUpdateOpts);
+  app.put('/admin/categories/:id', adminUpdateOpts);
+  app.patch('/categories/:id', adminUpdateOpts);
+  app.put('/categories/:id', adminUpdateOpts);
 
-  app.delete('/admin/categories/:id', {
+  const adminDeleteOpts = {
     preHandler: [authenticate, requirePermission('category.delete', 'product.delete')],
     schema: {
       description: 'Soft-delete category with product/child orphan safety checks (Admin)',
@@ -75,5 +82,7 @@ export async function categoryRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: CategoryController.delete,
-  });
+  };
+  app.delete('/admin/categories/:id', adminDeleteOpts);
+  app.delete('/categories/:id', adminDeleteOpts);
 }

@@ -52,7 +52,7 @@ export async function productRoutes(app: FastifyInstance) {
     handler: ProductController.getAdminById,
   });
 
-  app.post('/admin/products', {
+  const adminCreateOpts = {
     preHandler: [authenticate, requirePermission('product.create')],
     schema: {
       description: 'Create a new product with prices, images, attributes, and cross references (Admin)',
@@ -60,9 +60,11 @@ export async function productRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: ProductController.create,
-  });
+  };
+  app.post('/admin/products', adminCreateOpts);
+  app.post('/products', adminCreateOpts);
 
-  app.patch('/admin/products/:id', {
+  const adminUpdateOpts = {
     preHandler: [authenticate, requirePermission('product.update')],
     schema: {
       description: 'Update an existing product (Admin)',
@@ -70,9 +72,13 @@ export async function productRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: ProductController.update,
-  });
+  };
+  app.patch('/admin/products/:id', adminUpdateOpts);
+  app.put('/admin/products/:id', adminUpdateOpts);
+  app.patch('/products/:id', adminUpdateOpts);
+  app.put('/products/:id', adminUpdateOpts);
 
-  app.delete('/admin/products/:id', {
+  const adminDeleteOpts = {
     preHandler: [authenticate, requirePermission('product.delete')],
     schema: {
       description: 'Soft-delete a product from the active catalog (Admin)',
@@ -80,7 +86,9 @@ export async function productRoutes(app: FastifyInstance) {
       security: [{ cookieAuth: [] }, { bearerAuth: [] }],
     },
     handler: ProductController.delete,
-  });
+  };
+  app.delete('/admin/products/:id', adminDeleteOpts);
+  app.delete('/products/:id', adminDeleteOpts);
 
   app.put('/admin/products/:id/prices', {
     preHandler: [authenticate, requirePermission('pricing.manage', 'product.update')],
