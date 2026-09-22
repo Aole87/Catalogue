@@ -10,8 +10,18 @@
     RewriteRule ^api/(.*) http://127.0.0.1:3000/api/$1 [P,L]
   </IfModule>
 
+  # Route any asset request (/assets/*, /admin/assets/*, /dist/assets/*) to dist/assets/
+  RewriteRule ^(.*/)?assets/(.*)$ dist/assets/$2 [L]
+
+  # Route favicon and svg files
+  RewriteRule ^(.*/)?vite\.svg$ dist/vite.svg [L]
+  RewriteRule ^(.*/)?favicon\.ico$ dist/favicon.ico [L]
+
   # Route root URL directly to dist/index.html
   RewriteRule ^$ dist/index.html [L]
+
+  # Route /admin and /admin/ directly to dist/index.html
+  RewriteRule ^admin/?$ dist/index.html [L]
 
   # If requested asset exists in dist/, rewrite to dist/
   RewriteCond %{REQUEST_URI} !^/dist/

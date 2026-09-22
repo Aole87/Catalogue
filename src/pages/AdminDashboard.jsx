@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Download,
   Eye,
+  EyeOff,
   RefreshCw,
   Car,
   Sliders,
@@ -103,26 +104,93 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
   const [selectedDateRange, setSelectedDateRange] = useState('May 12 – May 18, 2024');
   const sidebarNavRef = useRef(null);
 
-  const [currentAdmin, setCurrentAdmin] = useState(() => {
-    const savedList = localStorage.getItem('adnex_admins_list');
-    if (savedList) {
-      try {
-        const parsed = JSON.parse(savedList);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
-      } catch (e) {}
+  const getStoredAdmin = () => {
+    try {
+      const saved = localStorage.getItem('mobex_auth_user');
+      if (saved) {
+        const u = JSON.parse(saved);
+        const roles = (u.roles || []).map(r => (typeof r === 'string' ? r : r.name || r.role?.name || ''));
+        const hasAdminRole = roles.some(r =>
+          ['SUPER_ADMIN', 'ADMIN', 'CATALOG_MANAGER', 'STORE_MANAGER', 'INVENTORY_CLERK', 'STAFF'].includes(r)
+        );
+        if (hasAdminRole) {
+          const role = roles[0] || 'ADMIN';
+          return {
+            id: u.id,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.displayName || u.email,
+            email: u.email,
+            role: role,
+            department: role === 'SUPER_ADMIN' ? 'ผู้บริหารระดับสูง & เจ้าของระบบ' : 'ฝ่ายบริหารจัดการระบบ',
+            permissions: ['products', 'inventory', 'masterData', 'orders', 'analytics', 'marketing', 'crm', 'storefront', 'articles', 'seo', 'members', 'settings', 'admins'],
+            avatar: (u.firstName?.[0] || u.email?.[0] || 'A').toUpperCase(),
+          };
+        }
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const [currentAdmin, setCurrentAdmin] = useState(getStoredAdmin);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    setIsLoggingIn(true);
+    try {
+      const res = await ApiClient.login(loginEmail.trim(), loginPassword);
+      const user = res?.user || res?.data?.user;
+      if (!user) throw new Error('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+
+      const roles = (user.roles || []).map(r => (typeof r === 'string' ? r : r.name || r.role?.name || ''));
+      const hasAdminRole = roles.some(r =>
+        ['SUPER_ADMIN', 'ADMIN', 'CATALOG_MANAGER', 'STORE_MANAGER', 'INVENTORY_CLERK', 'STAFF'].includes(r)
+      );
+
+      if (!hasAdminRole) {
+        throw new Error('บัญชีนี้ไม่มีสิทธิ์เข้าถึงระบบผู้ดูแล (Admin Portal)');
+      }
+
+      const role = roles[0] || 'ADMIN';
+      const adminObj = {
+        id: user.id,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.displayName || user.email,
+        email: user.email,
+        role: role,
+        department: role === 'SUPER_ADMIN' ? 'ผู้บริหารระดับสูง & เจ้าของระบบ' : 'ฝ่ายบริหารจัดการระบบ',
+        permissions: ['products', 'inventory', 'masterData', 'orders', 'analytics', 'marketing', 'crm', 'storefront', 'articles', 'seo', 'members', 'settings', 'admins'],
+        avatar: (user.firstName?.[0] || user.email?.[0] || 'A').toUpperCase(),
+      };
+
+      localStorage.setItem('mobex_auth_user', JSON.stringify(user));
+      setCurrentAdmin(adminObj);
+      setIsAdmin(true);
+    } catch (err) {
+      setLoginError(err.message || 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน');
+    } finally {
+      setIsLoggingIn(false);
     }
-    return {
-      id: 'adm-1',
-      name: 'John Doe',
-      email: 'john.doe@adnex.com',
-      role: 'SUPER_ADMIN',
-      department: 'ผู้บริหารระดับสูง & เจ้าของระบบ',
-      permissions: ['products', 'inventory', 'masterData', 'orders', 'analytics', 'marketing', 'crm', 'storefront', 'articles', 'seo', 'members', 'settings', 'admins'],
-      avatar: 'JD',
-    };
-  });
+  };
+
+  const handleLogout = async () => {
+    try {
+      await ApiClient.logout().catch(() => null);
+    } finally {
+      localStorage.removeItem('mobex_auth_user');
+      setCurrentAdmin(null);
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
+    if (!currentAdmin) {
+      setIsAdmin(false);
+      return;
+    }
     setIsAdmin(true);
     const fetchStats = async () => {
       try {
@@ -147,12 +215,7 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
       }
     };
     fetchStats();
-  }, []);
-
-  const handleLogout = () => {
-    setIsAdmin(false);
-    navigate('home');
-  };
+  }, [currentAdmin]);
 
   const hasPermission = (id) => {
     if (!currentAdmin || currentAdmin.role === 'SUPER_ADMIN') return true;
@@ -205,6 +268,115 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
       hasPermission={hasPermission}
     />
   );
+
+  if (!currentAdmin) {
+    return (
+      <div className="min-h-screen bg-[#051124] flex items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="w-full max-w-md bg-[#0a1b38]/95 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-blue-900/40 p-6 sm:p-8 shadow-2xl relative z-10">
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#ea580c] to-amber-500 text-white shadow-lg mb-4">
+              <Shield className="w-7 h-7" />
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              MOBEX <span className="text-[#ea580c]">ADMIN</span>
+            </h1>
+            <p className="text-xs text-blue-200/80 mt-1 font-medium">
+              ศูนย์ควบคุมบริหารจัดการระบบแค็ตตาล็อกและคลังสินค้า
+            </p>
+          </div>
+
+          {loginError && (
+            <div className="mb-5 bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-blue-200 mb-1.5 uppercase tracking-wider">
+                อีเมลผู้ดูแลระบบ (Admin Email)
+              </label>
+              <input
+                type="email"
+                required
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="admin@mobex.co.th"
+                className="w-full bg-[#051124] border border-blue-900/60 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#ea580c] transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-blue-200 mb-1.5 uppercase tracking-wider">
+                รหัสผ่าน (Password)
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[#051124] border border-blue-900/60 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#ea580c] transition-colors pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full bg-gradient-to-r from-[#ea580c] to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer mt-2"
+            >
+              {isLoggingIn ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>กำลังตรวจสอบสิทธิ์...</span>
+                </>
+              ) : (
+                <span>เข้าสู่ระบบหลังบ้าน (Sign In)</span>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-blue-900/40 text-center">
+            <p className="text-[11px] text-blue-300/70 mb-2">บัญชีผู้ดูแลระบบมาตรฐาน (Default Super Admin):</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginEmail('admin@mobex.co.th');
+                setLoginPassword('Admin@123456');
+                setLoginError('');
+              }}
+              className="text-xs font-mono bg-blue-950/80 hover:bg-blue-900/80 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>admin@mobex.co.th / Admin@123456</span>
+              <span className="text-[10px] bg-amber-500/20 px-1 rounded text-amber-200">คลิกใส่ทันที</span>
+            </button>
+          </div>
+
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => navigate?.('home')}
+              className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              ← กลับสู่หน้าร้านค้า (Back to Storefront)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#f4f6fb] text-gray-800 font-sans antialiased selection:bg-[#ea580c] selection:text-white">

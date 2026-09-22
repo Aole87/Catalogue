@@ -6,7 +6,7 @@ import ArticleDetailModal from '../components/common/ArticleDetailModal';
 import ApiClient from '../utils/apiClient';
 import { useLanguage } from '../context/LanguageContext';
 import { useSettings } from '../context/SettingsContext';
-import { ChevronRight, ChevronLeft, Search, ShieldCheck, Truck, CheckCircle2, ArrowRight, UserPlus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Search, ShieldCheck, Truck, CheckCircle2, ArrowRight, UserPlus, FileText } from 'lucide-react';
 
 export const Home = ({ navigate, user, setUser }) => {
   const { lang, t } = useLanguage();
@@ -453,85 +453,68 @@ export const Home = ({ navigate, user, setUser }) => {
                
                {/* Right Column: Cards Grid */}
                <div className="w-full lg:w-[72%] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5 relative z-10">
-                  {(articles.length > 0 ? articles.slice(0, 3) : [
-                     {
-                       id: 'art-fallback-1',
-                       titleTh: 'วิธีดูแลเบรกให้ปลอดภัย ยืดอายุการใช้งานให้ยาวนานขึ้น',
-                       titleEn: 'How to maintain your brakes for safety and long life',
-                       contentTh: 'แนะนำวิธีตรวจเช็กความหนาของผ้าเบรกและระดับน้ำมันเบรก เพื่อให้ระบบเบรกทำงานได้อย่างมีประสิทธิภาพสูงสุด',
-                       contentEn: 'Tips on checking brake pad thickness and brake fluid levels to ensure optimal braking performance.',
-                       coverImage: 'https://images.unsplash.com/photo-1558002038-1055907df827?w=500&q=80',
-                       category: 'Safety',
-                       createdAt: '2026-06-12',
-                     },
-                     {
-                       id: 'art-fallback-2',
-                       titleTh: 'เปลี่ยนน้ำมันเครื่องอย่างไร ให้เหมาะกับรถของคุณ',
-                       titleEn: 'Choosing the right engine oil for your car',
-                       contentTh: 'เจาะลึกความหนืดและมาตรฐานน้ำมันเครื่องสังเคราะห์แท้ 100% สำหรับรถยนต์เบนซิน ดีเซล และไฮบริด',
-                       contentEn: 'Detailed guide on viscosity ratings and synthetic engine oil specifications for modern vehicles.',
-                       coverImage: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=500&q=80',
-                       category: 'Maintenance',
-                       createdAt: '2026-06-08',
-                     },
-                     {
-                       id: 'art-fallback-3',
-                       titleTh: 'โปรโมชันพิเศษ ประจำเดือนนี้ ลดสูงสุด 20%',
-                       titleEn: 'Special monthly promotions up to 20% off',
-                       contentTh: 'พบกับอะไหล่แท้ตรงรุ่นราคาพิเศษ ไส้กรอง แบตเตอรี่ และหัวเทียน รับส่วนลดเพิ่มสำหรับสมาชิก',
-                       contentEn: 'Discover exclusive genuine auto parts deals, filters, batteries and spark plugs with member discounts.',
-                       coverImage: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=500&q=80',
-                       category: 'Deals',
-                       createdAt: '2026-06-05',
-                     },
-                  ]).map((art, idx) => {
-                     const title = lang === 'en' ? (art.titleEn || art.titleTh) : (art.titleTh || art.titleEn);
-                     const formattedDate = art.createdAt
-                       ? new Date(art.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'th-TH', {
-                           year: 'numeric',
-                           month: 'short',
-                           day: 'numeric',
-                         })
-                       : '';
-                     return (
-                       <div
-                          key={art.id || idx}
-                          onClick={() => navigate?.('article-detail', { article: art })}
-                          className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 group cursor-pointer hover:shadow-md transition-all flex flex-col p-3"
-                       >
-                          <div className="w-full aspect-[16/9] sm:aspect-[21/9] rounded-xl overflow-hidden relative mb-3 sm:mb-4 bg-slate-100">
-                             <img
-                                src={
-                                   art.coverImage ||
-                                   "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500&q=80"
-                                }
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                alt={title}
-                             />
-                             <div className="absolute top-2 left-2 bg-[#2563eb] text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm">
-                                {art.category || (lang === 'en' ? 'Article' : 'บทความ')}
-                             </div>
-                          </div>
-                          <div className="px-1 flex flex-col flex-1 pb-1">
-                             <h4 className="font-black text-xs sm:text-[14px] text-[#0c1a38] group-hover:text-[#2563eb] transition-colors mb-2 leading-snug line-clamp-2">
-                                {title}
-                             </h4>
-                             <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-3">
-                                {lang === 'en' ? art.contentEn : art.contentTh}
-                             </p>
-                             <div className="flex justify-between items-center mt-auto pt-2 border-t border-slate-50">
-                                <span className="text-[10px] sm:text-[11px] text-slate-400 font-bold">
-                                   {formattedDate}
-                                </span>
-                                <button className="text-[#2563eb] hover:text-[#1e40af] text-[11px] font-bold flex items-center gap-0.5 transition-colors">
-                                   <span>{lang === 'en' ? 'Read' : 'อ่านต่อ'}</span>
-                                   <ChevronRight className="w-3 h-3" />
-                                </button>
-                             </div>
-                          </div>
-                       </div>
-                     );
-                  })}
+                  {articles.length === 0 ? (
+                    <div className="col-span-1 sm:col-span-2 lg:col-span-3 bg-white/90 backdrop-blur-xs rounded-2xl p-8 border border-blue-100 text-center flex flex-col items-center justify-center shadow-xs">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <div className="font-bold text-slate-800 text-sm mb-1">
+                        {lang === 'en' ? 'No articles published yet' : 'ยังไม่มีบทความหรือข่าวสารในขณะนี้'}
+                      </div>
+                      <p className="text-xs text-slate-400 max-w-sm">
+                        {lang === 'en' ? 'Stay tuned for maintenance tips, guides, and upcoming promotions.' : 'เตรียมพบกับสาระน่ารู้ เทคนิคการดูแลรักษารถยนต์ และโปรโมชันเร็วๆ นี้'}
+                      </p>
+                    </div>
+                  ) : (
+                    articles.slice(0, 3).map((art, idx) => {
+                      const title = lang === 'en' ? (art.titleEn || art.titleTh) : (art.titleTh || art.titleEn);
+                      const formattedDate = art.createdAt
+                        ? new Date(art.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'th-TH', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : '';
+                      return (
+                        <div
+                           key={art.id || idx}
+                           onClick={() => navigate?.('article-detail', { article: art })}
+                           className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 group cursor-pointer hover:shadow-md transition-all flex flex-col p-3"
+                        >
+                           <div className="w-full aspect-[16/9] sm:aspect-[21/9] rounded-xl overflow-hidden relative mb-3 sm:mb-4 bg-slate-100">
+                              <img
+                                 src={
+                                    art.coverImage ||
+                                    "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500&q=80"
+                                 }
+                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                 alt={title}
+                              />
+                              <div className="absolute top-2 left-2 bg-[#2563eb] text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm">
+                                 {art.category || (lang === 'en' ? 'Article' : 'บทความ')}
+                              </div>
+                           </div>
+                           <div className="px-1 flex flex-col flex-1 pb-1">
+                              <h4 className="font-black text-xs sm:text-[14px] text-[#0c1a38] group-hover:text-[#2563eb] transition-colors mb-2 leading-snug line-clamp-2">
+                                 {title}
+                              </h4>
+                              <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-3">
+                                 {lang === 'en' ? art.contentEn : art.contentTh}
+                              </p>
+                              <div className="flex justify-between items-center mt-auto pt-2 border-t border-slate-50">
+                                 <span className="text-[10px] sm:text-[11px] text-slate-400 font-bold">
+                                    {formattedDate}
+                                 </span>
+                                 <button className="text-[#2563eb] hover:text-[#1e40af] text-[11px] font-bold flex items-center gap-0.5 transition-colors">
+                                    <span>{lang === 'en' ? 'Read' : 'อ่านต่อ'}</span>
+                                    <ChevronRight className="w-3 h-3" />
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                      );
+                    })
+                  )}
                </div>
             </div>
          </section>
