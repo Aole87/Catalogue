@@ -19,7 +19,50 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - mobex_net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: car_parts_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-car_parts_catalog}?schema=public
+      SESSION_COOKIE_SECRET: ${SESSION_COOKIE_SECRET:-mobex-secret-production-cookie-signing-key-32chars}
+      WEB_ORIGIN: http://localhost
+      CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mobex_net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: car_parts_web
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - api
+    networks:
+      - mobex_net
 
 volumes:
   postgres_data:
     driver: local
+
+networks:
+  mobex_net:
+    driver: bridge

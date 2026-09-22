@@ -33,8 +33,7 @@ export const ProductCard = ({ product, user, onClick, onRequireLogin }) => {
     ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
     : null;
 
-  // Mock rating
-  const reviewCount = Math.floor(Math.random() * 200) + 10;
+  const reviewCount = product.reviewCount || product._count?.reviews || 0;
   
   // Format price
   const formatPrice = (amount) => {

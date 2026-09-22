@@ -52,106 +52,27 @@ export const Home = ({ navigate, user, setUser }) => {
     navigate?.('product-list', { filters });
   };
 
-  // Mock products with specific data to match the mockup
-  const mockProducts = [
-    {
-      id: 'p1',
-      name: 'BOSCH ผ้าเบรกหน้า Ceramic สำหรับ Toyota Altis 1.6/1.8',
-      brand: { name: 'BOSCH' },
-      price: 2850,
-      compareAtPrice: 3450,
-      primaryImage: 'https://images.unsplash.com/photo-1622445262464-84b1456045b6?w=400&q=80',
-      badge: 'ขายดี',
-      badgeColor: 'bg-[#f97316]',
-      shortDescription: 'ผ้าเบรกเซรามิกเกรดพรีเมียม ไร้เสียงรบกวน ฝุ่นน้อย ถนอมจานเบรก ระยะเบรกสั้นมั่นใจ สำหรับ Toyota Altis 1.6/1.8',
-      description: JSON.stringify({
-        general: 'ผ้าเบรกหน้า BOSCH Ceramic ออกแบบมาเป็นพิเศษสำหรับ Toyota Altis ทนความร้อนสูง ลดฝุ่นจับล้อแม็กซ์ ไร้เสียงเอี๊ยดกวนใจ เพิ่มความมั่นใจในทุกจังหวะเบรก',
-        specific: 'ความหนา 17.5 มม. | เนื้อเซรามิก NAO ทนความร้อนสูงสุด 650°C | สัมประสิทธิ์แรงเสียดทาน Class FF (0.35-0.45) | ตรงรุ่นสำหรับ Toyota Altis 1.6/1.8 ปี 2008-2019',
-        other: 'รับประกันของแท้ 100% โดย BOSCH Thailand 1 ปี หรือ 20,000 กม. | แถมฟรีแผ่นชิมกันเสียงและจาระบีสังเคราะห์ในกล่อง'
-      }),
-      warrantyText: 'รับประกันของแท้ 100% โดย BOSCH Thailand 1 ปี หรือ 20,000 กม.',
-    },
-    {
-      id: 'p2',
-      name: 'NGK หัวเทียน Iridium Spark Plug (แพ็ค 4 ชิ้น)',
-      brand: { name: 'NGK' },
-      price: 1680,
-      compareAtPrice: 2200,
-      primaryImage: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400&q=80',
-      badge: 'ขายดี',
-      badgeColor: 'bg-[#f97316]',
-      shortDescription: 'หัวเทียนอิริเดียม จุดระเบิดแม่นยำ เผาไหม้หมดจด ประหยัดน้ำมัน อายุการใช้งานยาวนานกว่า 100,000 กม.',
-      description: JSON.stringify({
-        general: 'หัวเทียน NGK Laser Iridium คุณภาพระดับพรีเมียม แกนอิริเดียมขนาด 0.6 มม. เพิ่มประสิทธิภาพการจุดระเบิดในห้องเผาไหม้',
-        specific: 'ขนาดเกลียว 14 มม. | ระยะเกลียว 1.25 มม. | ขนาดแกนกลาง Iridium 0.6 มม. | ค่าความร้อน เบอร์ 6 | รองรับเครื่องยนต์เบนซินหัวฉีดตรงและไฮบริด',
-        other: 'รับประกันความทนทาน ใช้งานยาวนาน 100,000 กิโลเมตร | ควรกวดขันตามค่าทอร์กที่กำหนด (25-30 Nm)'
-      }),
-      warrantyText: 'รับประกันความทนทาน 100,000 กม. ตามมาตรฐาน NGK Japan',
-    },
-    {
-      id: 'p3',
-      name: 'MANN FILTER ไส้กรองน้ำมันเครื่อง Engine Oil Filter',
-      brand: { name: 'MANN FILTER' },
-      price: 320,
-      compareAtPrice: 420,
-      primaryImage: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=400&q=80',
-      badge: 'แนะนำ',
-      badgeColor: 'bg-blue-500',
-      shortDescription: 'ไส้กรองน้ำมันเครื่องมาตรฐานเยอรมัน ดักจับสิ่งสกปรกและอนุภาคโลหะได้อย่างมีประสิทธิภาพ ยืดอายุเครื่องยนต์',
-      description: JSON.stringify({
-        general: 'ไส้กรองน้ำมันเครื่อง MANN-FILTER ผลิตด้วยวัสดุกรองสังเคราะห์พิเศษ กรองละอองสิ่งเจือปนได้ละเอียดสูงสุด รักษาแรงดันน้ำมันเครื่องได้อย่างคงที่',
-        specific: 'เส้นผ่านศูนย์กลางภายนอก 76 มม. | ขนาดเกลียว 3/4-16 UNF | พร้อมวาล์ว Bypass Pressure 1.0 bar และ Anti-drain back valve ป้องกันน้ำมันไหลย้อนกลับ',
-        other: 'เปลี่ยนถ่ายทุกๆ 10,000 กม. หรือพร้อมการเปลี่ยนถ่ายน้ำมันเครื่อง | สินค้านำเข้าแท้จากเยอรมนี'
-      }),
-      warrantyText: 'รับประกัน 6 เดือน หรือ 10,000 กม. ตามรอบเปลี่ยนถ่าย',
-    },
-    {
-      id: 'p4',
-      name: 'KYB โช้คอัพหน้า Excel-G (หน้า/ซ้าย-ขวา)',
-      brand: { name: 'KYB' },
-      price: 2890,
-      compareAtPrice: 3600,
-      primaryImage: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=400&q=80',
-      badge: 'ขายดี',
-      badgeColor: 'bg-[#f97316]',
-      shortDescription: 'โช้คอัพแก๊สประสิทธิภาพสูง ซับแรงกระแทกได้ดีเยี่ยม นุ่มหนึบ ทรงตัวมั่นใจทุกโค้ง',
-      description: JSON.stringify({
-        general: 'โช้คอัพแก๊สระบบ Twin Tube จาก KYB คืนตัวเร็ว เข้าโค้งนิ่ง ลดการโคลงตัวของรถยนต์ เพิ่มสมรรถนะการทรงตัวบนทุกสภาพถนน',
-        specific: 'โครงสร้างแบบ Twin Tube บรรจุก๊าซไนโตรเจนแรงดันต่ำร่วมกับน้ำมันไฮดรอลิกเกรดสูง | แกนชุบฮาร์ดโครเมียมความแข็งแรงสูง ป้องกันสนิมและรอยขีดข่วน',
-        other: 'รับประกัน 1 ปี หรือ 20,000 กม. โดย KYB ประเทศไทย | แนะนำให้เปลี่ยนเป็นคู่หน้าเพื่อความสมดุลของการทรงตัว'
-      }),
-      warrantyText: 'รับประกัน 1 ปี หรือ 20,000 กม. โดย KYB ประเทศไทย',
-    },
-    {
-      id: 'p5',
-      name: 'ACDelco แบตเตอรี่รถยนต์ 55B24L (12V 45Ah)',
-      brand: { name: 'ACDelco' },
-      price: 3990,
-      compareAtPrice: 6000,
-      primaryImage: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&q=80',
-      badge: 'แนะนำ',
-      badgeColor: 'bg-blue-500',
-      shortDescription: 'แบตเตอรี่กึ่งแห้ง ไม่ต้องดูแลรักษาน้ำกลั่น กำลังสตาร์ทสูง ทนทานต่อสภาพอากาศร้อน',
-      description: JSON.stringify({
-        general: 'แบตเตอรี่มาตรฐานสากลจาก ACDelco แผ่นธาตุหนาพิเศษ เก็บประจุไฟได้สม่ำเสมอ อายุการใช้งานยาวนาน จ่ายกระแสไฟเสถียรสำหรับรถยนต์ยุคใหม่',
-        specific: 'แรงดันไฟฟ้า 12V | ความจุ 45Ah | ค่ากระแสสตาร์ท CCA 430A | ขั้ว L (ซ้าย) | ขนาดมิติ 128 x 238 x 227 มม.',
-        other: 'รับประกัน 12 เดือนเต็ม เคลมได้ทุกลูกกรณีความบกพร่องจากการผลิต | มีตาแมวตรวจเช็คสถานะไฟ'
-      }),
-      warrantyText: 'รับประกัน 12 เดือน เคลมลูกใหม่ตามเงื่อนไข ACDelco',
-    },
-    {
-      id: 'p6',
-      name: 'BOSCH กรองอากาศ Cabin Filter (ภายในห้องโดยสาร)',
-      brand: { name: 'BOSCH' },
-      price: 450,
-      compareAtPrice: 590,
-      primaryImage: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=400&q=80',
-      badge: 'ขายดี',
-      badgeColor: 'bg-[#f97316]',
-      shortDescription: 'ไส้กรองแอร์ห้องโดยสาร ดักจับฝุ่นละออง PM2.5 เกสรดอกไม้ และเชื้อโรคในอากาศ',
-      description: 'กรองแอร์ BOSCH คุณภาพสูง ช่วยให้อากาศภายในห้องโดยสารสะอาด สดชื่น ปราศจากกลิ่นอับชื้น'
-    }
-  ];
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCatalogProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const res = await ApiClient.getProducts({ limit: 10, sortBy: 'createdAt', sortOrder: 'desc' });
+        if (isMounted && res?.data && res.data.length > 0) {
+          setProducts(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch home catalog products:', err);
+      } finally {
+        if (isMounted) setLoadingProducts(false);
+      }
+    };
+    fetchCatalogProducts();
+    return () => { isMounted = false; };
+  }, []);
 
   const currentBanner = activeBanners[currentBannerIndex] || activeBanners[0];
 
@@ -356,9 +277,19 @@ export const Home = ({ navigate, user, setUser }) => {
            </div>
            
            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-              {mockProducts.slice(0,5).map((p, i) => (
-                <ProductCard key={i} product={p} user={user} onRequireLogin={() => navigate?.('login')} onClick={() => navigate?.('product-detail', { product: p })} />
-              ))}
+              {loadingProducts ? (
+                [1, 2, 3, 4, 5].map((idx) => (
+                  <div key={idx} className="h-64 bg-slate-100 rounded-2xl animate-pulse border border-slate-200" />
+                ))
+              ) : products.length > 0 ? (
+                products.slice(0, 5).map((p, i) => (
+                  <ProductCard key={p.id || i} product={p} user={user} onRequireLogin={() => navigate?.('login')} onClick={() => navigate?.('product-detail', { product: p })} />
+                ))
+              ) : (
+                <div className="col-span-full py-8 text-center text-slate-400 font-semibold text-sm">
+                  {lang === 'en' ? 'No featured products found' : 'ไม่พบรายการสินค้าแนะนำ'}
+                </div>
+              )}
            </div>
         </section>
 
@@ -417,25 +348,42 @@ export const Home = ({ navigate, user, setUser }) => {
         {[1, 2].map((row, rowIndex) => (
            <section key={`grid-row-${rowIndex}`} className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-4 items-stretch">
               {/* Column 1: Promo Banner */}
-              <div className="col-span-1 h-[140px] sm:h-[180px] lg:h-auto bg-slate-900 rounded-2xl sm:rounded-[20px] overflow-hidden relative shadow-sm group cursor-pointer flex flex-col justify-end p-4 sm:p-6">
-                 <img src={rowIndex === 1 ? "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=80" : "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=600&q=80"} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" alt="Promo" />
+              <div 
+                onClick={() => navigate?.('product-list')}
+                className="col-span-1 h-[140px] sm:h-[180px] lg:h-auto bg-slate-900 rounded-2xl sm:rounded-[20px] overflow-hidden relative shadow-sm group cursor-pointer flex flex-col justify-end p-4 sm:p-6"
+              >
+                 <img 
+                   src={rowIndex === 1 ? "https://images.unsplash.com/photo-1600706432502-778e34279b90?w=600&q=80" : "https://images.unsplash.com/photo-1599819811279-d5ad9cccf838?w=600&q=80"} 
+                   className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" 
+                   alt="Automotive parts" 
+                 />
                  <div className="absolute inset-0 bg-gradient-to-t from-[#0c1a38]/90 via-transparent to-transparent"></div>
                  
                  <div className="relative z-10">
                     <div className={`${rowIndex === 1 ? 'bg-blue-500' : 'bg-[#f97316]'} text-white text-[9px] sm:text-[10px] font-bold uppercase px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full w-fit mb-1.5 sm:mb-2 tracking-widest shadow-sm`}>
-                       {rowIndex === 1 ? 'แนะนำ' : 'สินค้าใหม่'}
+                       {rowIndex === 1 ? (lang === 'en' ? 'Brakes' : 'ระบบเบรก') : (lang === 'en' ? 'Ignition' : 'ระบบจุดระเบิด')}
                     </div>
                     <div className="text-white font-black text-xl sm:text-2xl lg:text-3xl mb-1 leading-tight tracking-tight">
-                       {rowIndex === 1 ? <>Action<br className="hidden lg:block"/> Camera</> : <>GoPro<br className="hidden lg:block"/> Hero 10</>}
+                       {rowIndex === 1 ? <>Ceramic<br className="hidden lg:block"/> Brakes</> : <>Iridium<br className="hidden lg:block"/> Spark Plugs</>}
                     </div>
                  </div>
               </div>
               
               {/* Columns 2-5: 4 Product Cards */}
               <div className="col-span-1 lg:col-span-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-                 {mockProducts.slice(0,4).map((p, i) => (
-                   <ProductCard key={`g${rowIndex}-${i}`} product={p} user={user} onRequireLogin={() => navigate?.('login')} onClick={() => navigate?.('product-detail', { product: p })} />
-                 ))}
+                 {loadingProducts ? (
+                   [1, 2, 3, 4].map((idx) => (
+                     <div key={idx} className="h-64 bg-slate-100 rounded-2xl animate-pulse border border-slate-200" />
+                   ))
+                 ) : products.length > 0 ? (
+                   products.slice(0, 4).map((p, i) => (
+                     <ProductCard key={`g${rowIndex}-${p.id || i}`} product={p} user={user} onRequireLogin={() => navigate?.('login')} onClick={() => navigate?.('product-detail', { product: p })} />
+                   ))
+                 ) : (
+                   <div className="col-span-full py-8 text-center text-slate-400 font-semibold text-sm">
+                     {lang === 'en' ? 'No products available' : 'ยังไม่มีสินค้าในหมวดหมู่นี้'}
+                   </div>
+                 )}
               </div>
            </section>
         ))}

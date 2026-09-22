@@ -162,95 +162,10 @@ export default function ProductCatalogManager() {
         limit: 50
       }).catch(() => null);
 
-      if (res?.data && res.data.length > 0) {
+      if (res?.data) {
         setProducts(res.data);
       } else {
-        // Seed default rich catalog products with multi-SKU sample
-        setProducts([
-          {
-            id: 'prod-motul-5w30',
-            name: 'น้ำมันเครื่องสังเคราะห์แท้ MOTUL 8100 X-cess 5W-30',
-            sku: 'MOT-8100-5W30',
-            category: { id: 'c2', name: 'น้ำมันเครื่อง & ของเหลว' },
-            brand: { id: 'b4', name: 'MOTUL' },
-            price: 450,
-            compareAtPrice: 550,
-            stockQuantity: 48,
-            shippingFee: 80, // Heavy item specific shipping
-            images: ['https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=500&q=80'],
-            variants: [
-              { id: 'v1', name: 'ขนาด 1 ลิตร', sku: 'MOT-8100-1L', imageUrl: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=200&q=80', price: 450, compareAtPrice: 550, stockQuantity: 20, shippingFee: 50 },
-              { id: 'v2', name: 'ขนาด 4 ลิตร', sku: 'MOT-8100-4L', imageUrl: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=200&q=80', price: 1650, compareAtPrice: 1950, stockQuantity: 18, shippingFee: 80 },
-              { id: 'v3', name: 'ขนาด 5 ลิตร (สุดคุ้ม)', sku: 'MOT-8100-5L', imageUrl: 'https://images.unsplash.com/photo-1600790142055-619df03207e6?w=200&q=80', price: 1990, compareAtPrice: 2350, stockQuantity: 10, shippingFee: 100 },
-            ],
-            compatibleVehicles: [
-              { id: 'cv1', make: 'TOYOTA', model: 'Hilux Revo', startYear: '2015', endYear: '2024', note: 'เครื่องยนต์ดีเซล 2.4 / 2.8' },
-              { id: 'cv2', make: 'TOYOTA', model: 'Fortuner', startYear: '2015', endYear: '2024', note: 'เครื่องยนต์ดีเซล' },
-              { id: 'cv3', make: 'ISUZU', model: 'D-Max', startYear: '2019', endYear: '2024', note: 'เครื่องยนต์ 1.9 / 3.0 Ddi' },
-            ],
-            isActive: true,
-          },
-          {
-            id: 'prod-brembo-pads',
-            name: 'ผ้าเบรคหน้า Brembo Ceramic สำหรับ Toyota Hilux Revo / Fortuner',
-            sku: 'BRE-P83098N',
-            category: { id: 'c1', name: 'ระบบเบรก' },
-            brand: { id: 'b3', name: 'BREMBO' },
-            price: 1850,
-            compareAtPrice: 2200,
-            stockQuantity: 15,
-            shippingFee: 50,
-            images: ['https://images.unsplash.com/photo-1600790142055-619df03207e6?w=500&q=80'],
-            variants: [
-              { id: 'vp1', name: 'ชุดล้อหน้า (ซ้าย-ขวา)', sku: 'BRE-P83098N-F', imageUrl: 'https://images.unsplash.com/photo-1600790142055-619df03207e6?w=200&q=80', price: 1850, compareAtPrice: 2200, stockQuantity: 10, shippingFee: 50 },
-              { id: 'vp2', name: 'ชุดล้อหลัง (ซ้าย-ขวา)', sku: 'BRE-P83098N-R', imageUrl: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=200&q=80', price: 1650, compareAtPrice: 1950, stockQuantity: 5, shippingFee: 50 },
-            ],
-            compatibleVehicles: [
-              { id: 'cv4', make: 'TOYOTA', model: 'Hilux Revo', startYear: '2015', endYear: '2023', note: 'จานหน้า 297mm' },
-              { id: 'cv5', make: 'TOYOTA', model: 'Fortuner', startYear: '2015', endYear: '2023', note: 'จานหน้า 297mm' },
-            ],
-            isActive: true,
-          },
-          {
-            id: 'prod-denso-spark',
-            name: 'หัวเทียน Denso Iridium TT สำหรับ Honda Civic / City / HR-V',
-            sku: 'DEN-IK20TT',
-            category: { id: 'c5', name: 'ระบบไฟ & แบตเตอรี่' },
-            brand: { id: 'b2', name: 'DENSO' },
-            price: 320,
-            compareAtPrice: 380,
-            stockQuantity: 60,
-            shippingFee: 0, // Standard shipping
-            images: ['https://images.unsplash.com/photo-1588625500589-9e8c46522851?w=500&q=80'],
-            variants: [
-              { id: 'vs1', name: 'กล่อง 1 หัว', sku: 'DEN-IK20TT-1P', imageUrl: 'https://images.unsplash.com/photo-1588625500589-9e8c46522851?w=200&q=80', price: 320, compareAtPrice: 380, stockQuantity: 20, shippingFee: 0 },
-              { id: 'vs2', name: 'ชุด 4 หัว (ครบชุดเครื่องยนต์)', sku: 'DEN-IK20TT-4P', imageUrl: 'https://images.unsplash.com/photo-1588625500589-9e8c46522851?w=200&q=80', price: 1250, compareAtPrice: 1500, stockQuantity: 40, shippingFee: 0 },
-            ],
-            compatibleVehicles: [
-              { id: 'cv6', make: 'HONDA', model: 'Civic (FD/FB/FC)', startYear: '2006', endYear: '2021', note: 'เครื่องยนต์ 1.8 / 2.0 i-VTEC' },
-              { id: 'cv7', make: 'HONDA', model: 'City (GM/GN)', startYear: '2008', endYear: '2023', note: 'เครื่องยนต์ 1.5 i-VTEC / 1.0 Turbo' },
-            ],
-            isActive: true,
-          },
-          {
-            id: 'prod-bosch-filter',
-            name: 'กรองน้ำมันเครื่อง Bosch Premium สำหรับ Isuzu D-Max All New',
-            sku: 'BOS-0986AF0043',
-            category: { id: 'c3', name: 'ระบบกรอง' },
-            brand: { id: 'b1', name: 'BOSCH' },
-            price: 190,
-            compareAtPrice: 240,
-            stockQuantity: 35,
-            shippingFee: 0,
-            images: ['https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=500&q=80'],
-            variants: [],
-            compatibleVehicles: [
-              { id: 'cv8', make: 'ISUZU', model: 'D-Max', startYear: '2012', endYear: '2024', note: 'เครื่อง 1.9 / 2.5 / 3.0 Ddi' },
-              { id: 'cv9', make: 'ISUZU', model: 'MU-X', startYear: '2013', endYear: '2024', note: 'เครื่อง 1.9 / 2.5 / 3.0' },
-            ],
-            isActive: true,
-          }
-        ]);
+        setProducts([]);
       }
     } catch (e) {
       console.error(e);
