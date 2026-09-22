@@ -126,29 +126,21 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
     setIsAdmin(true);
     const fetchStats = async () => {
       try {
-        if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-          const u = await window.electronAPI.query('SELECT COUNT(*) as count FROM users');
-          const p = await window.electronAPI.query('SELECT COUNT(*) as count FROM products');
-          const c = await window.electronAPI.query('SELECT COUNT(*) as count FROM categories');
-          const b = await window.electronAPI.query('SELECT COUNT(*) as count FROM brands');
-          setStats({ users: u?.[0]?.count || 11, products: p?.[0]?.count || 5, categories: c?.[0]?.count || 10, brands: b?.[0]?.count || 9 });
+        const res = await ApiClient.getDashboardStats().catch(() => null);
+        if (res?.success && res.stats) {
+          setStats(res.stats);
         } else {
-          const res = await ApiClient.getDashboardStats().catch(() => null);
-          if (res?.success && res.stats) {
-            setStats(res.stats);
-          } else {
-            const [prodsRes, catsRes, brandsRes] = await Promise.all([
-              ApiClient.getProducts({ limit: 1 }).catch(() => null),
-              ApiClient.getCategories().catch(() => null),
-              ApiClient.getBrands().catch(() => null),
-            ]);
-            setStats({
-              users: 11,
-              products: prodsRes?.meta?.total || 5,
-              categories: Array.isArray(catsRes?.data) ? catsRes.data.length : 10,
-              brands: Array.isArray(brandsRes?.data) ? brandsRes.data.length : 9,
-            });
-          }
+          const [prodsRes, catsRes, brandsRes] = await Promise.all([
+            ApiClient.getProducts({ pageSize: 1 }).catch(() => null),
+            ApiClient.getCategories().catch(() => null),
+            ApiClient.getBrands().catch(() => null),
+          ]);
+          setStats({
+            users: 11,
+            products: prodsRes?.pagination?.totalItems || prodsRes?.meta?.total || 5,
+            categories: Array.isArray(catsRes?.data) ? catsRes.data.length : 10,
+            brands: Array.isArray(brandsRes?.data) ? brandsRes.data.length : 9,
+          });
         }
       } catch (err) {
         console.error('Error fetching dashboard stats:', err);
@@ -1030,609 +1022,6 @@ const AdnexDashboardOverview = ({ stats, setActiveTab, selectedDateRange = 'May 
   );
 };
 
-const EntityManager = ({ table, title, fields = ['name'] }) => {
-   const [items, setItems] = useState([]);
-   const [editId, setEditId] = useState(null);
-   const [formData, setFormData] = useState({});
-
-   const fetchItems = async () => {
-      try {
-         const res = await window.electronAPI.query(`SELECT * FROM ${table}`);
-         setItems(res);
-      } catch (err) { console.error(err); }
-   };
-
-   useEffect(() => { fetchItems(); }, []);
-
-   const handleSave = async () => {
-      try {
-         if (editId) {
-            const setClause = fields.map(f => `${f} = ?`).join(', ');
-            const params = fields.map(f => formData[f]);
-            await window.electronAPI.query(`UPDATE ${table} SET ${setClause} WHERE id = ?`, [...params, editId]);
-         } else {
-            const cols = fields.join(', ');
-            const placeholders = fields.map(() => '?').join(', ');
-            const params = fields.map(f => formData[f]);
-            await window.electronAPI.query(`INSERT INTO ${table} (${cols}) VALUES (${placeholders})`, params);
-         }
-         setEditId(null);
-         setFormData({});
-         fetchItems();
-      } catch (err) { console.error(err); }
-   };
-
-   const handleDelete = async (id) => {
-      if (confirm('Are you sure you want to delete this?')) {
-         await window.electronAPI.query(`DELETE FROM ${table} WHERE id = ?`, [id]);
-         fetchItems();
-      }
-   };
-
-   return (
-      <div className="space-y-6">
-         <div className="bg-white rounded shadow-sm">
-            <div className="p-4 border-b border-gray-100 font-semibold text-gray-600">{editId ? 'Edit' : 'Add New'} {title}</div>
-            <div className="p-6 flex flex-wrap gap-4 items-end">
-               {fields.map(f => {
-                  if (f === 'image_url') {
-                     return (
-                        <div key={f} className="flex-1 min-w-[200px]">
-                           <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">{f.replace('_', ' ')}</label>
-                           <div className="flex items-center gap-3 mt-1">
-                              {formData[f] ? (
-                                 <div className="relative w-12 h-12 rounded border border-gray-200 overflow-hidden group">
-                                    <img src={formData[f]} alt="Uploaded" className="w-full h-full object-cover" />
-                                    <button
-                                       type="button"
-                                       onClick={() => setFormData({ ...formData, [f]: '' })}
-                                       className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                       <X className="w-2.5 h-2.5" />
-                                    </button>
-                                 </div>
-                              ) : (
-                                 <label className="w-12 h-12 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:text-[#41cac0] hover:border-[#41cac0] transition-colors cursor-pointer">
-                                    <Upload className="w-4 h-4" />
-                                    <input
-                                       type="file"
-                                       accept="image/*"
-                                       className="hidden"
-                                       onChange={e => {
-                                          const file = e.target.files[0];
-                                          if (file) {
-                                             const reader = new FileReader();
-                                             reader.onload = (ev) => {
-                                                setFormData({ ...formData, [f]: ev.target.result });
-                                             };
-                                             reader.readAsDataURL(file);
-                                          }
-                                       }}
-                                    />
-                                 </label>
-                              )}
-                              <span className="text-xs text-gray-400">
-                                 {formData[f] ? 'Click X to remove image' : 'Upload PNG/JPG'}
-                              </span>
-                           </div>
-                        </div>
-                     );
-                  }
-                  return (
-                     <div key={f} className="flex-1 min-w-[200px]">
-                        <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">{f.replace('_', ' ')}</label>
-                        <input
-                           type="text"
-                           className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                           value={formData[f] || ''}
-                           onChange={e => setFormData({ ...formData, [f]: e.target.value })}
-                        />
-                     </div>
-                  );
-               })}
-               <div className="flex items-end gap-2 pb-1">
-                  <button onClick={handleSave} className="bg-[#a9d86e] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-[#8ebc5a] transition-colors">
-                     {editId ? 'Update' : 'Save'}
-                  </button>
-                  {editId && <button onClick={() => { setEditId(null); setFormData({}); }} className="bg-gray-100 text-gray-500 px-4 py-2 rounded text-sm">Cancel</button>}
-               </div>
-            </div>
-         </div>
-
-         <div className="bg-white rounded shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-               <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">ID</th>
-                     {fields.map(f => <th key={f} className="p-4 text-xs font-bold text-gray-500 uppercase">{f.replace('_', ' ')}</th>)}
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
-                  </tr>
-               </thead>
-               <tbody>
-                  {items.map(item => (
-                     <tr key={item.id} className="border-b border-gray-50 last:border-none hover:bg-gray-50 transition-colors">
-                        <td className="p-4 text-sm text-gray-400">#{item.id}</td>
-                        {fields.map(f => (
-                           <td key={f} className="p-4 text-sm text-gray-600">
-                              {f === 'image_url' ? (
-                                 item[f] ? (
-                                    <img src={item[f]} alt="logo" className="w-10 h-10 object-contain rounded border bg-white" />
-                                 ) : (
-                                    <span className="text-gray-300 text-xs font-normal italic">No image</span>
-                                 )
-                              ) : (
-                                 item[f]
-                              )}
-                           </td>
-                        ))}
-                        <td className="p-4 text-right">
-                           <button onClick={() => { setEditId(item.id); setFormData(item); }} className="text-blue-400 hover:text-blue-600 p-1 mr-2"><Edit className="w-4 h-4" /></button>
-                           <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
-                        </td>
-                     </tr>
-                  ))}
-               </tbody>
-            </table>
-         </div>
-      </div>
-   );
-};
-
-const ProductManager = () => {
-   const [products, setProducts] = useState([]);
-   const [categories, setCategories] = useState([]);
-   const [brands, setBrands] = useState([]);
-   const [carBrands, setCarBrands] = useState([]);
-   const [availableModels, setAvailableModels] = useState([]);
-   const [carYears, setCarYears] = useState([]);
-
-   const [editId, setEditId] = useState(null);
-   const [formData, setFormData] = useState({
-      name: '', code: '', description: '', car_brand: '', car_model: '', car_year: '',
-      category_id: '', brand_id: '', price_general: 0, price_garage: 0, price_shop: 0,
-      specifications: '', cross_references: '', images: ''
-   });
-   const [imageFiles, setImageFiles] = useState([]);
-   const imageInputRef = useRef(null);
-
-   // Search & Pagination states
-   const [searchQuery, setSearchQuery] = useState('');
-   const [filterCategory, setFilterCategory] = useState('');
-   const [filterBrand, setFilterBrand] = useState('');
-   const [filterCarBrand, setFilterCarBrand] = useState('');
-   const [page, setPage] = useState(1);
-   const [limit, setLimit] = useState(25);
-   const [totalProducts, setTotalProducts] = useState(0);
-
-   const fetchLookups = async () => {
-      try {
-         const cats = await window.electronAPI.query('SELECT * FROM categories ORDER BY name ASC');
-         const brs = await window.electronAPI.query('SELECT * FROM brands ORDER BY name ASC');
-         const cbrs = await window.electronAPI.query('SELECT * FROM car_brands ORDER BY name ASC');
-         const yrs = await window.electronAPI.query('SELECT * FROM car_years ORDER BY year DESC');
-         setCategories(cats);
-         setBrands(brs);
-         setCarBrands(cbrs);
-         setCarYears(yrs);
-      } catch (err) { console.error(err); }
-   };
-
-   const fetchModelsForBrand = async (brandName) => {
-      if (!brandName) {
-         setAvailableModels([]);
-         return;
-      }
-      try {
-         const brand = await window.electronAPI.query('SELECT id FROM car_brands WHERE name = ?', [brandName]);
-         if (brand && brand.length > 0) {
-            const models = await window.electronAPI.query('SELECT * FROM car_models WHERE car_brand_id = ? ORDER BY name ASC', [brand[0].id]);
-            setAvailableModels(models);
-         } else {
-            setAvailableModels([]);
-         }
-      } catch (err) { console.error(err); }
-   };
-
-   const fetchProducts = async () => {
-      try {
-         let whereClause = 'WHERE 1=1';
-         const params = [];
-
-         if (searchQuery.trim()) {
-            whereClause += ' AND (p.name LIKE ? OR p.code LIKE ?)';
-            params.push(`%${searchQuery.trim()}%`, `%${searchQuery.trim()}%`);
-         }
-         if (filterCategory) {
-            whereClause += ' AND p.category_id = ?';
-            params.push(filterCategory);
-         }
-         if (filterBrand) {
-            whereClause += ' AND p.brand_id = ?';
-            params.push(filterBrand);
-         }
-         if (filterCarBrand) {
-            whereClause += ' AND p.car_brand = ?';
-            params.push(filterCarBrand);
-         }
-
-         const countRes = await window.electronAPI.query(`SELECT COUNT(*) as count FROM products p ${whereClause}`, params);
-         const total = countRes[0]?.count || 0;
-         setTotalProducts(total);
-
-         const offset = (page - 1) * limit;
-         const p = await window.electronAPI.query(`
-            SELECT p.*, c.name as cat_name, b.name as brand_name 
-            FROM products p 
-            LEFT JOIN categories c ON p.category_id = c.id 
-            LEFT JOIN brands b ON p.brand_id = b.id 
-            ${whereClause} 
-            ORDER BY p.id DESC 
-            LIMIT ? OFFSET ?
-         `, [...params, limit, offset]);
-         setProducts(p);
-      } catch (err) { console.error(err); }
-   };
-
-   useEffect(() => {
-      fetchLookups();
-   }, []);
-
-   useEffect(() => {
-      fetchProducts();
-   }, [searchQuery, filterCategory, filterBrand, filterCarBrand, page, limit]);
-
-   const handleImageUpload = (e) => {
-      const files = Array.from(e.target.files);
-      const readers = files.map(file => {
-         return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => resolve(ev.target.result);
-            reader.readAsDataURL(file);
-         });
-      });
-      Promise.all(readers).then(results => {
-         setImageFiles(prev => [...prev, ...results]);
-         const allImages = [...imageFiles, ...results];
-         setFormData(prev => ({ ...prev, images: JSON.stringify(allImages) }));
-      });
-   };
-
-   const removeImage = (index) => {
-      const updated = imageFiles.filter((_, i) => i !== index);
-      setImageFiles(updated);
-      setFormData(prev => ({ ...prev, images: JSON.stringify(updated) }));
-   };
-
-   const handleSave = async () => {
-      try {
-         if (editId) {
-            await window.electronAPI.query(
-               'UPDATE products SET name=?, code=?, description=?, car_brand=?, car_model=?, car_year=?, category_id=?, brand_id=?, price_general=?, price_garage=?, price_shop=?, specifications=?, cross_references=?, images=? WHERE id=?',
-               [formData.name, formData.code, formData.description || '', formData.car_brand, formData.car_model || '', formData.car_year || '',
-                formData.category_id, formData.brand_id, formData.price_general, formData.price_garage, formData.price_shop,
-                formData.specifications || '', formData.cross_references || '', formData.images || '', editId]
-            );
-         } else {
-            await window.electronAPI.query(
-               'INSERT INTO products (name, code, description, car_brand, car_model, car_year, category_id, brand_id, price_general, price_garage, price_shop, specifications, cross_references, images) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-               [formData.name, formData.code, formData.description || '', formData.car_brand, formData.car_model || '', formData.car_year || '',
-                formData.category_id, formData.brand_id, formData.price_general, formData.price_garage, formData.price_shop,
-                formData.specifications || '', formData.cross_references || '', formData.images || '']
-            );
-         }
-         setEditId(null);
-         setFormData({
-            name: '', code: '', description: '', car_brand: '', car_model: '', car_year: '',
-            category_id: '', brand_id: '', price_general: 0, price_garage: 0, price_shop: 0,
-            specifications: '', cross_references: '', images: ''
-         });
-         setImageFiles([]);
-         setAvailableModels([]);
-         fetchProducts();
-      } catch (err) { console.error(err); }
-   };
-
-   const handleEdit = (p) => {
-      setEditId(p.id);
-      setFormData(p);
-      if (p.car_brand) {
-         fetchModelsForBrand(p.car_brand);
-      } else {
-         setAvailableModels([]);
-      }
-      try {
-         const imgs = JSON.parse(p.images || '[]');
-         setImageFiles(imgs);
-      } catch {
-         setImageFiles([]);
-      }
-   };
-
-   const handleDelete = async (id) => {
-      if (confirm('Are you sure you want to delete this product?')) {
-         await window.electronAPI.query('DELETE FROM products WHERE id = ?', [id]);
-         fetchProducts();
-      }
-   };
-
-   const totalPages = Math.ceil(totalProducts / limit) || 1;
-
-   return (
-      <div className="space-y-6">
-         <div className="bg-white rounded shadow-sm">
-            <div className="p-4 border-b border-gray-100 font-semibold text-gray-600">{editId ? 'Edit Product' : 'Add New Product'}</div>
-            <div className="p-6 space-y-4">
-               {/* Row 1: Name, Code, Description */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Product Name</label>
-                     <input type="text" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">SKU Code</label>
-                     <input type="text" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} />
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Description</label>
-                     <input type="text" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-                  </div>
-               </div>
-
-               {/* Row 2: Car Brand, Model, Year */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Car Brand</label>
-                     <select
-                        className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                        value={formData.car_brand || ''}
-                        onChange={e => {
-                           const brandVal = e.target.value;
-                           setFormData({ ...formData, car_brand: brandVal, car_model: '' });
-                           fetchModelsForBrand(brandVal);
-                        }}
-                     >
-                        <option value="">Select Car Brand</option>
-                        {carBrands.map(b => (
-                           <option key={b.id} value={b.name}>{b.name}</option>
-                        ))}
-                     </select>
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Car Model</label>
-                     <select
-                        className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                        value={formData.car_model || ''}
-                        disabled={!formData.car_brand}
-                        onChange={e => setFormData({ ...formData, car_model: e.target.value })}
-                     >
-                        <option value="">Select Car Model</option>
-                        {availableModels.map(m => (
-                           <option key={m.id} value={m.name}>{m.name}</option>
-                        ))}
-                     </select>
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Car Year</label>
-                     <select
-                        className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                        value={formData.car_year || ''}
-                        onChange={e => setFormData({ ...formData, car_year: e.target.value })}
-                     >
-                        <option value="">Select Car Year</option>
-                        {carYears.map(y => (
-                           <option key={y.id} value={y.year}>{y.year}</option>
-                        ))}
-                     </select>
-                  </div>
-               </div>
-
-               {/* Row 3: Category, Brand, Prices */}
-               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Category</label>
-                     <select className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
-                        <option value="">Select Category</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Brand</label>
-                     <select className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.brand_id} onChange={e => setFormData({ ...formData, brand_id: e.target.value })}>
-                        <option value="">Select Brand</option>
-                        {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                     </select>
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">General Price</label>
-                     <input type="number" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.price_general} onChange={e => setFormData({ ...formData, price_general: Number(e.target.value) })} />
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Garage Price</label>
-                     <input type="number" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.price_garage} onChange={e => setFormData({ ...formData, price_garage: Number(e.target.value) })} />
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Shop Price</label>
-                     <input type="number" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none" value={formData.price_shop} onChange={e => setFormData({ ...formData, price_shop: Number(e.target.value) })} />
-                  </div>
-               </div>
-
-               {/* Row 4: Specs, Cross-refs */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Specifications (JSON)</label>
-                     <textarea rows="2" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none font-mono text-[11px]" placeholder='{"weight":"500g","material":"Steel"}' value={formData.specifications || ''} onChange={e => setFormData({ ...formData, specifications: e.target.value })} />
-                  </div>
-                  <div>
-                     <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Cross References (JSON array)</label>
-                     <textarea rows="2" className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none font-mono text-[11px]" placeholder='["OEM-123","ALT-456"]' value={formData.cross_references || ''} onChange={e => setFormData({ ...formData, cross_references: e.target.value })} />
-                  </div>
-               </div>
-
-               {/* Row 5: Image upload */}
-               <div>
-                  <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Product Images</label>
-                  <div className="flex flex-wrap gap-3 items-center">
-                     {imageFiles.map((img, i) => (
-                        <div key={i} className="relative w-20 h-20 rounded border border-gray-200 overflow-hidden group">
-                           <img src={img} alt={`Product ${i + 1}`} className="w-full h-full object-cover" />
-                           <button onClick={() => removeImage(i)} className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
-                              <X className="w-3 h-3" />
-                           </button>
-                        </div>
-                     ))}
-                     <button onClick={() => imageInputRef.current?.click()} className="w-20 h-20 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center text-gray-400 hover:text-[#41cac0] hover:border-[#41cac0] transition-colors cursor-pointer">
-                        <Image className="w-5 h-5" />
-                        <span className="text-[8px] font-bold mt-1">ADD</span>
-                     </button>
-                     <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
-                  </div>
-               </div>
-
-               {/* Save/Cancel */}
-               <div className="flex items-end gap-2 pt-2">
-                  <button onClick={handleSave} className="bg-[#a9d86e] text-white px-8 py-2 rounded text-sm font-semibold hover:bg-[#8ebc5a] transition-colors">
-                     {editId ? 'Update' : 'Save Product'}
-                  </button>
-                  {editId && <button onClick={() => { setEditId(null); setFormData({ name: '', code: '', description: '', car_brand: '', car_model: '', car_year: '', category_id: '', brand_id: '', price_general: 0, price_garage: 0, price_shop: 0, specifications: '', cross_references: '', images: '' }); setImageFiles([]); setAvailableModels([]); }} className="bg-gray-100 text-gray-500 px-4 py-2 rounded text-sm">Cancel</button>}
-               </div>
-            </div>
-         </div>
-
-         {/* Advanced Filters & Search Bar */}
-         <div className="bg-white rounded shadow-sm p-4 flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-[200px] relative">
-               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-               <input
-                  type="text"
-                  placeholder="Search by name or SKU code..."
-                  className="w-full border border-gray-200 pl-9 pr-3 py-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                  value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-               />
-            </div>
-            <div className="w-[180px]">
-               <select
-                  className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                  value={filterCategory}
-                  onChange={e => { setFilterCategory(e.target.value); setPage(1); }}
-               >
-                  <option value="">All Categories</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-               </select>
-            </div>
-            <div className="w-[180px]">
-               <select
-                  className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                  value={filterBrand}
-                  onChange={e => { setFilterBrand(e.target.value); setPage(1); }}
-               >
-                  <option value="">All Brands</option>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-               </select>
-            </div>
-            <div className="w-[180px]">
-               <select
-                  className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                  value={filterCarBrand}
-                  onChange={e => { setFilterCarBrand(e.target.value); setPage(1); }}
-               >
-                  <option value="">All Car Brands</option>
-                  {carBrands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
-               </select>
-            </div>
-            {(searchQuery || filterCategory || filterBrand || filterCarBrand) && (
-               <button
-                  onClick={() => { setSearchQuery(''); setFilterCategory(''); setFilterBrand(''); setFilterCarBrand(''); setPage(1); }}
-                  className="text-xs text-red-500 hover:underline"
-               >
-                  Clear Filters
-               </button>
-            )}
-         </div>
-
-         <div className="bg-white rounded shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-               <span className="text-xs text-gray-500 font-bold uppercase">Showing {products.length} of {totalProducts} Products</span>
-               <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">Rows per page:</span>
-                  <select
-                     className="border border-gray-200 rounded p-1 text-xs outline-none"
-                     value={limit}
-                     onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
-                  >
-                     <option value={10}>10</option>
-                     <option value={25}>25</option>
-                     <option value={50}>50</option>
-                     <option value={100}>100</option>
-                  </select>
-               </div>
-            </div>
-
-            <table className="w-full text-left">
-               <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">Product</th>
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">Details</th>
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">Prices</th>
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
-                  </tr>
-               </thead>
-               <tbody>
-                  {products.map(p => (
-                     <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="p-4">
-                           <div className="font-bold text-gray-700">{p.name}</div>
-                           <div className="text-xs text-gray-400">SKU: {p.code}</div>
-                        </td>
-                        <td className="p-4">
-                           <div className="text-xs text-gray-600"><span className="font-bold">Car:</span> {p.car_brand} {p.car_model || ''} {p.car_year ? `(${p.car_year})` : ''}</div>
-                           <div className="text-xs text-gray-600"><span className="font-bold">Cat:</span> {p.cat_name}</div>
-                           <div className="text-xs text-gray-600"><span className="font-bold">Brand:</span> {p.brand_name}</div>
-                        </td>
-                        <td className="p-4">
-                           <div className="text-xs text-gray-600"><span className="font-bold">G:</span> ฿{p.price_general}</div>
-                           <div className="text-xs text-[#ff6c60]"><span className="font-bold">A:</span> ฿{p.price_garage}</div>
-                           <div className="text-xs text-[#41cac0]"><span className="font-bold">S:</span> ฿{p.price_shop}</div>
-                        </td>
-                        <td className="p-4 text-right">
-                           <button onClick={() => handleEdit(p)} className="text-blue-400 hover:text-blue-600 p-1 mr-2"><Edit className="w-4 h-4" /></button>
-                           <button onClick={() => handleDelete(p.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
-                        </td>
-                     </tr>
-                  ))}
-                  {products.length === 0 && (
-                     <tr>
-                        <td colSpan="4" className="p-8 text-center text-sm text-gray-400">No products found matching the criteria.</td>
-                     </tr>
-                  )}
-               </tbody>
-            </table>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-               <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50">
-                  <button
-                     disabled={page === 1}
-                     onClick={() => setPage(p => Math.max(1, p - 1))}
-                     className="px-4 py-2 border border-gray-200 rounded text-xs font-semibold bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                     Previous
-                  </button>
-                  <span className="text-xs text-gray-600 font-bold">Page {page} of {totalPages}</span>
-                  <button
-                     disabled={page === totalPages}
-                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                     className="px-4 py-2 border border-gray-200 rounded text-xs font-semibold bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                     Next
-                  </button>
-               </div>
-            )}
-         </div>
-      </div>
-   );
-};
-
 // ========================
 // Excel Importer Component
 // ========================
@@ -1669,11 +1058,13 @@ const ExcelImporter = () => {
    useEffect(() => {
       const fetchLookups = async () => {
          try {
-            const cats = await window.electronAPI.query('SELECT * FROM categories');
-            const brs = await window.electronAPI.query('SELECT * FROM brands');
-            setCategories(cats);
-            setBrands(brs);
-         } catch (err) { console.error(err); }
+            const [catsRes, brsRes] = await Promise.all([
+               ApiClient.getCategories().catch(() => ({ data: [] })),
+               ApiClient.getBrands().catch(() => ({ data: [] }))
+            ]);
+            setCategories(catsRes?.data || catsRes?.categories || (Array.isArray(catsRes) ? catsRes : []));
+            setBrands(brsRes?.data || brsRes?.brands || (Array.isArray(brsRes) ? brsRes : []));
+         } catch (err) { console.error('Lookup load error:', err); }
       };
       fetchLookups();
    }, []);
@@ -1808,27 +1199,37 @@ const ExcelImporter = () => {
       }));
    };
 
-   // Find or create category/brand by name
+   // Find or create category/brand by name via PostgreSQL ApiClient
    const findOrCreateCategory = async (name) => {
       if (!name) return null;
       const existing = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
       if (existing) return existing.id;
-      // Create new category
-      const result = await window.electronAPI.query('INSERT INTO categories (name) VALUES (?)', [name]);
-      const newCat = { id: result.lastID, name };
-      setCategories(prev => [...prev, newCat]);
-      return result.lastID;
+      try {
+         const slug = name.toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F]+/g, '-').replace(/^-+|-+$/g, '') || `cat-${Date.now()}`;
+         const res = await ApiClient.createCategory({ name, slug });
+         const newCat = res?.data || res || { id: `cat-${Date.now()}`, name };
+         setCategories(prev => [...prev, newCat]);
+         return newCat.id;
+      } catch (err) {
+         console.warn('Failed to create category:', err);
+         return null;
+      }
    };
 
    const findOrCreateBrand = async (name) => {
       if (!name) return null;
       const existing = brands.find(b => b.name.toLowerCase() === name.toLowerCase());
       if (existing) return existing.id;
-      // Create new brand
-      const result = await window.electronAPI.query('INSERT INTO brands (name) VALUES (?)', [name]);
-      const newBrand = { id: result.lastID, name };
-      setBrands(prev => [...prev, newBrand]);
-      return result.lastID;
+      try {
+         const slug = name.toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F]+/g, '-').replace(/^-+|-+$/g, '') || `brand-${Date.now()}`;
+         const res = await ApiClient.createBrand({ name, slug });
+         const newBrand = res?.data || res || { id: `brand-${Date.now()}`, name };
+         setBrands(prev => [...prev, newBrand]);
+         return newBrand.id;
+      } catch (err) {
+         console.warn('Failed to create brand:', err);
+         return null;
+      }
    };
 
    const startImport = async () => {
@@ -1863,68 +1264,43 @@ const ExcelImporter = () => {
                continue;
             }
 
-            // Check for duplicate code
-            const existingProduct = await window.electronAPI.query('SELECT id FROM products WHERE code = ?', [code]);
-            if (existingProduct && existingProduct.length > 0) {
-               // Update existing product
-               const categoryName = getValue('category_name');
-               const brandName = getValue('brand_name');
-               const categoryId = await findOrCreateCategory(categoryName);
-               const brandId = await findOrCreateBrand(brandName);
-
-               const imagesRaw = getValue('images');
-               const imagesJson = imagesRaw ? JSON.stringify(imagesRaw.split(',').map(s => s.trim()).filter(Boolean)) : '';
-
-               await window.electronAPI.query(
-                  'UPDATE products SET name=?, description=?, car_brand=?, car_model=?, car_year=?, category_id=?, brand_id=?, price_general=?, price_garage=?, price_shop=?, specifications=?, cross_references=?, images=? WHERE code=?',
-                  [
-                     name,
-                     getValue('description'),
-                     getValue('car_brand'),
-                     getValue('car_model'),
-                     getValue('car_year'),
-                     categoryId, brandId,
-                     parseFloat(getValue('price_general')) || 0,
-                     parseFloat(getValue('price_garage')) || 0,
-                     parseFloat(getValue('price_shop')) || 0,
-                     getValue('specifications'),
-                     getValue('cross_references'),
-                     imagesJson,
-                     code
-                  ]
-               );
-               successCount++;
-               continue;
-            }
-
-            // Resolve category and brand by name -> ID
             const categoryName = getValue('category_name');
             const brandName = getValue('brand_name');
             const categoryId = await findOrCreateCategory(categoryName);
             const brandId = await findOrCreateBrand(brandName);
 
-            // Parse images (comma-separated URLs) into JSON array
             const imagesRaw = getValue('images');
-            const imagesJson = imagesRaw ? JSON.stringify(imagesRaw.split(',').map(s => s.trim()).filter(Boolean)) : '';
+            const imagesList = imagesRaw ? imagesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-            await window.electronAPI.query(
-               'INSERT INTO products (name, code, description, car_brand, car_model, car_year, category_id, brand_id, price_general, price_garage, price_shop, specifications, cross_references, images) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-               [
-                  name, code,
-                  getValue('description'),
-                  getValue('car_brand'),
-                  getValue('car_model'),
-                  getValue('car_year'),
-                  categoryId, brandId,
-                  parseFloat(getValue('price_general')) || 0,
-                  parseFloat(getValue('price_garage')) || 0,
-                  parseFloat(getValue('price_shop')) || 0,
-                  getValue('specifications'),
-                  getValue('cross_references'),
-                  imagesJson
-               ]
-            );
-            successCount++;
+            const productPayload = {
+               name,
+               sku: code,
+               description: getValue('description') || '',
+               categoryId: categoryId || undefined,
+               brandId: brandId || undefined,
+               price: parseFloat(getValue('price_general')) || 0,
+               stockQuantity: 25,
+               images: imagesList,
+            };
+
+            try {
+               await ApiClient.createProduct(productPayload);
+               successCount++;
+            } catch (createErr) {
+               // If already exists or error, try update
+               try {
+                  const existingRes = await ApiClient.getProducts({ q: code, pageSize: 1 });
+                  const found = (existingRes?.items || existingRes?.data || []).find(p => p.sku === code || p.code === code);
+                  if (found?.id) {
+                     await ApiClient.updateProduct(found.id, productPayload);
+                     successCount++;
+                  } else {
+                     errors.push({ row: i + 2, message: createErr.message || 'Error creating product' });
+                  }
+               } catch (updErr) {
+                  errors.push({ row: i + 2, message: updErr.message || 'Error saving product' });
+               }
+            }
          } catch (err) {
             errors.push({ row: i + 2, message: err.message || 'Unknown error' });
          }
@@ -2184,115 +1560,6 @@ const ExcelImporter = () => {
                </div>
             </div>
          )}
-      </div>
-   );
-};
-
-// ========================
-// Car Model Manager Component
-// ========================
-const CarModelManager = () => {
-   const [items, setItems] = useState([]);
-   const [brands, setBrands] = useState([]);
-   const [editId, setEditId] = useState(null);
-   const [formData, setFormData] = useState({ name: '', car_brand_id: '' });
-
-   const fetchData = async () => {
-      try {
-         const m = await window.electronAPI.query('SELECT m.*, b.name as brand_name FROM car_models m JOIN car_brands b ON m.car_brand_id = b.id ORDER BY b.name ASC, m.name ASC');
-         const b = await window.electronAPI.query('SELECT * FROM car_brands ORDER BY name ASC');
-         setItems(m);
-         setBrands(b);
-      } catch (err) { console.error(err); }
-   };
-
-   useEffect(() => { fetchData(); }, []);
-
-   const handleSave = async () => {
-      if (!formData.name.trim() || !formData.car_brand_id) {
-         alert('Please select a Car Brand and enter a Model Name');
-         return;
-      }
-      try {
-         if (editId) {
-            await window.electronAPI.query('UPDATE car_models SET name = ?, car_brand_id = ? WHERE id = ?', [formData.name.trim(), formData.car_brand_id, editId]);
-         } else {
-            await window.electronAPI.query('INSERT OR IGNORE INTO car_models (name, car_brand_id) VALUES (?, ?)', [formData.name.trim(), formData.car_brand_id]);
-         }
-         setEditId(null);
-         setFormData({ name: '', car_brand_id: '' });
-         fetchData();
-      } catch (err) { console.error(err); }
-   };
-
-   const handleDelete = async (id) => {
-      if (confirm('Are you sure you want to delete this model?')) {
-         await window.electronAPI.query('DELETE FROM car_models WHERE id = ?', [id]);
-         fetchData();
-      }
-   };
-
-   return (
-      <div className="space-y-6">
-         <div className="bg-white rounded shadow-sm">
-            <div className="p-4 border-b border-gray-100 font-semibold text-gray-600">{editId ? 'Edit' : 'Add New'} Car Model</div>
-            <div className="p-6 flex flex-wrap gap-4 items-end">
-               <div className="flex-1 min-w-[200px]">
-                  <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Car Brand</label>
-                  <select
-                     className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                     value={formData.car_brand_id}
-                     onChange={e => setFormData({ ...formData, car_brand_id: e.target.value })}
-                  >
-                     <option value="">Select Brand</option>
-                     {brands.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                     ))}
-                  </select>
-               </div>
-               <div className="flex-1 min-w-[200px]">
-                  <label className="block text-xs text-gray-400 mb-1 uppercase font-bold">Model Name</label>
-                  <input
-                     type="text"
-                     className="w-full border border-gray-200 p-2 rounded text-sm focus:border-[#41cac0] outline-none"
-                     value={formData.name}
-                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  />
-               </div>
-               <div className="flex gap-2">
-                  <button onClick={handleSave} className="bg-[#a9d86e] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-[#8ebc5a] transition-colors">
-                     {editId ? 'Update' : 'Save'}
-                  </button>
-                  {editId && <button onClick={() => { setEditId(null); setFormData({ name: '', car_brand_id: '' }); }} className="bg-gray-100 text-gray-500 px-4 py-2 rounded text-sm">Cancel</button>}
-               </div>
-            </div>
-         </div>
-
-         <div className="bg-white rounded shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-               <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">ID</th>
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">Car Brand</th>
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase">Model Name</th>
-                     <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
-                  </tr>
-               </thead>
-               <tbody>
-                  {items.map(item => (
-                     <tr key={item.id} className="border-b border-gray-50 last:border-none hover:bg-gray-50 transition-colors">
-                        <td className="p-4 text-sm text-gray-400">#{item.id}</td>
-                        <td className="p-4 text-sm text-gray-600">{item.brand_name}</td>
-                        <td className="p-4 text-sm text-gray-600">{item.name}</td>
-                        <td className="p-4 text-right">
-                           <button onClick={() => { setEditId(item.id); setFormData({ name: item.name, car_brand_id: item.car_brand_id }); }} className="text-blue-400 hover:text-blue-600 p-1 mr-2"><Edit className="w-4 h-4" /></button>
-                           <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
-                        </td>
-                     </tr>
-                  ))}
-               </tbody>
-            </table>
-         </div>
       </div>
    );
 };

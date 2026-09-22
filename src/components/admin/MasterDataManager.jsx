@@ -902,36 +902,14 @@ export function BrandManager() {
     try {
       setLoading(true);
       setError('');
-      if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-        const brs = await window.electronAPI.query('SELECT * FROM brands ORDER BY name ASC');
-        if (brs && brs.length > 0) {
-          setBrands(brs);
-          setLoading(false);
-          return;
-        }
-      }
       const res = await ApiClient.getBrands();
       const loaded = res?.data || res || [];
       if (loaded.length > 0) {
         setBrands(loaded);
-      } else {
-        setBrands([
-          { id: 'b1', name: 'BOSCH', slug: 'bosch', countryOfOrigin: 'Germany', logoUrl: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=100&q=80', description: 'ผู้นำด้านอะไหล่และระบบไฟฟ้าเครื่องยนต์ระดับโลก', isActive: true },
-          { id: 'b2', name: 'DENSO', slug: 'denso', countryOfOrigin: 'Japan', logoUrl: 'https://images.unsplash.com/photo-1588625500589-9e8c46522851?w=100&q=80', description: 'ผู้ผลิตหัวเทียน ไดชาร์จ และคอมเพรสเซอร์แอร์มาตรฐาน OEM', isActive: true },
-          { id: 'b3', name: 'BREMBO', slug: 'brembo', countryOfOrigin: 'Italy', logoUrl: 'https://images.unsplash.com/photo-1600790142055-619df03207e6?w=100&q=80', description: 'ระบบเบรกสมรรถนะสูง จานเบรก และผ้าเบรกมาตรฐานมอเตอร์สปอร์ต', isActive: true },
-          { id: 'b4', name: 'MOTUL', slug: 'motul', countryOfOrigin: 'France', logoUrl: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=100&q=80', description: 'น้ำมันหล่อลื่นสังเคราะห์ 100% เกรดพรีเมียม', isActive: true },
-          { id: 'b5', name: 'AISIN', slug: 'aisin', countryOfOrigin: 'Japan', logoUrl: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=100&q=80', description: 'ชิ้นส่วนระบบส่งกำลัง ชุดคลัตช์ และปั๊มน้ำมาตรฐานโรงงานผู้ผลิต', isActive: true },
-        ]);
       }
     } catch (e) {
-      console.error(e);
-      setBrands([
-        { id: 'b1', name: 'BOSCH', slug: 'bosch', countryOfOrigin: 'Germany', logoUrl: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=100&q=80', description: 'ผู้นำด้านอะไหล่และระบบไฟฟ้าเครื่องยนต์ระดับโลก', isActive: true },
-        { id: 'b2', name: 'DENSO', slug: 'denso', countryOfOrigin: 'Japan', logoUrl: 'https://images.unsplash.com/photo-1588625500589-9e8c46522851?w=100&q=80', description: 'ผู้ผลิตหัวเทียน ไดชาร์จ และคอมเพรสเซอร์แอร์มาตรฐาน OEM', isActive: true },
-        { id: 'b3', name: 'BREMBO', slug: 'brembo', countryOfOrigin: 'Italy', logoUrl: 'https://images.unsplash.com/photo-1600790142055-619df03207e6?w=100&q=80', description: 'ระบบเบรกสมรรถนะสูง จานเบรก และผ้าเบรกมาตรฐานมอเตอร์สปอร์ต', isActive: true },
-        { id: 'b4', name: 'MOTUL', slug: 'motul', countryOfOrigin: 'France', logoUrl: 'https://images.unsplash.com/photo-1618424181497-157f25b6ddd5?w=100&q=80', description: 'น้ำมันหล่อลื่นสังเคราะห์ 100% เกรดพรีเมียม', isActive: true },
-        { id: 'b5', name: 'AISIN', slug: 'aisin', countryOfOrigin: 'Japan', logoUrl: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=100&q=80', description: 'ชิ้นส่วนระบบส่งกำลัง ชุดคลัตช์ และปั๊มน้ำมาตรฐานโรงงานผู้ผลิต', isActive: true },
-      ]);
+      console.error('Failed to load brands:', e);
+      setError('ไม่สามารถโหลดข้อมูลแบรนด์ได้');
     } finally {
       setLoading(false);
     }
@@ -972,37 +950,14 @@ export function BrandManager() {
       };
 
       if (editId) {
-        if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-          await window.electronAPI.query(
-            'UPDATE brands SET name=?, slug=?, country_of_origin=?, logo_url=?, description=?, is_active=? WHERE id=?',
-            [payload.name, payload.slug, payload.countryOfOrigin || '', payload.logoUrl || '', payload.description || '', payload.isActive ? 1 : 0, editId]
-          );
-        } else {
-          try {
-            await ApiClient.updateBrand(editId, payload);
-          } catch (apiErr) {
-            console.warn('API updateBrand notice:', apiErr);
-          }
-        }
+        await ApiClient.updateBrand(editId, payload);
         setBrands((prev) =>
           prev.map((b) => (b.id === editId ? { ...b, ...payload } : b))
         );
         setSuccess('แก้ไขแบรนด์เรียบร้อยแล้ว');
       } else {
-        let created = null;
-        if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-          await window.electronAPI.query(
-            'INSERT INTO brands (name, slug, country_of_origin, logo_url, description, is_active) VALUES (?,?,?,?,?,?)',
-            [payload.name, payload.slug, payload.countryOfOrigin || '', payload.logoUrl || '', payload.description || '', payload.isActive ? 1 : 0]
-          );
-        } else {
-          try {
-            const res = await ApiClient.createBrand(payload);
-            created = res?.data || res;
-          } catch (apiErr) {
-            console.warn('API createBrand notice:', apiErr);
-          }
-        }
+        const res = await ApiClient.createBrand(payload);
+        const created = res?.data || res;
         const newBrand = created?.id ? created : { id: `b-${Date.now()}`, ...payload };
         setBrands((prev) => [newBrand, ...prev]);
         setSuccess('เพิ่มแบรนด์ใหม่เรียบร้อยแล้ว');
@@ -1019,15 +974,7 @@ export function BrandManager() {
   const handleDelete = async (id) => {
     if (window.confirm('คุณต้องการลบแบรนด์สินค้านี้ใช่หรือไม่?')) {
       try {
-        if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-          await window.electronAPI.query('DELETE FROM brands WHERE id = ?', [id]);
-        } else {
-          try {
-            await ApiClient.deleteBrand(id);
-          } catch {
-            // Deleted in state
-          }
-        }
+        await ApiClient.deleteBrand(id);
         setBrands(prev => prev.filter(b => b.id !== id));
       } catch (err) {
         alert(err.message || 'ไม่สามารถลบแบรนด์สินค้าได้');

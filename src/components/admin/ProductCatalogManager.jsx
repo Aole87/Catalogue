@@ -69,42 +69,19 @@ export default function ProductCatalogManager() {
   // 1. Fetch Lookups (Categories, Brands, Car Brands)
   const fetchLookups = async () => {
     try {
-      if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-        const cats = await window.electronAPI.query('SELECT * FROM categories ORDER BY name ASC');
-        const brs = await window.electronAPI.query('SELECT * FROM brands ORDER BY name ASC');
-        const cbrs = await window.electronAPI.query('SELECT * FROM car_brands ORDER BY name ASC');
-        if (cats?.length) setCategories(cats);
-        if (brs?.length) setBrands(brs);
-        if (cbrs?.length) setCarBrands(cbrs);
-      } else {
-        const [catsRes, brsRes] = await Promise.all([
-          ApiClient.getCategories().catch(() => ({ data: [] })),
-          ApiClient.getBrands().catch(() => ({ data: [] }))
-        ]);
-        setCategories(catsRes?.data || catsRes || [
-          { id: 'c1', name: 'ระบบเบรก' },
-          { id: 'c2', name: 'น้ำมันเครื่อง & ของเหลว' },
-          { id: 'c3', name: 'ระบบกรอง' },
-          { id: 'c4', name: 'ระบบช่วงล่าง' },
-          { id: 'c5', name: 'ระบบไฟ & แบตเตอรี่' },
-        ]);
-        setBrands(brsRes?.data || brsRes || [
-          { id: 'b1', name: 'BOSCH' },
-          { id: 'b2', name: 'DENSO' },
-          { id: 'b3', name: 'BREMBO' },
-          { id: 'b4', name: 'MOTUL' },
-          { id: 'b5', name: 'AISIN' },
-        ]);
-        setCarBrands([
-          { id: 'cb1', name: 'TOYOTA' },
-          { id: 'cb2', name: 'HONDA' },
-          { id: 'cb3', name: 'ISUZU' },
-          { id: 'cb4', name: 'FORD' },
-          { id: 'cb5', name: 'MAZDA' },
-        ]);
-      }
+      const [catsRes, brsRes, makesRes] = await Promise.all([
+        ApiClient.getCategories().catch(() => ({ data: [] })),
+        ApiClient.getBrands().catch(() => ({ data: [] })),
+        ApiClient.getMakes(false).catch(() => ({ data: [] })),
+      ]);
+      const cats = catsRes?.data || catsRes?.categories || (Array.isArray(catsRes) ? catsRes : []);
+      const brs = brsRes?.data || brsRes?.brands || (Array.isArray(brsRes) ? brsRes : []);
+      const makes = makesRes?.data || makesRes?.makes || (Array.isArray(makesRes) ? makesRes : []);
+      if (Array.isArray(cats)) setCategories(cats);
+      if (Array.isArray(brs)) setBrands(brs);
+      if (Array.isArray(makes)) setCarBrands(makes);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to load lookups:', e);
     }
   };
 
@@ -113,62 +90,30 @@ export default function ProductCatalogManager() {
     try {
       setLoading(true);
       setError('');
-      if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-        let where = 'WHERE 1=1';
-        const params = [];
-        if (searchQuery.trim()) {
-          where += ' AND (p.name LIKE ? OR p.code LIKE ?)';
-          params.push(`%${searchQuery.trim()}%`, `%${searchQuery.trim()}%`);
-        }
-        if (filterCategory) {
-          where += ' AND p.category_id = ?';
-          params.push(filterCategory);
-        }
-        if (filterBrand) {
-          where += ' AND p.brand_id = ?';
-          params.push(filterBrand);
-        }
-        const rows = await window.electronAPI.query(`
-          SELECT p.*, c.name as category_name, b.name as brand_name 
-          FROM products p 
-          LEFT JOIN categories c ON p.category_id = c.id 
-          LEFT JOIN brands b ON p.brand_id = b.id 
-          ${where} ORDER BY p.id DESC
-        `, params);
-        if (rows && rows.length > 0) {
-          setProducts(rows.map(r => ({
-            id: r.id,
-            name: r.name,
-            sku: r.code || r.sku,
-            category: { id: r.category_id, name: r.category_name },
-            brand: { id: r.brand_id, name: r.brand_name },
-            price: r.price_general || 0,
-            stockQuantity: r.stock_quantity || 24,
-            shippingFee: r.shipping_fee || 0,
-            images: (() => { try { return JSON.parse(r.images || '[]'); } catch { return []; } })(),
-            variants: (() => { try { return JSON.parse(r.variants || '[]'); } catch { return []; } })(),
-            isActive: true,
-          })));
-          setLoading(false);
-          return;
-        }
-      }
-
-      // API Fallback
       const res = await ApiClient.getProducts({
-        q: searchQuery,
-        categoryId: filterCategory,
-        brandId: filterBrand,
-        limit: 50
+        q: searchQuery.trim() || undefined,
+        categoryId: filterCategory || undefined,
+        brandId: filterBrand || undefined,
+        pageSize: 100,
       }).catch(() => null);
 
-      if (res?.data) {
-        setProducts(res.data);
-      } else {
-        setProducts([]);
-      }
+      const items = res?.data || res?.items || (Array.isArray(res) ? res : []);
+      setProducts(items.map(r => ({
+        id: r.id,
+        name: r.name,
+        sku: r.sku || r.code || '',
+        category: r.category ? { id: r.category.id || r.categoryId, name: r.category.name } : { id: r.categoryId, name: '-' },
+        brand: r.brand ? { id: r.brand.id || r.brandId, name: r.brand.name } : { id: r.brandId, name: '-' },
+        price: r.price ?? (r.tierPricing?.general ?? r.price_general ?? 0),
+        stockQuantity: r.stockQuantity ?? (r.stock_quantity ?? 0),
+        shippingFee: r.shippingFee ?? (r.shipping_fee ?? 0),
+        images: Array.isArray(r.images) ? r.images : (() => { try { return JSON.parse(r.images || '[]'); } catch { return []; } })(),
+        variants: Array.isArray(r.variants) ? r.variants : (() => { try { return JSON.parse(r.variants || '[]'); } catch { return []; } })(),
+        isActive: r.isActive !== false,
+      })));
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch products:', e);
+      setError('ไม่สามารถโหลดข้อมูลสินค้าได้');
     } finally {
       setLoading(false);
     }
@@ -398,19 +343,12 @@ export default function ProductCatalogManager() {
         variants: hasVariants ? formData.variants : [],
       };
 
-      if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-        const imagesJson = JSON.stringify(payload.images);
-        const variantsJson = JSON.stringify(payload.variants);
-        if (editId) {
-          await window.electronAPI.query(
-            `UPDATE products SET name=?, code=?, description=?, category_id=?, brand_id=?, price_general=?, stock_quantity=?, shipping_fee=?, images=?, variants=? WHERE id=?`,
-            [payload.name, payload.sku, payload.description || '', payload.categoryId, payload.brandId, payload.price, payload.stockQuantity, payload.shippingFee, imagesJson, variantsJson, editId]
-          );
-        } else {
-          await window.electronAPI.query(
-            `INSERT INTO products (name, code, description, category_id, brand_id, price_general, stock_quantity, shipping_fee, images, variants) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-            [payload.name, payload.sku, payload.description || '', payload.categoryId, payload.brandId, payload.price, payload.stockQuantity, payload.shippingFee, imagesJson, variantsJson]
-          );
+      if (editId) {
+        await ApiClient.updateProduct(editId, payload).catch((e) => console.warn('API updateProduct:', e));
+      } else {
+        const createRes = await ApiClient.createProduct(payload).catch((e) => console.warn('API createProduct:', e));
+        if (createRes?.data?.id || createRes?.id) {
+          payload.id = createRes.data?.id || createRes.id;
         }
       }
 
@@ -444,14 +382,16 @@ export default function ProductCatalogManager() {
   };
 
   // Delete Product
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('คุณต้องการลบสินค้านี้ออกจากแค็ตตาล็อกใช่หรือไม่?')) {
-      if (window.electronAPI && typeof window.electronAPI.query === 'function') {
-        window.electronAPI.query('DELETE FROM products WHERE id = ?', [id]).catch(console.error);
+      try {
+        await ApiClient.deleteProduct(id).catch((e) => console.warn('API deleteProduct:', e));
+        setProducts(prev => prev.filter(p => p.id !== id));
+        setSuccess('ลบสินค้าเรียบร้อยแล้ว');
+        setTimeout(() => setSuccess(''), 2500);
+      } catch (err) {
+        console.error('Failed to delete product:', err);
       }
-      setProducts(prev => prev.filter(p => p.id !== id));
-      setSuccess('ลบสินค้าเรียบร้อยแล้ว');
-      setTimeout(() => setSuccess(''), 2500);
     }
   };
 

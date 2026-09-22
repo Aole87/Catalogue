@@ -32,4 +32,4 @@
 
 ## ข้อมูลเริ่มต้น (Seed Data)
 - **Admin Login**: `admin` / `admin123`
-- **Database**: SQLite (`database.sqlite`)
+- **Database**: PostgreSQL 16 (Prisma ORM & Full Relational Schema)

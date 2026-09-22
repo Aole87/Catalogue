@@ -1,5 +1,10 @@
-const { contextBridge, ipcRenderer } = require('electron');
+/**
+ * Electron Preload Script
+ * System bridge for desktop packaging (Pure Web/PostgreSQL Architecture)
+ */
+const { contextBridge } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  query: (sql, params) => ipcRenderer.invoke('db-query', { sql, params }),
+  isElectron: true,
+  platform: process.platform,
 });
