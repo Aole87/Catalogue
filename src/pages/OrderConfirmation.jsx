@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import ApiClient from '../utils/ApiClient';
+import ApiClient from '../utils/apiClient';
 import {
   CheckCircle2,
   Package,
@@ -22,6 +22,7 @@ import {
   HelpCircle,
   XCircle,
 } from 'lucide-react';
+import ReceiptModal from '../components/common/ReceiptModal';
 
 export default function OrderConfirmation({ orderNumber, initialOrder, onNavigate }) {
   const [order, setOrder] = useState(initialOrder || null);
@@ -30,6 +31,7 @@ export default function OrderConfirmation({ orderNumber, initialOrder, onNavigat
   const [copied, setCopied] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
   const [copiedTracking, setCopiedTracking] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Slip upload form state
   const [slipForm, setSlipForm] = useState({
@@ -779,13 +781,20 @@ export default function OrderConfirmation({ orderNumber, initialOrder, onNavigat
             <ArrowRight className="h-4 w-4" />
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={() => setShowReceiptModal(true)}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
           >
-            <Printer className="h-4 w-4" />
-            <span>พิมพ์ใบเสร็จรับเงิน</span>
+            <Printer className="h-4 w-4 text-blue-600" />
+            <span>ดูและพิมพ์ใบเสร็จรับเงิน (Receipt)</span>
           </button>
         </div>
+
+        {/* Official Receipt & Tax Invoice Modal */}
+        <ReceiptModal
+          order={order}
+          isOpen={showReceiptModal}
+          onClose={() => setShowReceiptModal(false)}
+        />
       </div>
     </div>
   );

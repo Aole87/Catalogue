@@ -5,6 +5,7 @@ import {
   ArrowRight, CornerDownLeft, RotateCcw, Building2, User, Phone, Mail, Calendar
 } from 'lucide-react';
 import ApiClient from '../../utils/apiClient';
+import ReceiptModal from '../common/ReceiptModal';
 
 const STATUS_CONFIG = {
   PENDING_PAYMENT: { label: 'รอชำระเงิน', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
@@ -61,6 +62,7 @@ export const OrderManager = () => {
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState(null);
 
   // Form states for modals
   const [targetStatus, setTargetStatus] = useState('');
@@ -443,6 +445,13 @@ export const OrderManager = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => setReceiptOrder(order)}
+                            className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="พิมพ์ใบเสร็จรับเงิน (Receipt)"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
                           {order.status !== 'CANCELLED' && order.status !== 'RETURNED' && order.status !== 'REFUNDED' && (
                             <button
                               onClick={() => {
@@ -668,12 +677,21 @@ export const OrderManager = () => {
 
             {/* Modal Footer Actions */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between rounded-b-3xl">
-              <button
-                onClick={() => setDetailModalOpen(false)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold"
-              >
-                ปิดหน้าต่าง
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDetailModalOpen(false)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold"
+                >
+                  ปิดหน้าต่าง
+                </button>
+                <button
+                  onClick={() => setReceiptOrder(selectedOrder)}
+                  className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>พิมพ์ใบเสร็จรับเงิน (Receipt)</span>
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 {selectedOrder.status !== 'CANCELLED' && selectedOrder.status !== 'RETURNED' && (
@@ -886,6 +904,13 @@ export const OrderManager = () => {
           </form>
         </div>
       )}
+
+      {/* Official Printable Receipt & Tax Invoice Modal */}
+      <ReceiptModal
+        order={receiptOrder}
+        isOpen={Boolean(receiptOrder)}
+        onClose={() => setReceiptOrder(null)}
+      />
     </div>
   );
 };

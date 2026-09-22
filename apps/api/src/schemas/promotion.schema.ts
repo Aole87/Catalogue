@@ -26,16 +26,10 @@ export const createPromotionSchema = z.object({
   promotionType: z.nativeEnum(PromotionType).default(PromotionType.PERCENTAGE),
   status: z.nativeEnum(PromotionStatus).default(PromotionStatus.DRAFT),
   startsAt: z
-    .string()
-    .datetime()
-    .optional()
-    .nullable()
+    .preprocess((val) => (typeof val === 'string' && val.trim() === '' ? null : val), z.string().datetime().optional().nullable())
     .transform((val) => (val ? new Date(val) : null)),
   endsAt: z
-    .string()
-    .datetime()
-    .optional()
-    .nullable()
+    .preprocess((val) => (typeof val === 'string' && val.trim() === '' ? null : val), z.string().datetime().optional().nullable())
     .transform((val) => (val ? new Date(val) : null)),
   priority: z.number().int().min(0).default(0),
   stackable: z.boolean().default(false),

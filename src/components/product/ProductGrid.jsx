@@ -15,6 +15,8 @@ export const ProductGrid = ({
   emptyTitle,
   emptyDesc,
   onResetFilters,
+  user,
+  onRequireLogin,
 }) => {
   if (loading) {
     return (
@@ -47,6 +49,8 @@ export const ProductGrid = ({
             product={product}
             onClick={() => onProductClick?.(product)}
             onQuickView={onQuickView}
+            user={user}
+            onRequireLogin={onRequireLogin}
           />
         ))}
       </div>
@@ -65,6 +69,8 @@ export const ProductGrid = ({
           product={product}
           onClick={() => onProductClick?.(product)}
           onQuickView={onQuickView}
+          user={user}
+          onRequireLogin={onRequireLogin}
         />
       ))}
     </div>

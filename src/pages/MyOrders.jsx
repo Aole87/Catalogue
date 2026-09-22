@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ApiClient from '../utils/ApiClient';
+import ApiClient from '../utils/apiClient';
 import {
   Package,
   Clock,
@@ -19,15 +19,23 @@ import {
   Copy,
   Check,
   Eye,
+  FileText,
 } from 'lucide-react';
+import ReceiptModal from '../components/common/ReceiptModal';
+import Navbar from '../components/layout/Navbar';
+import Footer from '../components/layout/Footer';
+import { useLanguage } from '../context/LanguageContext';
 
-export default function MyOrders({ onNavigate }) {
+export default function MyOrders({ onNavigate, navigate: propNavigate, user, setUser }) {
+  const navigate = onNavigate || propNavigate;
+  const { lang } = useLanguage();
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [receiptOrder, setReceiptOrder] = useState(null);
   const [selectedTimeline, setSelectedTimeline] = useState([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
 
@@ -239,28 +247,31 @@ export default function MyOrders({ onNavigate }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        {/* Header Title */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-              <Package className="h-8 w-8 text-blue-600" />
-              ประวัติคำสั่งซื้อของฉัน (My Orders)
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              ตรวจสอบสถานะคำสั่งซื้อ ติดตามพัสดุ และจัดการคำสั่งซื้อทั้งหมดของคุณ
-            </p>
-          </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans">
+      <Navbar navigate={navigate} user={user} setUser={setUser} />
 
-          <button
-            onClick={() => (onNavigate ? onNavigate('products') : (window.location.hash = '#products'))}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-colors self-start sm:self-auto cursor-pointer"
-          >
-            <span>เลือกซื้อสินค้าต่อ</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
+      <div className="flex-1 py-10 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl">
+          {/* Header Title */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                <Package className="h-8 w-8 text-blue-600" />
+                <span>{lang === 'th' ? 'ประวัติคำสั่งซื้อของฉัน' : 'My Orders'}</span>
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                {lang === 'th' ? 'ตรวจสอบสถานะคำสั่งซื้อ ติดตามพัสดุ และจัดการคำสั่งซื้อทั้งหมดของคุณ' : 'Track shipment status, view receipts, and manage your orders'}
+              </p>
+            </div>
+
+            <button
+              onClick={() => (navigate ? navigate('product-list') : (window.location.hash = '#product-list'))}
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-colors self-start sm:self-auto cursor-pointer"
+            >
+              <span>{lang === 'th' ? 'เลือกซื้อสินค้าต่อ' : 'Continue Shopping'}</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
 
         {/* Alerts */}
         {successMessage && (
@@ -507,6 +518,16 @@ export default function MyOrders({ onNavigate }) {
                           <span>ขอคืนสินค้า</span>
                         </button>
                       )}
+
+                      {['PAYMENT_CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(order.status) && (
+                        <button
+                          onClick={() => setReceiptOrder(order)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span>ใบเสร็จรับเงิน</span>
+                        </button>
+                      )}
                     </div>
 
                     <span className="text-[11px] text-slate-400 font-mono">
@@ -633,8 +654,17 @@ export default function MyOrders({ onNavigate }) {
                 )}
               </div>
 
-              {/* Close Button */}
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              {/* Modal Actions */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                {['PAYMENT_CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(selectedOrder.status) ? (
+                  <button
+                    onClick={() => setReceiptOrder(selectedOrder)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>ดูและพิมพ์ใบเสร็จรับเงิน (Receipt)</span>
+                  </button>
+                ) : <div />}
                 <button
                   onClick={() => setSelectedOrder(null)}
                   className="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
@@ -741,7 +771,17 @@ export default function MyOrders({ onNavigate }) {
             </div>
           </div>
         )}
+
+        {/* Official Printable Receipt & Tax Invoice Modal */}
+        <ReceiptModal
+          order={receiptOrder}
+          isOpen={Boolean(receiptOrder)}
+          onClose={() => setReceiptOrder(null)}
+        />
       </div>
     </div>
-  );
+
+    <Footer navigate={navigate} />
+  </div>
+);
 }

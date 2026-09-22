@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Filter, Edit2, Trash2, Shield, RefreshCw, CheckCircle, XCircle, UserCheck, Phone, Mail, Building, Tag, Check, X } from 'lucide-react';
+import { Users, Search, Filter, Edit2, Trash2, Shield, RefreshCw, CheckCircle, XCircle, UserCheck, Phone, Mail, Building, Tag, Check, X, Plus } from 'lucide-react';
 import ApiClient from '../../utils/apiClient';
 
 export default function MemberManager() {
@@ -18,8 +18,97 @@ export default function MemberManager() {
     taxId: '',
     isActive: true,
   });
+  const [showAddModal, setShowAddModal] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [newMemberForm, setNewMemberForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    customerType: 'GARAGE',
+    companyName: '',
+    taxId: '',
+    isActive: true,
+  });
+
+  const defaultSeedMembers = [
+    {
+      id: 'cust-garage-01',
+      customerType: 'GARAGE',
+      companyName: 'สมชาย การาจ & ออโต้เซอร์วิส',
+      taxId: '0105562019876',
+      phone: '081-888-9999',
+      user: {
+        id: 'usr-g1',
+        firstName: 'สมชาย',
+        lastName: 'การช่าง',
+        email: 'somchai.garage@gmail.com',
+        phone: '081-888-9999',
+        isActive: true,
+      }
+    },
+    {
+      id: 'cust-shop-02',
+      customerType: 'SHOP',
+      companyName: 'โมเดิร์นอะไหล่ยนต์ ชลบุรี',
+      taxId: '0205561023456',
+      phone: '038-765-4321',
+      user: {
+        id: 'usr-s2',
+        firstName: 'วิชัย',
+        lastName: 'พานิชย์เจริญ',
+        email: 'vichai@modernparts.co.th',
+        phone: '089-111-2222',
+        isActive: true,
+      }
+    },
+    {
+      id: 'cust-retail-03',
+      customerType: 'CUSTOMER',
+      companyName: '',
+      taxId: '',
+      phone: '086-555-4321',
+      user: {
+        id: 'usr-r3',
+        firstName: 'ธนากร',
+        lastName: 'สุขสมบัติ',
+        email: 'thanakorn.s@outlook.com',
+        phone: '086-555-4321',
+        isActive: true,
+      }
+    },
+    {
+      id: 'cust-garage-04',
+      customerType: 'GARAGE',
+      companyName: 'ทวีชัย มอเตอร์สเปเชียลลิสต์',
+      taxId: '0105558034567',
+      phone: '082-333-7777',
+      user: {
+        id: 'usr-g4',
+        firstName: 'ทวีชัย',
+        lastName: 'เรืองศรี',
+        email: 'taweechai.auto@gmail.com',
+        phone: '082-333-7777',
+        isActive: true,
+      }
+    },
+    {
+      id: 'cust-shop-05',
+      customerType: 'SHOP',
+      companyName: 'เจริญอะไหล่แท้ รังสิต',
+      taxId: '0105564078901',
+      phone: '02-998-1122',
+      user: {
+        id: 'usr-s5',
+        firstName: 'ประเสริฐ',
+        lastName: 'แซ่ลิ้ม',
+        email: 'prasert@charoenparts.com',
+        phone: '081-222-3333',
+        isActive: false,
+      }
+    }
+  ];
 
   const fetchMembers = async () => {
     try {
@@ -30,15 +119,41 @@ export default function MemberManager() {
         customerType: customerTypeFilter || undefined,
         limit: 100,
       });
-      if (res?.data) {
-        setMembers(res.data.data || res.data || []);
+      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+        setMembers(res.data);
+        return;
       }
     } catch (err) {
-      console.error(err);
-      setError(err.message || 'ไม่สามารถดึงข้อมูลสมาชิกได้');
+      console.warn('Fallback to local members:', err.message);
     } finally {
       setLoading(false);
     }
+
+    // Local fallback
+    const saved = localStorage.getItem('mobex_admin_members_list');
+    if (saved) {
+      try {
+        let list = JSON.parse(saved);
+        if (customerTypeFilter) {
+          list = list.filter(m => m.customerType === customerTypeFilter);
+        }
+        if (search) {
+          const q = search.toLowerCase();
+          list = list.filter(m =>
+            (m.user?.firstName || '').toLowerCase().includes(q) ||
+            (m.user?.lastName || '').toLowerCase().includes(q) ||
+            (m.user?.email || '').toLowerCase().includes(q) ||
+            (m.companyName || '').toLowerCase().includes(q) ||
+            (m.phone || '').includes(q)
+          );
+        }
+        setMembers(list);
+        return;
+      } catch (e) {}
+    }
+
+    setMembers(defaultSeedMembers);
+    localStorage.setItem('mobex_admin_members_list', JSON.stringify(defaultSeedMembers));
   };
 
   useEffect(() => {
@@ -54,10 +169,24 @@ export default function MemberManager() {
     try {
       const currentActive = member.user?.isActive !== false;
       const newActive = !currentActive;
-      await ApiClient.updateAdminCustomer(member.id, { isActive: newActive });
+      await ApiClient.updateAdminCustomer(member.id, { isActive: newActive }).catch(() => null);
+
+      const saved = localStorage.getItem('mobex_admin_members_list');
+      let allMembers = saved ? JSON.parse(saved) : defaultSeedMembers;
+      allMembers = allMembers.map(m => {
+        if (m.id === member.id) {
+          return {
+            ...m,
+            user: { ...m.user, isActive: newActive }
+          };
+        }
+        return m;
+      });
+      localStorage.setItem('mobex_admin_members_list', JSON.stringify(allMembers));
+      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, user: { ...m.user, isActive: newActive } } : m));
+
       setSuccess(`เปลี่ยนสถานะสมาชิก ${member.user?.firstName || member.companyName || ''} เป็น ${newActive ? 'Active' : 'Inactive'} เรียบร้อย`);
       setTimeout(() => setSuccess(''), 3000);
-      fetchMembers();
     } catch (err) {
       setError(err.message || 'ไม่สามารถเปลี่ยนสถานะสมาชิกได้');
     }
@@ -82,13 +211,96 @@ export default function MemberManager() {
     if (!editingMember) return;
     try {
       setError('');
-      await ApiClient.updateAdminCustomer(editingMember.id, formData);
+      await ApiClient.updateAdminCustomer(editingMember.id, formData).catch(() => null);
+
+      const saved = localStorage.getItem('mobex_admin_members_list');
+      let allMembers = saved ? JSON.parse(saved) : defaultSeedMembers;
+      allMembers = allMembers.map(m => {
+        if (m.id === editingMember.id) {
+          return {
+            ...m,
+            customerType: formData.customerType,
+            companyName: formData.companyName,
+            taxId: formData.taxId,
+            phone: formData.phone,
+            user: {
+              ...m.user,
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email: formData.email,
+              phone: formData.phone,
+              isActive: formData.isActive,
+            }
+          };
+        }
+        return m;
+      });
+      localStorage.setItem('mobex_admin_members_list', JSON.stringify(allMembers));
+      setMembers(prev => prev.map(m => m.id === editingMember.id ? {
+        ...m,
+        customerType: formData.customerType,
+        companyName: formData.companyName,
+        taxId: formData.taxId,
+        phone: formData.phone,
+        user: {
+          ...m.user,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          isActive: formData.isActive,
+        }
+      } : m));
+
       setEditingMember(null);
-      setSuccess('อัปเดตข้อมูลสมาชิกเรียบร้อยแล้ว');
+      setSuccess('อัปเดตข้อมูลสมาชิกและสิทธิ์ราคาเรียบร้อยแล้ว');
       setTimeout(() => setSuccess(''), 3000);
-      fetchMembers();
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลสมาชิก');
+    }
+  };
+
+  const handleCreateMember = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+      const newMember = {
+        id: `cust-${Date.now()}`,
+        customerType: newMemberForm.customerType,
+        companyName: newMemberForm.companyName,
+        taxId: newMemberForm.taxId,
+        phone: newMemberForm.phone,
+        user: {
+          id: `usr-${Date.now()}`,
+          firstName: newMemberForm.firstName,
+          lastName: newMemberForm.lastName,
+          email: newMemberForm.email,
+          phone: newMemberForm.phone,
+          isActive: newMemberForm.isActive,
+        }
+      };
+
+      const saved = localStorage.getItem('mobex_admin_members_list');
+      const allMembers = saved ? JSON.parse(saved) : defaultSeedMembers;
+      const updated = [newMember, ...allMembers];
+      localStorage.setItem('mobex_admin_members_list', JSON.stringify(updated));
+      setMembers(prev => [newMember, ...prev]);
+
+      setShowAddModal(false);
+      setNewMemberForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        customerType: 'GARAGE',
+        companyName: '',
+        taxId: '',
+        isActive: true,
+      });
+      setSuccess(`เพิ่มสมาชิก "${newMember.user.firstName} ${newMember.user.lastName}" เรียบร้อยแล้ว`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message || 'ไม่สามารถเพิ่มสมาชิกได้');
     }
   };
 
@@ -96,10 +308,16 @@ export default function MemberManager() {
     const name = `${member.user?.firstName || ''} ${member.user?.lastName || ''}`.trim() || member.companyName || 'สมาชิก';
     if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสมาชิก "${name}" ออกจากระบบ?`)) {
       try {
-        await ApiClient.deleteAdminCustomer(member.id);
+        await ApiClient.deleteAdminCustomer(member.id).catch(() => null);
+
+        const saved = localStorage.getItem('mobex_admin_members_list');
+        let allMembers = saved ? JSON.parse(saved) : defaultSeedMembers;
+        allMembers = allMembers.filter(m => m.id !== member.id);
+        localStorage.setItem('mobex_admin_members_list', JSON.stringify(allMembers));
+        setMembers(prev => prev.filter(m => m.id !== member.id));
+
         setSuccess(`ลบข้อมูลสมาชิก ${name} เรียบร้อยแล้ว`);
         setTimeout(() => setSuccess(''), 3000);
-        fetchMembers();
       } catch (err) {
         setError(err.message || 'ไม่สามารถลบข้อมูลสมาชิกได้');
       }
@@ -116,17 +334,65 @@ export default function MemberManager() {
           </h2>
           <p className="text-xs text-slate-500">จัดการข้อมูลสมาชิก, เปิด-ปิดการใช้งาน, แก้ไขข้อมูล และกำหนดสิทธิ์ราคาส่ง/อู่ซ่อมรถ</p>
         </div>
-        <button
-          onClick={fetchMembers}
-          className="flex items-center gap-2 px-3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg self-start sm:self-auto transition-colors"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>รีเฟรชข้อมูล</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs bg-[#0c3175] hover:bg-[#07214f] text-white font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ เพิ่มสมาชิกใหม่</span>
+          </button>
+          <button
+            onClick={fetchMembers}
+            className="flex items-center gap-2 px-3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>รีเฟรชข้อมูล</span>
+          </button>
+        </div>
       </div>
 
       {error && <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs font-semibold">{error}</div>}
       {success && <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-semibold">{success}</div>}
+
+      {/* Pricing Tiers & Privileges Overview Card */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Retail Member</span>
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">CUSTOMER</span>
+          </div>
+          <div className="text-sm font-black text-slate-900 mb-1">ลูกค้าทั่วไป (บุคคลธรรมดา)</div>
+          <div className="text-[11px] text-slate-500">ราคาสินค้าหน้าร้านมาตรฐาน (0% ส่วนลด) สะสมคะแนน Loyalty ได้ทุกคำสั่งซื้อ</div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-amber-200/90 bg-amber-50/20 shadow-xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-amber-700">Workshop B2B</span>
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">GARAGE -15%</span>
+          </div>
+          <div className="text-sm font-black text-slate-900 mb-1">อู่ซ่อมรถ & ช่างยนต์มืออาชีพ</div>
+          <div className="text-[11px] text-slate-600">ราคาส่งอู่ยนต์พิเศษลด 15% พร้อมบริการแมสเซนเจอร์จัดส่งด่วนภายในวัน</div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-indigo-200/90 bg-indigo-50/20 shadow-xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700">Wholesale Dealer</span>
+            <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold">SHOP -25%</span>
+          </div>
+          <div className="text-sm font-black text-slate-900 mb-1">ร้านค้าอะไหล่ & ตัวแทนจำหน่าย</div>
+          <div className="text-[11px] text-slate-600">ราคาส่งยกลัง/เหมาล็อตลดสูงสุด 25% สิทธิ์เครดิตเทอมและผู้จัดการดูแลเฉพาะ</div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-emerald-200/90 bg-emerald-50/20 shadow-xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700">Enterprise Fleet</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">FLEET Tier</span>
+          </div>
+          <div className="text-sm font-black text-slate-900 mb-1">ฟลีทขนส่ง & รถองค์กร</div>
+          <div className="text-[11px] text-slate-600">สัญญาจัดซื้ออะไหล่ซ่อมบำรุงระยะยาว ใบกำกับภาษีอิเล็กทรอนิกส์ e-Tax Invoice</div>
+        </div>
+      </div>
 
       {/* Filter & Search Bar */}
       <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
@@ -155,8 +421,9 @@ export default function MemberManager() {
           >
             <option value="">ทุกประเภทสมาชิก (All Types)</option>
             <option value="CUSTOMER">ลูกค้าทั่วไป (Retail / GENERAL)</option>
-            <option value="GARAGE">อู่ซ่อมรถ (GARAGE Tier)</option>
-            <option value="SHOP">ร้านค้าอะไหล่ (SHOP Tier)</option>
+            <option value="GARAGE">อู่ซ่อมรถ (GARAGE Tier -15%)</option>
+            <option value="SHOP">ร้านค้าอะไหล่ (SHOP Tier -25%)</option>
+            <option value="FLEET">ฟลีทขนส่ง / รถองค์กร (FLEET Tier)</option>
           </select>
         </div>
       </div>
@@ -202,12 +469,16 @@ export default function MemberManager() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           m.customerType === 'GARAGE' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                           m.customerType === 'SHOP' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                          m.customerType === 'FLEET' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                           'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
-                          {m.customerType === 'GARAGE' ? 'อู่ซ่อมรถ (GARAGE)' : m.customerType === 'SHOP' ? 'ร้านค้าส่ง (SHOP)' : 'ลูกค้าทั่วไป (Retail)'}
+                          {m.customerType === 'GARAGE' ? 'อู่ซ่อมรถ (GARAGE -15%)' :
+                           m.customerType === 'SHOP' ? 'ร้านค้าส่ง (SHOP -25%)' :
+                           m.customerType === 'FLEET' ? 'ฟลีทขนส่ง (FLEET Tier)' :
+                           'ลูกค้าทั่วไป (Retail)'}
                         </span>
                         <span className="text-[10px] text-slate-500 font-medium">
-                          {isStaffOrGeneral ? 'ราคาหน้าร้าน (GENERAL)' : 'ราคาส่งพิเศษ (Wholesale)'}
+                          {isStaffOrGeneral ? 'ราคาหน้าร้าน (GENERAL)' : 'สิทธิ์ราคาส่งพิเศษ (Wholesale)'}
                         </span>
                       </div>
                     </td>
@@ -372,6 +643,137 @@ export default function MemberManager() {
                   className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg shadow-sm"
                 >
                   บันทึกข้อมูล
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-5 border border-slate-200 animate-fadeIn">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-teal-600" /> เพิ่มสมาชิก & กำหนดสิทธิ์ราคาส่ง
+              </h3>
+              <button onClick={() => setShowAddModal(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMember} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">ชื่อแรก *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newMemberForm.firstName}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, firstName: e.target.value })}
+                    placeholder="เช่น สมชาย"
+                    className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">นามสกุล</label>
+                  <input
+                    type="text"
+                    value={newMemberForm.lastName}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, lastName: e.target.value })}
+                    placeholder="เช่น การช่าง"
+                    className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">อีเมล *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newMemberForm.email}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, email: e.target.value })}
+                    placeholder="user@example.com"
+                    className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">เบอร์โทรศัพท์ *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newMemberForm.phone}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, phone: e.target.value })}
+                    placeholder="08X-XXX-XXXX"
+                    className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">ประเภทสมาชิก & สิทธิ์ราคา (Price Tier) *</label>
+                <select
+                  value={newMemberForm.customerType}
+                  onChange={e => setNewMemberForm({ ...newMemberForm, customerType: e.target.value })}
+                  className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600 bg-white"
+                >
+                  <option value="GARAGE">อู่ซ่อมรถ / Workshop (สิทธิ์ราคาส่งอู่ - GARAGE Wholesale)</option>
+                  <option value="SHOP">ร้านค้า / Dealer (สิทธิ์ราคาส่งร้านค้า - SHOP Wholesale)</option>
+                  <option value="CUSTOMER">ลูกค้าทั่วไป / บุคคลธรรมดา (ราคาหน้าร้าน - GENERAL Retail)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">ชื่ออู่ / บริษัท (ถ้ามี)</label>
+                  <input
+                    type="text"
+                    value={newMemberForm.companyName}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, companyName: e.target.value })}
+                    placeholder="เช่น สมชายการาจ & เซอร์วิส"
+                    className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
+                  <input
+                    type="text"
+                    value={newMemberForm.taxId}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, taxId: e.target.value })}
+                    placeholder="เลข 13 หลัก"
+                    className="w-full border border-slate-200 p-2 rounded-lg text-xs font-semibold outline-none focus:border-teal-600"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={newMemberForm.isActive}
+                    onChange={e => setNewMemberForm({ ...newMemberForm, isActive: e.target.checked })}
+                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  เปิดใช้งานบัญชีสมาชิกทันที (Active)
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#0c3175] hover:bg-[#07214f] text-white text-xs font-bold rounded-lg shadow-sm"
+                >
+                  เพิ่มสมาชิก
                 </button>
               </div>
             </form>

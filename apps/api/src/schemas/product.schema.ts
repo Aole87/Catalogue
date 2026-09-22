@@ -10,7 +10,7 @@ export const productPriceInputSchema = z.object({
 });
 
 export const productImageInputSchema = z.object({
-  url: z.string().url('Image URL must be valid'),
+  url: z.string().min(1, 'Image URL must be valid'),
   altText: z.string().max(255).nullable().optional(),
   sortOrder: z.number().int().min(0).default(0).optional(),
   isPrimary: z.boolean().default(false).optional(),

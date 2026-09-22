@@ -1,485 +1,516 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Search,
-  User,
-  LogOut,
-  Menu,
-  X,
-  Shield,
-  ChevronDown,
-  ShoppingBag,
-  Heart,
-  Car,
-  ClipboardList,
-  Globe,
-  Clock,
-  Tag
-} from 'lucide-react';
-import { useVehicle } from '../../context/VehicleContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, User, ShoppingCart, Globe, Menu, ChevronDown, ShieldCheck, Settings, X, PhoneCall, ChevronRight, LogOut, Package } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
-import VehicleBadge from '../vehicle/VehicleBadge';
+import { useSettings } from '../../context/SettingsContext';
 import ApiClient from '../../utils/apiClient';
 
-export const Navbar = ({
-  navigate,
-  user,
-  setUser,
-  onSearchSubmit,
-  className = '',
-}) => {
-  const { selectedVehicle, openSelectorModal } = useVehicle();
-  const { openCart, totalItems, cartTotal } = useCart();
-  const { lang, toggleLanguage, t } = useLanguage();
+export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
-
-  // Countdown timer state for ticker bar
-  const [timeLeft, setTimeLeft] = useState({ days: 4, hours: 12, mins: 15, secs: 30 });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+  const { openCart, items } = useCart();
+  const { lang, toggleLanguage, t } = useLanguage();
+  const { settings } = useSettings();
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.secs > 0) return { ...prev, secs: prev.secs - 1 };
-        if (prev.mins > 0) return { ...prev, mins: 59, secs: 59 };
-        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, mins: 59, secs: 59 };
-        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, mins: 59, secs: 59 };
-        return prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const navMenus = settings?.menus && Array.isArray(settings.menus) && settings.menus.length > 0
+    ? settings.menus
+    : [
+        { id: 1, labelTh: 'หน้าหลัก', labelEn: 'Home', url: 'home', active: true },
+        { id: 2, labelTh: 'หมวดหมู่สินค้า', labelEn: 'Categories', url: 'product-list', active: true },
+        { id: 3, labelTh: 'สินค้าแนะนำ', labelEn: 'Recommended', url: 'product-list', active: true },
+        { id: 4, labelTh: 'บทความ & ข่าวสาร', labelEn: 'Articles & News', url: 'articles', active: true },
+        { id: 5, labelTh: 'ติดต่อเรา', labelEn: 'Contact Us', url: 'contact', active: true },
+      ];
+
+  const branding = settings?.branding || {
+    siteNameTh: 'MOBEX ศูนย์รวมอะไหล่รถยนต์',
+    siteNameEn: 'MOBEX Auto Parts Center',
+    metaDescriptionTh: 'ศูนย์รวมอะไหล่รถยนต์ตรงรุ่นคุณภาพสูง จัดส่งทั่วประเทศ',
+    metaDescriptionEn: 'High quality direct-fit auto parts center with nationwide delivery',
+    logoUrl: '/logo.png',
+  };
+
+  const categoryButtonLabel = lang === 'th'
+    ? (settings?.navigation?.categoryButtonLabelTh || 'หมวดหมู่สินค้า')
+    : (settings?.navigation?.categoryButtonLabelEn || 'All Categories');
 
   const handleSearch = (e) => {
     e.preventDefault();
+    const query = searchTerm.trim();
+    if (!query) return;
+    setMobileMenuOpen(false);
+    setMobileSearchOpen(false);
     if (onSearchSubmit) {
-      onSearchSubmit(searchTerm);
-    } else {
-      navigate?.('product-list', {
-        filters: {
-          search: searchTerm,
-          category: selectedCategory !== 'All Categories' ? selectedCategory.toLowerCase() : undefined
-        }
-      });
+      onSearchSubmit(query);
+    } else if (navigate) {
+      navigate('product-list', { filters: { search: query } });
     }
   };
 
   const handleLogout = async () => {
     try {
       await ApiClient.logout();
-    } catch (e) {
-      console.error('Logout error', e);
-    } finally {
-      setUser?.(null);
-      setIsUserMenuOpen(false);
-      navigate?.('home');
+    } catch (e) {}
+    if (setUser) {
+      setUser(null);
+    } else {
+      localStorage.removeItem('mobex_auth_user');
+      localStorage.removeItem('mobex_auth_token');
     }
+    setUserMenuOpen(false);
+    setMobileMenuOpen(false);
+    navigate?.('home');
   };
 
+  const handleMenuClick = (url) => {
+    setMobileMenuOpen(false);
+    if (!url) {
+      navigate?.('product-list');
+      return;
+    }
+    const cleanUrl = url.replace(/^#/, '').replace(/^\//, '');
+    navigate?.(cleanUrl || 'home');
+  };
+
+  const isAdminUser = user?.roles?.some((r) =>
+    ['SUPER_ADMIN', 'ADMIN', 'CATALOG_MANAGER'].includes(r.name || r)
+  );
+
   return (
-    <header className={`w-full z-40 font-sans ${className}`}>
-      {/* 1. Top Header Bar: Dark Blue Background (#09357a) */}
-      <div className="bg-[#09357a] text-white py-3 px-4 sm:px-6 lg:px-8 border-b border-blue-900/40">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 lg:gap-8">
-          {/* Brand Logo: Buy@Unimart style */}
+    <header className="w-full font-sans shadow-md z-50 relative">
+      {/* Top Header - Dark Blue */}
+      <div className="bg-[#051124] px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3 border-b border-[#0a2353]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 sm:gap-6 lg:gap-8">
+          
+          {/* Mobile Menu Hamburger Button */}
           <button
-            onClick={() => navigate?.('home')}
-            className="flex items-center gap-1 group text-left focus:outline-none shrink-0"
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="md:hidden text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors focus:outline-none"
+            aria-label="Open mobile menu"
           >
-            <div className="text-2xl sm:text-3xl font-black tracking-tight flex items-center">
-              <span className="text-white">Buy</span>
-              <span className="text-[#f97316] font-extrabold mx-0.5">@</span>
-              <span className="text-white">Unimart</span>
-            </div>
-            <span className="hidden xl:inline-block text-[10px] uppercase font-bold tracking-widest bg-blue-800/80 text-blue-200 px-2 py-0.5 rounded ml-2">
-              Auto Parts
-            </span>
+            <Menu className="w-6 h-6 text-slate-100" />
           </button>
 
-          {/* Center Search Input Bar */}
-          <div className="flex-1 max-w-2xl hidden md:block">
-            <form
-              onSubmit={handleSearch}
-              className="flex items-center rounded-full bg-white p-1 shadow-md focus-within:ring-2 focus-within:ring-[#f97316] transition-all"
-            >
-              {/* Category Selector */}
-              <div className="relative shrink-0">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-transparent text-slate-700 text-xs font-semibold px-4 py-2 pr-8 border-r border-slate-200 focus:outline-none cursor-pointer appearance-none"
-                >
-                  <option>{t('allCategories')}</option>
-                  <option>Brakes & Rotors</option>
-                  <option>Engine & Ignition</option>
-                  <option>Oils & Fluids</option>
-                  <option>Filters & Intake</option>
-                  <option>Suspension & Steering</option>
-                  <option>Tech & Sensors</option>
-                  <option>Accessories</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
+          {/* Logo */}
+          <button
+            onClick={() => navigate?.('home')}
+            className="flex flex-col items-start focus:outline-none shrink-0"
+          >
+            {branding.logoUrl && branding.logoUrl !== '/logo.png' ? (
+              <img
+                src={branding.logoUrl}
+                alt={lang === 'en' ? (branding.siteNameEn || branding.siteNameTh || "Logo") : (branding.siteNameTh || branding.siteNameEn || "Logo")}
+                className="max-h-8 sm:max-h-12 max-w-[140px] sm:max-w-[220px] object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-start">
+                <div className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight flex items-center">
+                  <span className="text-white">{lang === 'en' ? (branding.siteNameEn || 'MOBEX') : (branding.siteNameTh || 'MOBEX')}</span>
+                </div>
+                <span className="hidden sm:block text-[7.5px] uppercase font-bold text-slate-400 mt-0.5 leading-tight text-left max-w-[260px] truncate">
+                  {lang === 'en' ? (branding.metaDescriptionEn || 'PREMIUM AUTO PARTS & HARDWARE') : (branding.metaDescriptionTh || 'ศูนย์รวมอะไหล่รถยนต์ตรงรุ่นคุณภาพสูง')}
+                </span>
               </div>
+            )}
+          </button>
 
-              {/* Text Input */}
+          {/* Desktop Search Bar */}
+          <div className="flex-1 max-w-[600px] hidden md:block">
+            <form onSubmit={handleSearch} className="flex items-center rounded-full bg-white p-1 focus-within:ring-2 focus-within:ring-[#1d4ed8]/50 transition-all shadow-inner">
               <input
                 type="text"
-                placeholder={t('searchPlaceholder')}
+                placeholder={lang === 'th' ? "ค้นหาสินค้า, แบรนด์, รุ่นรถ, หรือรหัสสินค้า..." : "Search parts, brands, vehicle models, or SKU..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 bg-transparent px-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                className="flex-1 bg-transparent px-4 py-2 text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none"
               />
-
-              {/* Solid Blue Search Button */}
               <button
                 type="submit"
-                className="bg-[#1d4ed8] hover:bg-[#1e40af] text-white px-6 py-2 rounded-full flex items-center justify-center transition-all shrink-0 font-bold text-xs gap-1.5 shadow-sm"
+                className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-8 py-2 rounded-full flex items-center justify-center transition-all shrink-0"
+                aria-label="Search"
               >
-                <Search className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Search</span>
+                <Search className="w-4 h-4" />
               </button>
             </form>
           </div>
 
-          {/* Right User Actions (Language Switcher, Wishlist, Cart, User Login) */}
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-            {/* Language Switcher TH | EN Button */}
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/20 shadow-xs"
-              title="Switch Language / สลับภาษา"
-            >
-              <Globe className="w-3.5 h-3.5 text-[#f97316]" />
-              <span>{lang.toUpperCase()}</span>
-              <span className="text-[10px] text-blue-200 font-normal">({lang === 'th' ? 'TH' : 'EN'})</span>
-            </button>
+          {/* Right Icons */}
+          <div className="flex items-center gap-2.5 sm:gap-5 lg:gap-7 shrink-0 text-white">
+             {/* Mobile Search Toggle Button */}
+             <button
+               type="button"
+               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+               className="md:hidden p-2 text-slate-200 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+               aria-label="Toggle search"
+             >
+               <Search className="w-5 h-5" />
+             </button>
 
-            {/* Vehicle Selector Badge */}
-            <div className="hidden lg:block">
-              <VehicleBadge vehicle={selectedVehicle} onClick={openSelectorModal} />
-            </div>
+             {/* Language Switcher */}
+             <button
+                onClick={toggleLanguage}
+                title={lang === 'th' ? 'Switch to English' : 'เปลี่ยนเป็นภาษาไทย'}
+                className="flex items-center gap-1 bg-[#0a2353]/60 hover:bg-[#0c3175] border border-blue-400/30 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full font-bold text-[11px] sm:text-xs transition-all shadow-sm group"
+             >
+                <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-300 group-hover:rotate-12 transition-transform" />
+                <span className={lang === 'th' ? 'text-[#f97316] font-black' : 'text-slate-300'}>TH</span>
+                <span className="text-slate-500">|</span>
+                <span className={lang === 'en' ? 'text-[#f97316] font-black' : 'text-slate-300'}>EN</span>
+             </button>
+             
+             {/* Admin Quick Switch (if admin) */}
+             {isAdminUser && (
+               <button
+                 onClick={() => navigate?.('admin')}
+                 className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition-colors"
+                 title="Open Backoffice"
+               >
+                 <Settings className="w-3.5 h-3.5" />
+                 <span className="hidden sm:inline">Admin</span>
+               </button>
+             )}
+             
+             <div className="h-6 sm:h-8 w-[1px] bg-[#1a3668] hidden sm:block"></div>
 
-            {/* Wishlist Button */}
-            <button
-              onClick={() => navigate?.('product-list')}
-              className="relative p-2 rounded-full text-blue-100 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
-              title={t('wishlist')}
-            >
-              <div className="relative">
-                <Heart className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#f97316] text-[9px] font-black text-white shadow-xs">
-                  0
-                </span>
-              </div>
-              <span className="hidden xl:inline text-xs font-semibold">{t('wishlist')}</span>
-            </button>
-
-            {/* Cart Button */}
-            <button
-              onClick={openCart}
-              className="flex items-center gap-2.5 p-2 px-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all group"
-              title={t('cart')}
-            >
-              <div className="relative">
-                <ShoppingBag className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#f97316] text-[9px] font-black text-white shadow-sm">
-                    {totalItems > 99 ? '99+' : totalItems}
-                  </span>
-                )}
-              </div>
-              <div className="hidden sm:block text-left">
-                <div className="text-[10px] text-blue-200 leading-none">{t('cart')}</div>
-                <div className="text-xs font-extrabold font-mono text-white leading-tight">
-                  {user ? `฿${Number(cartTotal || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '🔒'}
-                </div>
-              </div>
-            </button>
-
-            {/* User Account / Auth */}
-            {user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 p-1.5 rounded-full hover:bg-white/10 text-xs font-semibold text-white transition-colors border border-white/20"
-                >
-                  <div className="w-7 h-7 rounded-full bg-[#f97316] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                    {user.first_name?.[0] || user.firstName?.[0] || 'U'}
-                  </div>
-                  <ChevronDown className="w-3 h-3 text-blue-200" />
-                </button>
-
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-xs text-slate-700 animate-scale-in">
-                    <div className="px-4 py-2.5 border-b border-slate-100">
-                      <div className="font-bold text-slate-900">{user.first_name} {user.last_name}</div>
-                      <div className="text-[11px] text-slate-400 truncate">{user.email}</div>
-                      <div className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#1d4ed8]">
-                        {user.business_type || 'MEMBER'}
-                      </div>
+              {/* User Auth Profile (Desktop) */}
+              {user ? (
+                <div className="relative hidden md:block" ref={userMenuRef}>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 hover:text-[#f97316] font-bold text-sm transition-colors text-left focus:outline-none cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-blue-600/40 border border-blue-400 flex items-center justify-center text-white font-black text-xs shrink-0">
+                      {user.firstName?.charAt(0) || user.email?.charAt(0).toUpperCase() || 'U'}
                     </div>
+                    <div className="hidden lg:flex flex-col text-left">
+                      <span className="text-[10px] leading-none text-emerald-400 font-bold">
+                        {lang === 'th' ? 'เข้าสู่ระบบแล้ว' : 'Logged In'}
+                      </span>
+                      <span className="text-[12px] leading-tight text-white font-black truncate max-w-[110px]">
+                        {user.firstName || user.email?.split('@')[0] || 'User'}
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                    <button
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        navigate?.('my-orders');
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                    >
-                      <ClipboardList className="w-4 h-4 text-slate-400" />
-                      <span>{t('myOrders')}</span>
-                    </button>
+                  {/* Desktop Dropdown */}
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in">
+                      <div className="px-4 py-2.5 border-b border-slate-100">
+                        <p className="text-xs font-black text-slate-900 truncate">
+                          {user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.email}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-medium truncate">{user.email}</p>
+                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                          {user.customerType === 'GARAGE' ? (lang === 'th' ? 'อู่ซ่อมรถ' : 'Garage') : user.customerType === 'SHOP' ? (lang === 'th' ? 'ร้านค้าอะไหล่' : 'Parts Shop') : (lang === 'th' ? 'สมาชิกทั่วไป' : 'Member')}
+                        </span>
+                      </div>
 
-                    {user.roles?.some((r) => ['SUPER_ADMIN', 'ADMIN', 'CATALOG_MANAGER'].includes(r.name)) && (
                       <button
-                        onClick={() => {
-                          setIsUserMenuOpen(false);
-                          navigate?.('admin');
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-[#1d4ed8] font-semibold"
+                        onClick={() => { setUserMenuOpen(false); navigate?.('my-orders'); }}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                       >
-                        <Shield className="w-4 h-4 text-[#1d4ed8]" />
-                        <span>{t('adminDashboard')}</span>
+                        <Package className="w-4 h-4 text-blue-600" />
+                        <span>{lang === 'th' ? 'รายการคำสั่งซื้อของฉัน' : 'My Orders'}</span>
                       </button>
-                    )}
 
-                    <div className="border-t border-slate-100 my-1"></div>
+                      {isAdminUser && (
+                        <button
+                          onClick={() => { setUserMenuOpen(false); navigate?.('admin'); }}
+                          className="w-full px-4 py-2.5 text-left text-xs font-bold text-amber-700 hover:bg-amber-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                        >
+                          <Settings className="w-4 h-4 text-amber-600" />
+                          <span>{lang === 'th' ? 'ระบบจัดการหลังบ้าน (Admin)' : 'Admin Backoffice'}</span>
+                        </button>
+                      )}
 
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-600 font-semibold"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>{t('signOut')}</span>
-                    </button>
+                      <div className="my-1 border-t border-slate-100"></div>
+
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <span>{lang === 'th' ? 'ออกจากระบบ' : 'Sign Out'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button 
+                  onClick={() => navigate?.('login')} 
+                  className="hidden md:flex items-center gap-2 hover:text-[#f97316] font-bold text-sm transition-colors text-left cursor-pointer"
+                >
+                  <User className="w-5 h-5 text-slate-200" />
+                  <div className="hidden lg:flex flex-col text-left">
+                    <span className="text-[10px] leading-none text-slate-300 font-normal">
+                      {lang === 'th' ? 'เข้าสู่ระบบ' : 'Login'}
+                    </span>
+                    <span className="text-[12px] leading-tight text-white">
+                      {lang === 'th' ? 'สมัครสมาชิก' : 'Register'}
+                    </span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => navigate?.('login')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-white bg-[#f97316] hover:bg-[#ea580c] transition-colors shadow-xs"
-              >
-                <User className="w-4 h-4" />
-                <span>{t('signIn')}</span>
-              </button>
-            )}
-
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-xl text-white hover:bg-white/10 md:hidden"
-            >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+                </button>
+              )}
+             
+             <div className="h-6 sm:h-8 w-[1px] bg-[#1a3668] hidden sm:block"></div>
+             
+             {/* Cart Button */}
+             <button onClick={() => openCart()} className="flex items-center gap-2 sm:gap-3 hover:text-[#f97316] font-bold text-sm relative transition-colors group">
+                <div className="relative">
+                   <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+                   <span className="absolute -top-2 -right-2.5 flex h-[18px] min-w-[18px] px-1 items-center justify-center rounded-full bg-[#f97316] text-[10px] font-black text-white shadow-sm border-[1.5px] border-[#051124]">
+                      {items.length}
+                   </span>
+                </div>
+                <span className="hidden lg:inline ml-1 text-[13px]">
+                   {lang === 'th' ? 'ตะกร้าสินค้า' : 'Cart'}
+                </span>
+             </button>
           </div>
         </div>
 
-        {/* Mobile Search Input */}
-        <div className="mt-3 md:hidden">
-          <form onSubmit={handleSearch} className="relative w-full">
-            <input
-              type="text"
-              placeholder={t('searchPlaceholder')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white text-slate-900 placeholder-slate-400 text-xs rounded-full pl-9 pr-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#f97316]"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          </form>
-        </div>
+        {/* Mobile Search Bar Collapsible Form */}
+        {mobileSearchOpen && (
+          <div className="md:hidden mt-2 pt-2 border-t border-blue-900/40 animate-fade-in">
+            <form onSubmit={handleSearch} className="flex items-center rounded-full bg-white p-1 shadow-inner">
+              <input
+                type="text"
+                placeholder={lang === 'th' ? "ค้นหาอะไหล่, รุ่นรถ, รหัสสินค้า..." : "Search parts, vehicle, SKU..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 bg-transparent px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-4 py-1.5 rounded-full flex items-center justify-center transition-all shrink-0 text-xs font-bold"
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
-      {/* 2. Royal Blue Navigation Ribbon (#0d45a2) */}
-      <nav className="bg-[#0d45a2] text-white px-4 sm:px-6 lg:px-8 hidden md:block">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            {/* Categories Dropdown Button */}
-            <div className="relative">
-              <button
-                onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
-                className="bg-[#09357a] hover:bg-[#072a63] text-white px-5 py-3 font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <Menu className="w-4 h-4" />
-                <span>{t('categories')}</span>
-                <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-80" />
-              </button>
-
-              {/* Categories Mega Dropdown Menu */}
-              {isCategoryMenuOpen && (
-                <div className="absolute top-full left-0 w-64 bg-white shadow-xl rounded-b-2xl border border-slate-100 py-2 z-50 text-xs text-slate-700 animate-scale-in">
-                  {[
-                    { label: 'Brakes & Rotors', cat: 'brakes' },
-                    { label: 'Engine & Ignition', cat: 'engine' },
-                    { label: 'Synthetic Oils & Fluids', cat: 'fluids' },
-                    { label: 'Filters & Intake Systems', cat: 'filters' },
-                    { label: 'Suspension & Steering', cat: 'suspension' },
-                    { label: 'Electrical & Sensors', cat: 'electrical' },
-                    { label: 'Lighting & Body Parts', cat: 'body' },
-                    { label: 'Transmission & Drivetrain', cat: 'transmission' },
-                  ].map((item, idx) => (
+      {/* Bottom Navigation - Medium Blue (Desktop) */}
+      <nav className="bg-[#051124] text-white hidden md:block border-b border-blue-900/30">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 h-[52px]">
+          
+          <div className="flex items-center h-full">
+             {/* Slanted Categories Button */}
+             <div onClick={() => navigate?.("product-list")} className="relative group cursor-pointer -ml-4 sm:-ml-6 lg:-ml-8 h-full flex items-center shrink-0 w-[240px]">
+                {/* Full bleed left background */}
+                <div className="absolute top-0 bottom-0 right-full w-[50vw] bg-[#0c3175]"></div>
+                {/* Custom Polygon Background to match exactly `/` shape */}
+                <div 
+                   className="absolute inset-0 bg-[#0c3175]"
+                   style={{ clipPath: 'polygon(0 0, calc(100% - 30px) 0, 100% 100%, 0 100%)' }}
+                ></div>
+                <div className="relative z-10 px-10 flex items-center gap-3 w-full justify-start">
+                   <Menu className="w-5 h-5" />
+                   <span className="font-bold text-[14px]">
+                     {categoryButtonLabel}
+                   </span>
+                   <ChevronDown className="w-4 h-4 ml-1" />
+                </div>
+             </div>
+             
+              {/* Dynamic Nav Links from Settings */}
+              <div className="flex items-center gap-1.5 text-[13px] font-bold ml-2">
+                 {navMenus.filter(m => {
+                   if (m.active === false) return false;
+                   const label = lang === 'en' ? (m.labelEn || m.labelTh) : (m.labelTh || m.labelEn);
+                   return Boolean(label && label.trim().length > 0 && m.url && m.url.trim().length > 0);
+                 }).map((menu, idx) => {
+                  const label = lang === 'en' ? (menu.labelEn || menu.labelTh) : (menu.labelTh || menu.labelEn);
+                  const isHome = menu.url === 'home' || menu.url === '/' || idx === 0;
+                  return (
                     <button
-                      key={idx}
-                      onClick={() => {
-                        setIsCategoryMenuOpen(false);
-                        navigate?.('product-list', { filters: { category: item.cat } });
-                      }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-[#1d4ed8] font-medium transition-colors flex items-center justify-between"
+                      key={menu.id || idx}
+                      onClick={() => handleMenuClick(menu.url)}
+                      className={`px-4 py-1.5 rounded-full transition-colors tracking-wide ${
+                        isHome
+                          ? 'border-[1.5px] border-[#3b82f6] bg-[#081e4b] text-white shadow-[0_0_12px_rgba(59,130,246,0.6)]'
+                          : 'hover:text-blue-200 text-slate-200'
+                      }`}
                     >
-                      <span>{item.label}</span>
-                      <ChevronDown className="w-3 h-3 text-slate-400 -rotate-90" />
+                      {label}
                     </button>
-                  ))}
+                  );
+                })}
+             </div>
+          </div>
+
+          <div className="flex items-center py-2">
+             <button onClick={() => navigate?.('product-list')} className="bg-[#f97316] hover:bg-[#ea580c] px-5 py-1.5 rounded-full font-bold text-[12px] flex items-center gap-2 transition-colors shadow-sm text-white">
+                <ShieldCheck className="w-4 h-4" />
+                <span>{lang === 'th' ? 'สินค้าพรีเมียม / รับประกันแท้' : 'Premium / 100% Genuine'}</span>
+             </button>
+          </div>
+
+        </div>
+      </nav>
+
+      {/* Mobile Drawer Navigation (Sidebar on Phone/Tablet) */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] md:hidden flex">
+          {/* Backdrop */}
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+          />
+
+          {/* Drawer Content */}
+          <div className="relative z-10 w-[82%] max-w-[320px] bg-[#051124] text-white h-full flex flex-col justify-between shadow-2xl border-r border-blue-900/50">
+            {/* Drawer Top */}
+            <div className="p-5 border-b border-blue-900/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {branding.logoUrl && branding.logoUrl !== '/logo.png' ? (
+                  <img src={branding.logoUrl} alt="Logo" className="max-h-8 max-w-[160px] object-contain" />
+                ) : (
+                  <span className="font-black text-xl text-white">
+                    {lang === 'en' ? (branding.siteNameEn || 'MOBEX') : (branding.siteNameTh || 'MOBEX')}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* User Profile Card inside Drawer */}
+            <div className="px-5 py-4 bg-[#0a1f46] border-b border-blue-900/40">
+              {user ? (
+                <div className="space-y-3">
+                  <div
+                    onClick={() => { setMobileMenuOpen(false); navigate?.('my-orders'); }}
+                    className="flex items-center gap-3 cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-blue-600/40 border border-blue-400 flex items-center justify-center text-white font-black text-sm shrink-0">
+                      {user.firstName?.charAt(0) || user.email?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-white truncate max-w-[180px]">
+                        {user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.email}
+                      </span>
+                      <span className="text-[10px] text-emerald-400 font-bold">
+                        {lang === 'th' ? 'เข้าสู่ระบบแล้ว' : 'Logged In'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => { setMobileMenuOpen(false); navigate?.('my-orders'); }}
+                      className="flex-1 py-1.5 px-2.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-[11px] font-bold text-blue-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Package className="w-3.5 h-3.5" />
+                      <span>{lang === 'th' ? 'คำสั่งซื้อ' : 'Orders'}</span>
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="py-1.5 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-[11px] font-bold text-rose-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>{lang === 'th' ? 'ออก' : 'Logout'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setMobileMenuOpen(false); navigate?.('login'); }}
+                    className="flex-1 py-2 rounded-xl bg-[#f97316] text-white text-xs font-bold text-center shadow-sm hover:bg-[#ea580c]"
+                  >
+                    {lang === 'th' ? 'เข้าสู่ระบบ' : 'Login'}
+                  </button>
+                  <button
+                    onClick={() => { setMobileMenuOpen(false); navigate?.('register'); }}
+                    className="flex-1 py-2 rounded-xl bg-white/10 text-white text-xs font-bold text-center border border-white/20 hover:bg-white/20"
+                  >
+                    {lang === 'th' ? 'สมัครสมาชิก' : 'Register'}
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Horizontal Navigation Links */}
-            <div className="flex items-center gap-6 text-xs font-bold py-3">
+            {/* Menu Links */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-1">
+              <div className="text-[11px] font-extrabold uppercase text-slate-400 px-3 py-1 tracking-wider">
+                {lang === 'th' ? 'เมนูนำทาง' : 'Navigation'}
+              </div>
+
+              {/* All Categories Button in Drawer */}
               <button
-                onClick={() => navigate?.('home')}
-                className="hover:text-blue-200 transition-colors"
+                onClick={() => { setMobileMenuOpen(false); navigate?.('product-list'); }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#0c3175] text-white font-bold text-xs mb-2 shadow-xs"
               >
-                {t('home')}
+                <div className="flex items-center gap-2.5">
+                  <Menu className="w-4 h-4 text-blue-300" />
+                  <span>{categoryButtonLabel}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-blue-300" />
               </button>
-              <button
-                onClick={() => navigate?.('product-list')}
-                className="hover:text-blue-200 transition-colors"
-              >
-                {t('tech')}
-              </button>
-              <button
-                onClick={() => navigate?.('product-list')}
-                className="hover:text-blue-200 transition-colors"
-              >
-                {t('accessories')}
-              </button>
-              <button
-                onClick={() => navigate?.('product-list')}
-                className="hover:text-blue-200 transition-colors"
-              >
-                {t('lifestyle')}
-              </button>
-              <button
-                onClick={() => navigate?.('product-list')}
-                className="hover:text-blue-200 transition-colors"
-              >
-                {t('products')}
-              </button>
-              <button
-                onClick={() => navigate?.('product-list', { filters: { featured: true } })}
-                className="hover:text-blue-200 transition-colors text-[#f97316] font-extrabold flex items-center gap-1"
-              >
-                <Tag className="w-3 h-3" />
-                <span>{t('promos')}</span>
-              </button>
-              <button
-                onClick={() => navigate?.('product-list')}
-                className="hover:text-blue-200 transition-colors"
-              >
-                {t('blog')}
-              </button>
-              <button
-                onClick={() => navigate?.('product-list')}
-                className="hover:text-blue-200 transition-colors"
-              >
-                {t('tourVideo')}
-              </button>
+
+              {/* Dynamic Menus */}
+              {navMenus.filter(m => {
+                if (m.active === false) return false;
+                const label = lang === 'en' ? (m.labelEn || m.labelTh) : (m.labelTh || m.labelEn);
+                return Boolean(label && label.trim().length > 0 && m.url && m.url.trim().length > 0);
+              }).map((menu, idx) => {
+                const label = lang === 'en' ? (menu.labelEn || menu.labelTh) : (menu.labelTh || menu.labelEn);
+                return (
+                  <button
+                    key={menu.id || idx}
+                    onClick={() => handleMenuClick(menu.url)}
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/10 text-slate-200 text-xs font-semibold transition-colors text-left"
+                  >
+                    <span>{label}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                  </button>
+                );
+              })}
+
+              {isAdminUser && (
+                <button
+                  onClick={() => { setMobileMenuOpen(false); navigate?.('admin'); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs mt-2 border border-amber-500/30 text-left"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>{lang === 'th' ? 'ระบบจัดการหลังบ้าน (Admin)' : 'Admin Backoffice'}</span>
+                </button>
+              )}
             </div>
-          </div>
 
-          {/* Member Login Status Badge */}
-          <div className="flex items-center gap-3 text-[11px] font-semibold py-3">
-            {user ? (
-              <span className="bg-emerald-500/20 text-emerald-200 px-3 py-1 rounded-full border border-emerald-400/30 flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Member Verified ({user.business_type || 'GARAGE'})</span>
-              </span>
-            ) : (
-              <span className="bg-amber-500/20 text-amber-200 px-3 py-1 rounded-full border border-amber-400/30 flex items-center gap-1">
-                <span>{t('loginToViewPrice')}</span>
-              </span>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {/* 3. Ticker Strip Below Navigation Bar (#eaf2ff) */}
-      <div className="bg-[#eaf2ff] border-b border-blue-100/80 py-2 px-4 sm:px-6 lg:px-8 text-xs font-semibold text-[#09357a]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between overflow-x-auto gap-6 whitespace-nowrap">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-1.5 text-blue-900 font-bold">
-              <span className="w-2 h-2 rounded-full bg-[#f97316] animate-pulse"></span>
-              <span>{lang === 'th' ? 'Lifestyle : รับส่วนลด 10% สำหรับสมาชิกตรงรุ่น 100+ แบรนด์' : 'Lifestyle : extra 10% off for 100+ brand deals'}</span>
+            {/* Drawer Bottom */}
+            <div className="p-4 border-t border-blue-900/50 bg-[#040e1f] text-center space-y-2">
+              <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#f97316]" />
+                <span>{lang === 'th' ? 'รับประกันอะไหล่แท้ 100%' : '100% Genuine Guaranteed'}</span>
+              </div>
+              <div className="text-[9px] text-slate-500">
+                © {new Date().getFullYear()} {branding.siteNameEn || branding.siteNameTh || 'MOBEX'}
+              </div>
             </div>
-            <span className="text-blue-300">|</span>
-            {/* Live Countdown Timer Badge */}
-            <div className="flex items-center gap-1.5 bg-[#09357a] text-white px-3 py-0.5 rounded-full text-[11px] font-mono font-bold shadow-xs">
-              <Clock className="w-3 h-3 text-[#f97316]" />
-              <span>
-                {String(timeLeft.days).padStart(2, '0')}d : {String(timeLeft.hours).padStart(2, '0')}h : {String(timeLeft.mins).padStart(2, '0')}m : {String(timeLeft.secs).padStart(2, '0')}s
-              </span>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-[#09357a] font-bold">
-            <span>UNIMART : Intro (all 100+ brand deals scale)</span>
           </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu Drawer */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-slate-200 p-4 space-y-3 text-xs">
-          <div className="p-3 bg-slate-50 rounded-xl mb-2 flex items-center justify-between">
-            <VehicleBadge vehicle={selectedVehicle} onClick={openSelectorModal} />
-            <button
-              onClick={toggleLanguage}
-              className="px-3 py-1 rounded-full bg-[#09357a] text-white font-bold text-xs"
-            >
-              {lang.toUpperCase()}
-            </button>
-          </div>
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              navigate?.('home');
-            }}
-            className="w-full text-left py-2 font-bold text-slate-900 hover:text-[#1d4ed8]"
-          >
-            {t('home')}
-          </button>
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              navigate?.('product-list');
-            }}
-            className="w-full text-left py-2 font-bold text-slate-900 hover:text-[#1d4ed8]"
-          >
-            {t('shop')}
-          </button>
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              navigate?.('product-list', { filters: { featured: true } });
-            }}
-            className="w-full text-left py-2 font-bold text-[#f97316]"
-          >
-            {t('promos')}
-          </button>
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              openSelectorModal();
-            }}
-            className="w-full text-left py-2 font-bold text-slate-900 flex items-center gap-1.5"
-          >
-            <Car className="w-4 h-4 text-[#1d4ed8]" />
-            <span>{t('vehicleFitment')}</span>
-          </button>
         </div>
       )}
     </header>

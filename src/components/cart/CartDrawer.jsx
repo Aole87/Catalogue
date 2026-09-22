@@ -56,8 +56,8 @@ export function CartDrawer({ onNavigate }) {
         onClick={closeCart}
       />
 
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col animate-slide-left">
+      <div className="fixed inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
+        <div className="w-screen max-w-full sm:max-w-md bg-white shadow-2xl flex flex-col animate-slide-left">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-[#0e1932] text-white">
             <div className="flex items-center gap-2.5">
@@ -159,6 +159,18 @@ export function CartDrawer({ onNavigate }) {
                       {item.sku && (
                         <p className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</p>
                       )}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        {item.variantName && (
+                          <span className="text-[10px] bg-blue-50 text-[#0c3175] font-bold px-1.5 py-0.5 rounded border border-blue-100">
+                            ขนาด: {item.variantName}
+                          </span>
+                        )}
+                        {Number(item.shippingFee || 0) > 0 && (
+                          <span className="text-[10px] bg-amber-50 text-amber-800 font-medium px-1.5 py-0.5 rounded border border-amber-200">
+                            ค่าส่ง: ฿{Number(item.shippingFee).toLocaleString()}/ชิ้น
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between mt-2">

@@ -1,31 +1,47 @@
 import { z } from 'zod';
 import { FuelType } from '@prisma/client';
 
+const sanitizeUrlOrNull = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? null : val),
+  z.string().max(2000).nullable().optional()
+);
+
+const sanitizeTextOrNull = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? null : val),
+  z.string().max(100).nullable().optional()
+);
+
+const sanitizeSlug = z.preprocess((val) => {
+  if (typeof val === 'string') {
+    let s = val.trim().toLowerCase().replace(/\s+/g, '-');
+    s = s.replace(/[^a-z0-9\u0E00-\u0E7F\-_]/g, '');
+    s = s.replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return s || `veh-${Date.now()}`;
+  }
+  return val;
+}, z.string().min(1, 'Slug is required').max(150));
+
+const sanitizeId = z.preprocess(
+  (val) => (typeof val === 'string' ? val.trim() : val),
+  z.string().min(1, 'ID is required')
+);
+
 // ==========================================
 // MAKES
 // ==========================================
 export const createVehicleMakeSchema = z.object({
   name: z.string().min(1, 'Make name is required').max(100),
-  slug: z
-    .string()
-    .min(1, 'Slug is required')
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens'),
-  countryOfOrigin: z.string().max(100).nullable().optional(),
-  logoUrl: z.string().url('Logo URL must be valid').nullable().optional(),
+  slug: sanitizeSlug,
+  countryOfOrigin: sanitizeTextOrNull,
+  logoUrl: sanitizeUrlOrNull,
   isActive: z.boolean().default(true).optional(),
 });
 
 export const updateVehicleMakeSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens')
-    .optional(),
-  countryOfOrigin: z.string().max(100).nullable().optional(),
-  logoUrl: z.string().url('Logo URL must be valid').nullable().optional(),
+  slug: sanitizeSlug.optional(),
+  countryOfOrigin: sanitizeTextOrNull,
+  logoUrl: sanitizeUrlOrNull,
   isActive: z.boolean().optional(),
 });
 
@@ -33,25 +49,16 @@ export const updateVehicleMakeSchema = z.object({
 // MODELS
 // ==========================================
 export const createVehicleModelSchema = z.object({
-  makeId: z.string().uuid('Make ID must be a valid UUID'),
+  makeId: sanitizeId,
   name: z.string().min(1, 'Model name is required').max(100),
-  slug: z
-    .string()
-    .min(1, 'Slug is required')
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens'),
+  slug: sanitizeSlug,
   isActive: z.boolean().default(true).optional(),
 });
 
 export const updateVehicleModelSchema = z.object({
-  makeId: z.string().uuid('Make ID must be a valid UUID').optional(),
+  makeId: sanitizeId.optional(),
   name: z.string().min(1).max(100).optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens')
-    .optional(),
+  slug: sanitizeSlug.optional(),
   isActive: z.boolean().optional(),
 });
 

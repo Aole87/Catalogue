@@ -253,7 +253,7 @@ export default function ProcurementManager() {
   };
 
   return (
-    <div className="p-6 bg-[#1a202c] text-white min-h-screen">
+    <div className="p-6 bg-[#051124] text-white min-h-screen">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -295,7 +295,7 @@ export default function ProcurementManager() {
                 });
                 setShowCreatePoModal(true);
               }}
-              className="bg-[#ff6b2b] hover:bg-[#e04b00] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-950/20 transition"
+              className="bg-[#ea580c] hover:bg-[#c2410c] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-orange-950/20 transition"
             >
               + Create Draft PO
             </button>
@@ -318,11 +318,11 @@ export default function ProcurementManager() {
       )}
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex border-b border-gray-700 mb-6">
+      <div className="flex border-b border-[#0c3175] mb-6">
         <button
           onClick={() => setSubTab('pos')}
           className={`px-6 py-3 font-semibold text-sm transition border-b-2 ${
-            subTab === 'pos' ? 'border-blue-500 text-blue-400 bg-gray-800/50' : 'border-transparent text-gray-400 hover:text-white'
+            subTab === 'pos' ? 'border-blue-500 text-blue-400 bg-[#0c3175]/50' : 'border-transparent text-gray-400 hover:text-white'
           }`}
         >
           📦 Purchase Orders (ใบสั่งซื้อ)
@@ -330,7 +330,7 @@ export default function ProcurementManager() {
         <button
           onClick={() => setSubTab('suppliers')}
           className={`px-6 py-3 font-semibold text-sm transition border-b-2 ${
-            subTab === 'suppliers' ? 'border-blue-500 text-blue-400 bg-gray-800/50' : 'border-transparent text-gray-400 hover:text-white'
+            subTab === 'suppliers' ? 'border-blue-500 text-blue-400 bg-[#0c3175]/50' : 'border-transparent text-gray-400 hover:text-white'
           }`}
         >
           🏭 Suppliers & Vendors (ผู้จัดจำหน่าย)
@@ -338,7 +338,7 @@ export default function ProcurementManager() {
         <button
           onClick={() => setSubTab('receipts')}
           className={`px-6 py-3 font-semibold text-sm transition border-b-2 ${
-            subTab === 'receipts' ? 'border-blue-500 text-blue-400 bg-gray-800/50' : 'border-transparent text-gray-400 hover:text-white'
+            subTab === 'receipts' ? 'border-blue-500 text-blue-400 bg-[#0c3175]/50' : 'border-transparent text-gray-400 hover:text-white'
           }`}
         >
           📥 Goods Receipts (ประวัติการรับสินค้า)
@@ -349,7 +349,7 @@ export default function ProcurementManager() {
       {subTab === 'pos' && (
         <div>
           {/* Filter Bar */}
-          <div className="flex flex-wrap gap-4 mb-6 bg-gray-800 p-4 rounded-lg items-center">
+          <div className="flex flex-wrap gap-4 mb-6 bg-[#0c3175] p-4 rounded-lg items-center">
             <div className="flex-1 min-w-[200px]">
               <input
                 type="text"
@@ -357,14 +357,14 @@ export default function ProcurementManager() {
                 value={poSearch}
                 onChange={(e) => setPoSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && fetchPOs()}
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#051124]/50 border border-[#051124] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
               <select
                 value={poStatusFilter}
                 onChange={(e) => setPoStatusFilter(e.target.value)}
-                className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none"
+                className="bg-[#051124]/50 border border-[#051124] rounded px-3 py-2 text-sm text-white focus:outline-none"
               >
                 <option value="">All Statuses (ทั้งหมด)</option>
                 <option value="DRAFT">DRAFT (แบบร่าง)</option>
@@ -376,15 +376,15 @@ export default function ProcurementManager() {
                 <option value="CANCELLED">CANCELLED (ยกเลิก)</option>
               </select>
             </div>
-            <button onClick={fetchPOs} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-semibold">
+            <button onClick={fetchPOs} className="bg-[#051124]/50 hover:bg-[#0c3175] px-4 py-2 rounded text-sm font-semibold">
               Filter
             </button>
           </div>
 
           {/* PO Table */}
-          <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+          <div className="bg-[#0c3175] rounded-lg overflow-hidden border border-[#0c3175]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-900/60 text-gray-300 font-semibold border-b border-gray-700">
+              <thead className="bg-[#051124]/60 text-gray-300 font-semibold border-b border-[#0c3175]">
                 <tr>
                   <th className="p-4">PO Number</th>
                   <th className="p-4">Supplier</th>
@@ -397,7 +397,7 @@ export default function ProcurementManager() {
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {pos.map((po) => (
-                  <tr key={po.id} className="hover:bg-gray-700/50 transition">
+                  <tr key={po.id} className="hover:bg-[#051124]/50/50 transition">
                     <td className="p-4 font-mono font-bold text-blue-400">{po.poNumber}</td>
                     <td className="p-4">{po.supplier?.name}</td>
                     <td className="p-4">{po.destinationWarehouse?.name}</td>
@@ -417,7 +417,7 @@ export default function ProcurementManager() {
                             ? 'bg-purple-900/80 text-purple-300 border border-purple-500'
                             : po.status === 'CANCELLED'
                             ? 'bg-red-900/80 text-red-300 border border-red-500'
-                            : 'bg-gray-700 text-gray-300'
+                            : 'bg-[#051124]/50 text-gray-300'
                         }`}
                       >
                         {po.status}
@@ -431,7 +431,7 @@ export default function ProcurementManager() {
                           const json = await res.json();
                           if (res.ok) setSelectedPo(json.data);
                         }}
-                        className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs"
+                        className="bg-[#051124]/50 hover:bg-[#0c3175] px-3 py-1 rounded text-xs"
                       >
                         View
                       </button>
@@ -468,7 +468,7 @@ export default function ProcurementManager() {
                       {po.status === 'APPROVED' && (
                         <button
                           onClick={() => handlePoAction(po.id, 'send')}
-                          className="bg-[#0c2b2f] hover:bg-[#144349] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                          className="bg-[#0c3175] hover:bg-[#0c3175] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
                         >
                           Send to Supplier
                         </button>
@@ -505,9 +505,9 @@ export default function ProcurementManager() {
       {/* ----------------- TAB 2: SUPPLIERS ----------------- */}
       {subTab === 'suppliers' && (
         <div>
-          <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+          <div className="bg-[#0c3175] rounded-lg overflow-hidden border border-[#0c3175]">
             <table className="w-full text-left text-sm">
-              <thead className="bg-gray-900/60 text-gray-300 font-semibold border-b border-gray-700">
+              <thead className="bg-[#051124]/60 text-gray-300 font-semibold border-b border-[#0c3175]">
                 <tr>
                   <th className="p-4">Code</th>
                   <th className="p-4">Supplier Name</th>
@@ -520,7 +520,7 @@ export default function ProcurementManager() {
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {suppliers.map((sup) => (
-                  <tr key={sup.id} className="hover:bg-gray-700/50 transition">
+                  <tr key={sup.id} className="hover:bg-[#051124]/50/50 transition">
                     <td className="p-4 font-mono font-bold text-blue-400">{sup.code}</td>
                     <td className="p-4 font-semibold">{sup.name}</td>
                     <td className="p-4 text-gray-300">
@@ -552,7 +552,7 @@ export default function ProcurementManager() {
                           });
                           setShowSupplierModal(true);
                         }}
-                        className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs"
+                        className="bg-[#051124]/50 hover:bg-[#0c3175] px-3 py-1 rounded text-xs"
                       >
                         Edit
                       </button>
@@ -567,9 +567,9 @@ export default function ProcurementManager() {
 
       {/* ----------------- TAB 3: GOODS RECEIPTS ----------------- */}
       {subTab === 'receipts' && (
-        <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+        <div className="bg-[#0c3175] rounded-lg overflow-hidden border border-[#0c3175]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-gray-900/60 text-gray-300 font-semibold border-b border-gray-700">
+            <thead className="bg-[#051124]/60 text-gray-300 font-semibold border-b border-[#0c3175]">
               <tr>
                 <th className="p-4">GRN Number</th>
                 <th className="p-4">PO Reference</th>
@@ -581,7 +581,7 @@ export default function ProcurementManager() {
             </thead>
             <tbody className="divide-y divide-gray-700">
               {receipts.map((grn) => (
-                <tr key={grn.id} className="hover:bg-gray-700/50 transition">
+                <tr key={grn.id} className="hover:bg-[#051124]/50/50 transition">
                   <td className="p-4 font-mono font-bold text-emerald-400">{grn.receiptNumber}</td>
                   <td className="p-4 font-mono text-blue-400">{grn.purchaseOrder?.poNumber}</td>
                   <td className="p-4">{grn.warehouse?.name}</td>
@@ -609,7 +609,7 @@ export default function ProcurementManager() {
       {/* ----------------- MODAL: CREATE DRAFT PO ----------------- */}
       {showCreatePoModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#0c3175] border border-[#0c3175] rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Create Draft Purchase Order</h2>
               <button onClick={() => setShowCreatePoModal(false)} className="text-gray-400 hover:text-white font-bold">✕</button>
@@ -621,7 +621,7 @@ export default function ProcurementManager() {
                   <select
                     value={poForm.supplierId}
                     onChange={(e) => setPoForm({ ...poForm, supplierId: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                     required
                   >
                     <option value="">-- Select Supplier --</option>
@@ -635,7 +635,7 @@ export default function ProcurementManager() {
                   <select
                     value={poForm.destinationWarehouseId}
                     onChange={(e) => setPoForm({ ...poForm, destinationWarehouseId: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                     required
                   >
                     <option value="">-- Select Warehouse --</option>
@@ -649,7 +649,7 @@ export default function ProcurementManager() {
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-2">Line Items (รายการสินค้า)</label>
                 {poForm.items.map((item, idx) => (
-                  <div key={idx} className="flex gap-2 mb-2 items-center bg-gray-900/40 p-2 rounded">
+                  <div key={idx} className="flex gap-2 mb-2 items-center bg-[#051124]/40 p-2 rounded">
                     <select
                       value={item.productId}
                       onChange={(e) => {
@@ -657,7 +657,7 @@ export default function ProcurementManager() {
                         newItems[idx].productId = e.target.value;
                         setPoForm({ ...poForm, items: newItems });
                       }}
-                      className="flex-1 bg-gray-700 border border-gray-600 rounded p-1.5 text-xs text-white"
+                      className="flex-1 bg-[#051124]/50 border border-[#051124] rounded p-1.5 text-xs text-white"
                       required
                     >
                       <option value="">-- Select Product --</option>
@@ -675,7 +675,7 @@ export default function ProcurementManager() {
                         newItems[idx].orderedQuantity = parseInt(e.target.value, 10) || 1;
                         setPoForm({ ...poForm, items: newItems });
                       }}
-                      className="w-20 bg-gray-700 border border-gray-600 rounded p-1.5 text-xs text-white"
+                      className="w-20 bg-[#051124]/50 border border-[#051124] rounded p-1.5 text-xs text-white"
                       required
                     />
                     <input
@@ -688,7 +688,7 @@ export default function ProcurementManager() {
                         newItems[idx].unitCost = parseFloat(e.target.value) || 0;
                         setPoForm({ ...poForm, items: newItems });
                       }}
-                      className="w-24 bg-gray-700 border border-gray-600 rounded p-1.5 text-xs text-white"
+                      className="w-24 bg-[#051124]/50 border border-[#051124] rounded p-1.5 text-xs text-white"
                       required
                     />
                     {poForm.items.length > 1 && (
@@ -716,22 +716,22 @@ export default function ProcurementManager() {
                 <textarea
                   value={poForm.notes}
                   onChange={(e) => setPoForm({ ...poForm, notes: e.target.value })}
-                  className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                  className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                   rows="2"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#0c3175]">
                 <button
                   type="button"
                   onClick={() => setShowCreatePoModal(false)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                  className="px-4 py-2 bg-[#051124]/50 hover:bg-[#0c3175] rounded text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#ff6b2b] hover:bg-[#e04b00] text-white rounded-xl text-xs font-bold shadow-md shadow-orange-950/20"
+                  className="px-4 py-2 bg-[#ea580c] hover:bg-[#c2410c] text-white rounded-xl text-xs font-bold shadow-md shadow-orange-950/20"
                 >
                   Save Draft PO
                 </button>
@@ -744,7 +744,7 @@ export default function ProcurementManager() {
       {/* ----------------- MODAL: RECEIVE GOODS ----------------- */}
       {showReceiveModal && receivingPo && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#0c3175] border border-[#0c3175] rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="text-xl font-bold text-emerald-400">Receive Goods: {receivingPo.poNumber}</h2>
@@ -753,10 +753,10 @@ export default function ProcurementManager() {
               <button onClick={() => setShowReceiveModal(false)} className="text-gray-400 hover:text-white font-bold">✕</button>
             </div>
             <form onSubmit={handleSubmitReceiving} className="space-y-4">
-              <div className="bg-gray-900/40 p-3 rounded">
+              <div className="bg-[#051124]/40 p-3 rounded">
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="text-gray-400 border-b border-gray-700 pb-1">
+                    <tr className="text-gray-400 border-b border-[#0c3175] pb-1">
                       <th className="pb-2">SKU / Item</th>
                       <th className="pb-2 text-center">Ordered</th>
                       <th className="pb-2 text-center">Received</th>
@@ -785,7 +785,7 @@ export default function ProcurementManager() {
                               newItems[idx].receivedQuantity = parseInt(e.target.value, 10) || 0;
                               setReceiveItems(newItems);
                             }}
-                            className="w-20 bg-gray-700 border border-gray-600 rounded p-1 text-right text-xs text-white"
+                            className="w-20 bg-[#051124]/50 border border-[#051124] rounded p-1 text-right text-xs text-white"
                           />
                         </td>
                       </tr>
@@ -801,15 +801,15 @@ export default function ProcurementManager() {
                   placeholder="e.g. Inbound shipment inspection verified by warehouse staff"
                   value={receiveNotes}
                   onChange={(e) => setReceiveNotes(e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                  className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#0c3175]">
                 <button
                   type="button"
                   onClick={() => setShowReceiveModal(false)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                  className="px-4 py-2 bg-[#051124]/50 hover:bg-[#0c3175] rounded text-sm"
                 >
                   Cancel
                 </button>
@@ -828,7 +828,7 @@ export default function ProcurementManager() {
       {/* ----------------- MODAL: CREATE / EDIT SUPPLIER ----------------- */}
       {showSupplierModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#0c3175] border border-[#0c3175] rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">{selectedSupplier ? 'Edit Supplier' : 'Add New Supplier'}</h2>
               <button onClick={() => setShowSupplierModal(false)} className="text-gray-400 hover:text-white font-bold">✕</button>
@@ -841,7 +841,7 @@ export default function ProcurementManager() {
                     type="text"
                     value={supplierForm.code}
                     onChange={(e) => setSupplierForm({ ...supplierForm, code: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white font-mono"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white font-mono"
                     placeholder="SUP-BOSCH-01"
                     required
                   />
@@ -852,7 +852,7 @@ export default function ProcurementManager() {
                     type="text"
                     value={supplierForm.name}
                     onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                     placeholder="Bosch Automotive Thailand"
                     required
                   />
@@ -866,7 +866,7 @@ export default function ProcurementManager() {
                     type="text"
                     value={supplierForm.contactName}
                     onChange={(e) => setSupplierForm({ ...supplierForm, contactName: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                   />
                 </div>
                 <div>
@@ -875,7 +875,7 @@ export default function ProcurementManager() {
                     type="email"
                     value={supplierForm.email}
                     onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                   />
                 </div>
               </div>
@@ -886,7 +886,7 @@ export default function ProcurementManager() {
                   <select
                     value={supplierForm.paymentTerms}
                     onChange={(e) => setSupplierForm({ ...supplierForm, paymentTerms: e.target.value })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                   >
                     <option value="NET30">NET 30</option>
                     <option value="NET60">NET 60</option>
@@ -901,16 +901,16 @@ export default function ProcurementManager() {
                     min="1"
                     value={supplierForm.leadTimeDays}
                     onChange={(e) => setSupplierForm({ ...supplierForm, leadTimeDays: parseInt(e.target.value, 10) || 7 })}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-sm text-white"
+                    className="w-full bg-[#051124]/50 border border-[#051124] rounded p-2 text-sm text-white"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#0c3175]">
                 <button
                   type="button"
                   onClick={() => setShowSupplierModal(false)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+                  className="px-4 py-2 bg-[#051124]/50 hover:bg-[#0c3175] rounded text-sm"
                 >
                   Cancel
                 </button>

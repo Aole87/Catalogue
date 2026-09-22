@@ -1,29 +1,40 @@
 import { z } from 'zod';
 
+const sanitizeUrlOrNull = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? null : val),
+  z.string().max(2000).nullable().optional()
+);
+
+const sanitizeTextOrNull = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? null : val),
+  z.string().max(1000).nullable().optional()
+);
+
+const sanitizeSlug = z.preprocess((val) => {
+  if (typeof val === 'string') {
+    let s = val.trim().toLowerCase().replace(/\s+/g, '-');
+    s = s.replace(/[^a-z0-9\u0E00-\u0E7F\-_]/g, '');
+    s = s.replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return s || `brand-${Date.now()}`;
+  }
+  return val;
+}, z.string().min(1, 'Brand slug is required').max(150));
+
 export const createBrandSchema = z.object({
   name: z.string().min(1, 'Brand name is required').max(100),
-  slug: z
-    .string()
-    .min(1, 'Brand slug is required')
-    .max(120)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens'),
-  description: z.string().max(1000).nullable().optional(),
-  logoUrl: z.string().url('Logo URL must be a valid URL').nullable().optional(),
-  websiteUrl: z.string().url('Website URL must be a valid URL').nullable().optional(),
+  slug: sanitizeSlug,
+  description: sanitizeTextOrNull,
+  logoUrl: sanitizeUrlOrNull,
+  websiteUrl: sanitizeUrlOrNull,
   isActive: z.boolean().default(true).optional(),
 });
 
 export const updateBrandSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens')
-    .optional(),
-  description: z.string().max(1000).nullable().optional(),
-  logoUrl: z.string().url('Logo URL must be a valid URL').nullable().optional(),
-  websiteUrl: z.string().url('Website URL must be a valid URL').nullable().optional(),
+  slug: sanitizeSlug.optional(),
+  description: sanitizeTextOrNull,
+  logoUrl: sanitizeUrlOrNull,
+  websiteUrl: sanitizeUrlOrNull,
   isActive: z.boolean().optional(),
 });
 

@@ -130,12 +130,19 @@ export const QuickViewModal = ({ product, isOpen, onClose, onNavigate, user }) =
               {product.name}
             </h3>
 
-            {/* Price Box */}
-            <div className="p-4 rounded-2xl bg-[#f4f6fb] border border-slate-200/80 mb-4">
-              {user ? (
+            {/* Short Description */}
+            {(product.shortDescription || product.description) && (
+              <p className="text-xs text-slate-500 leading-relaxed mb-3 line-clamp-3">
+                {product.shortDescription || product.description}
+              </p>
+            )}
+
+            {/* Price Box: Only for logged-in members */}
+            {user && price !== null && price !== undefined && (
+              <div className="p-4 rounded-2xl bg-[#f4f6fb] border border-slate-200/80 mb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Member Price</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Price</span>
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-black text-[#0d3c90] font-mono">
                         ฿{Number(price || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
@@ -143,24 +150,8 @@ export const QuickViewModal = ({ product, isOpen, onClose, onNavigate, user }) =
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2 text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
-                  <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>{t('loginToViewPrice')}</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onNavigate?.('login');
-                    }}
-                    className="px-3 py-1 rounded-full bg-[#f97316] text-white font-bold text-[10px]"
-                  >
-                    {t('signIn')}
-                  </button>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Quantity and Actions */}
             {user ? (
@@ -179,9 +170,10 @@ export const QuickViewModal = ({ product, isOpen, onClose, onNavigate, user }) =
                   onClose();
                   onNavigate?.('login');
                 }}
-                className="w-full py-3 px-4 rounded-full bg-[#f97316] hover:bg-[#ea580c] text-white font-bold text-xs shadow-md"
+                className="w-full py-3 px-4 rounded-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#215ada] font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
               >
-                {t('loginToBuy')}
+                <Lock className="w-4 h-4 text-[#215ada]" />
+                <span>{lang === 'en' ? 'Log in to Order' : 'เข้าสู่ระบบเพื่อสั่งซื้อ'}</span>
               </button>
             )}
           </div>

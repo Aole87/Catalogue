@@ -14,11 +14,20 @@ import {
   Menu,
   Plus,
   Trash2,
-  Sliders
+  Sliders,
+  Phone,
+  Mail,
+  MapPin,
+  Clock,
+  FileText,
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import ApiClient from '../../utils/apiClient';
+import { useSettings } from '../../context/SettingsContext';
 
-export default function SettingsManager() {
+export default function SettingsManager({ setActiveTab }) {
+  const { updateSettings, refreshSettings: refreshGlobalSettings } = useSettings();
   const [activeSubTab, setActiveSubTab] = useState('payment');
   const [loading, setLoading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -56,6 +65,40 @@ export default function SettingsManager() {
     { labelTh: 'บทความ & ข่าวสาร', labelEn: 'Articles & News', target: 'articles' },
   ]);
 
+  const [storeInfo, setStoreInfo] = useState({
+    companyNameTh: 'บริษัท โมเบกซ์ ออโต้พาร์ท จำกัด',
+    companyNameEn: 'MOBEX Auto Parts Co., Ltd.',
+    taxId: '0105565012345',
+    branchNameTh: 'สำนักงานใหญ่ (สาขาพระราม 9)',
+    branchNameEn: 'Headquarters (Rama 9 Branch)',
+    phone: '02-123-4567',
+    hotline: '081-234-5678',
+    email: 'support@mobex-autoparts.com',
+    addressTh: 'เลขที่ 88/9 อาคารโมเบกซ์ ถนนพระราม 9 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพฯ 10310',
+    addressEn: '88/9 MOBEX Building, Rama 9 Rd., Huai Khwang, Bangkok 10310 Thailand',
+    businessHoursTh: 'จันทร์ - เสาร์: 08:30 - 18:00 น. (หยุดวันอาทิตย์)',
+    businessHoursEn: 'Mon - Sat: 08:30 - 18:00 (Closed on Sunday)',
+    googleMapsUrl: 'https://maps.google.com/?q=Huai+Khwang+Bangkok',
+    lineId: '@mobexparts',
+    facebookUrl: 'https://facebook.com/mobexautoparts',
+    tiktokUrl: 'https://tiktok.com/@mobexautoparts',
+    instagramUrl: '',
+    youtubeUrl: '',
+  });
+
+  const [policies, setPolicies] = useState({
+    returnPolicyTh: '',
+    returnPolicyEn: '',
+    warrantyPolicyTh: '',
+    warrantyPolicyEn: '',
+    shippingPolicyTh: '',
+    shippingPolicyEn: '',
+    privacyPolicyTh: '',
+    privacyPolicyEn: '',
+    termsOfServiceTh: '',
+    termsOfServiceEn: '',
+  });
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -67,6 +110,8 @@ export default function SettingsManager() {
           if (s.shipping) setShippingSettings((prev) => ({ ...prev, ...s.shipping }));
           if (s.general) setGeneralSettings((prev) => ({ ...prev, ...s.general }));
           if (s.menus) setMenus(s.menus);
+          if (s.storeInfo) setStoreInfo((prev) => ({ ...prev, ...s.storeInfo }));
+          if (s.policies) setPolicies((prev) => ({ ...prev, ...s.policies }));
         }
       } catch (e) {
       } finally {
@@ -80,12 +125,12 @@ export default function SettingsManager() {
     try {
       setLoading(true);
       setSavedSuccess(false);
-      await ApiClient.put('/settings', {
+      const payload = {
         payment: paymentSettings,
         shipping: shippingSettings,
         general: generalSettings,
-        menus,
-      });
+      };
+      await updateSettings(payload);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (e) {
@@ -141,7 +186,8 @@ export default function SettingsManager() {
           { id: 'payment', label: '💳 Payment API & Gateways', icon: CreditCard },
           { id: 'shipping', label: '🚛 ค่าจัดส่ง & Shipping Rules', icon: Truck },
           { id: 'access', label: '🔒 การจำกัดสิทธิ์ & ราคาเฉพาะสมาชิก', icon: Shield },
-          { id: 'menu', label: '🌐 จัดการเมนูหน้าเว็บ & ประกาศ', icon: Menu },
+          { id: 'menu', label: '📢 ข้อความประกาศ Ticker', icon: Menu },
+          { id: 'websiteRedirect', label: '🏢 ข้อมูลร้านค้า & นโยบาย (ย้ายไป การจัดการเว็บไซต์)', icon: Building2 },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -473,6 +519,32 @@ export default function SettingsManager() {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 5. Relocation Notice for Store Info & Policies */}
+      {activeSubTab === "websiteRedirect" && (
+        <div className="bg-white p-10 rounded-3xl border border-slate-200/90 shadow-sm text-center space-y-6">
+          <div className="w-20 h-20 bg-blue-50 text-[#0c3175] rounded-3xl flex items-center justify-center mx-auto shadow-inner border border-blue-100">
+            <Building2 className="w-10 h-10" />
+          </div>
+          <div className="max-w-xl mx-auto space-y-2">
+            <h3 className="text-xl font-black text-slate-900">
+              ข้อมูลร้านค้า & นโยบายร้านค้า ได้ย้ายไปที่ "การจัดการเว็บไซต์" เรียบร้อยแล้ว
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              ตามโครงสร้างระบบใหม่ ท่านสามารถจัดการข้อมูลนิติบุคคล, เลขประจำตัวผู้เสียภาษี, ที่อยู่ติดต่อสำนักงาน/คลังสินค้า, เบอร์โทรศัพท์, โซเชียลมีเดีย รวมถึงนโยบายการรับประกัน การคืนสินค้า และ PDPA ได้อย่างครบวงจรที่แท็บ <strong>"การจัดการเว็บไซต์ & ข้อมูลร้านค้า"</strong>
+            </p>
+          </div>
+          {setActiveTab && (
+            <button
+              onClick={() => setActiveTab("storefront")}
+              className="px-6 py-3 rounded-full bg-[#0c3175] hover:bg-[#07214f] text-white text-xs font-bold shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
+            >
+              <span>ไปยังเมนู การจัดการเว็บไซต์ & ข้อมูลร้านค้า</span>
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -66,6 +66,17 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
     });
   }
 
+  // 4.5 Fastify Payload Too Large Errors (413)
+  if (('statusCode' in error && error.statusCode === 413) || (error as any).code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
+    return reply.status(413).send({
+      error: {
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'Request payload is too large. Please use smaller images or files.',
+        requestId,
+      },
+    });
+  }
+
   // 5. Fastify Body Parsing / Malformed Syntax Errors (400)
   if ('statusCode' in error && error.statusCode === 400) {
     return reply.status(400).send({

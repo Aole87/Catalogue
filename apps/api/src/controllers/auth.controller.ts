@@ -41,6 +41,7 @@ export class AuthController {
     return reply.status(201).send({
       data: {
         user: result.user,
+        sessionToken: result.sessionToken,
       },
     });
   }
@@ -55,6 +56,7 @@ export class AuthController {
     return reply.status(200).send({
       data: {
         user: result.user,
+        sessionToken: result.sessionToken,
       },
     });
   }

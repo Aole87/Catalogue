@@ -22,7 +22,7 @@ import {
   X,
   PlusCircle
 } from 'lucide-react';
-import ApiClient from '../../utils/ApiClient';
+import ApiClient from '../../utils/apiClient';
 
 export default function CrmManager() {
   const [activeSubTab, setActiveSubTab] = useState('customers'); // 'customers', 'segments', 'tags'

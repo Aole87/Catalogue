@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import ApiClient from '../utils/ApiClient';
+import ApiClient from '../utils/apiClient';
 
 const CartContext = createContext(null);
 
@@ -50,12 +50,28 @@ export function CartProvider({ children }) {
   const closeCart = () => setIsCartOpen(false);
   const toggleCart = () => setIsCartOpen((prev) => !prev);
 
-  const addToCart = async (productId, quantity = 1, vehicleVariantId = null, shouldOpenDrawer = true) => {
+  const addToCart = async (productId, quantity = 1, vehicleVariantId = null, shouldOpenDrawer = true, variantData = null) => {
     try {
       setLoading(true);
       const res = await ApiClient.addToCart(productId, quantity, vehicleVariantId);
       if (res?.data) {
-        setCart(res.data);
+        let updatedData = { ...res.data };
+        if (variantData && updatedData.items) {
+          updatedData.items = updatedData.items.map((it) => {
+            if (it.productId === productId) {
+              return {
+                ...it,
+                variantName: variantData.variantName || it.variantName,
+                variantSku: variantData.sku || it.variantSku,
+                sku: variantData.sku || it.sku,
+                unitPrice: variantData.price != null ? String(variantData.price) : it.unitPrice,
+                shippingFee: variantData.shippingFee ?? it.shippingFee,
+              };
+            }
+            return it;
+          });
+        }
+        setCart(updatedData);
         showToast('เพิ่มสินค้าลงตะกร้าเรียบร้อยแล้ว');
         if (shouldOpenDrawer) {
           setIsCartOpen(true);

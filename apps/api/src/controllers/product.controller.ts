@@ -25,26 +25,49 @@ export class ProductController {
     return PriceTier.GENERAL;
   }
 
+  private static maskProductPrices(product: any, isAuthenticated: boolean) {
+    if (isAuthenticated || !product) return product;
+    const { price, compareAtPrice, costPrice, prices, effectivePrice, variants, ...rest } = product;
+    const sanitizedVariants = variants?.map((v: any) => {
+      const { price, ...vRest } = v;
+      return { ...vRest, price: null };
+    });
+    return {
+      ...rest,
+      price: null,
+      compareAtPrice: null,
+      prices: [],
+      effectivePrice: null,
+      ...(variants ? { variants: sanitizedVariants } : {}),
+    };
+  }
+
   // Public Storefront: List products with pagination, filters, sort, search
   static async listPublic(request: FastifyRequest, reply: FastifyReply) {
     const query = productQuerySchema.parse(request.query);
     const userTier = ProductController.resolveUserPriceTier(request);
     const result = await ProductService.listStorefrontProducts(query, userTier);
-    return reply.status(200).send({ data: result.items, pagination: result.pagination });
+    const isAuthenticated = !!request.user;
+    const items = isAuthenticated
+      ? result.items
+      : result.items.map((p: any) => ProductController.maskProductPrices(p, false));
+    return reply.status(200).send({ data: items, pagination: result.pagination });
   }
 
   // Public Storefront: Get by ID
   static async getPublicById(request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
     const userTier = ProductController.resolveUserPriceTier(request);
     const product = await ProductService.getProductById(request.params.id, userTier, true);
-    return reply.status(200).send({ data: product });
+    const isAuthenticated = !!request.user;
+    return reply.status(200).send({ data: ProductController.maskProductPrices(product, isAuthenticated) });
   }
 
   // Public Storefront: Get by Slug
   static async getPublicBySlug(request: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) {
     const userTier = ProductController.resolveUserPriceTier(request);
     const product = await ProductService.getProductBySlug(request.params.slug, userTier, true);
-    return reply.status(200).send({ data: product });
+    const isAuthenticated = !!request.user;
+    return reply.status(200).send({ data: ProductController.maskProductPrices(product, isAuthenticated) });
   }
 
   // Admin: List all products (including unpublished/inactive)

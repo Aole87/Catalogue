@@ -48,24 +48,79 @@ import {
   CreditCard,
   Settings,
   HelpCircle,
+  Palette,
+  Globe,
 } from 'lucide-react';
 import OrderManager from '../components/admin/OrderManager';
 import InventoryManager from '../components/admin/InventoryManager';
-import ProcurementManager from '../components/admin/ProcurementManager';
 import CrmManager from '../components/admin/CrmManager';
 import MarketingManager from '../components/admin/MarketingManager';
 import SettingsManager from '../components/admin/SettingsManager';
+import StorefrontManager from '../components/admin/StorefrontManager';
 import ArticleManager from '../components/admin/ArticleManager';
+import SeoManager from '../components/admin/SeoManager';
+import SalesAnalyticsManager from '../components/admin/SalesAnalyticsManager';
+import AdminRoleManager from '../components/admin/AdminRoleManager';
 import { FileText } from 'lucide-react';
 import ApiClient from '../utils/apiClient';
-import { CategoryManager, CarBrandManager, CarModelManager as CarModelAdminManager, CarYearManager as CarYearAdminManager } from '../components/admin/MasterDataManager';
+import { CategoryManager, BrandManager, CarBrandManager, CarModelManager as CarModelAdminManager, CarYearManager as CarYearAdminManager } from '../components/admin/MasterDataManager';
+import ProductCatalogManager from '../components/admin/ProductCatalogManager';
 import MemberManager from '../components/admin/MemberManager';
+
+const SidebarItem = React.memo(({ id, icon: Icon, label, badge, activeTab, onSelect, hasPermission }) => {
+  if (!hasPermission(id)) return null;
+  const isActive = activeTab === id;
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        onSelect(id);
+      }}
+      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-medium cursor-pointer ${
+        isActive
+          ? 'bg-white/15 text-white shadow-sm'
+          : 'text-blue-200 hover:text-white hover:bg-white/10'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className={`w-4 h-4 ${isActive ? 'text-[#ea580c]' : 'text-blue-300'}`} />
+        <span>{label}</span>
+      </div>
+      {badge && (
+        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#ea580c] text-white">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+});
 
 const AdminDashboard = ({ navigate, setIsAdmin }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({ users: 0, products: 0, categories: 0, brands: 0 });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedDateRange, setSelectedDateRange] = useState('May 12 – May 18, 2024');
+  const sidebarNavRef = useRef(null);
+
+  const [currentAdmin, setCurrentAdmin] = useState(() => {
+    const savedList = localStorage.getItem('adnex_admins_list');
+    if (savedList) {
+      try {
+        const parsed = JSON.parse(savedList);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+      } catch (e) {}
+    }
+    return {
+      id: 'adm-1',
+      name: 'John Doe',
+      email: 'john.doe@adnex.com',
+      role: 'SUPER_ADMIN',
+      department: 'ผู้บริหารระดับสูง & เจ้าของระบบ',
+      permissions: ['products', 'inventory', 'masterData', 'orders', 'analytics', 'marketing', 'crm', 'storefront', 'articles', 'seo', 'members', 'settings', 'admins'],
+      avatar: 'JD',
+    };
+  });
 
   useEffect(() => {
     setIsAdmin(true);
@@ -92,119 +147,156 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
     navigate('home');
   };
 
-  const SidebarItem = ({ id, icon: Icon, label, badge }) => {
-    const isActive = activeTab === id;
-    return (
-      <button
-        onClick={() => setActiveTab(id)}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all text-xs font-medium ${
-          isActive
-            ? 'bg-[#144349] text-white shadow-sm'
-            : 'text-[#8daab0] hover:text-white hover:bg-[#10373d]'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <Icon className={`w-4 h-4 ${isActive ? 'text-[#ff6b2b]' : 'text-[#729299]'}`} />
-          <span>{label}</span>
-        </div>
-        {badge && (
-          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-[#ff6b2b] text-white">
-            {badge}
-          </span>
-        )}
-      </button>
-    );
+  const hasPermission = (id) => {
+    if (!currentAdmin || currentAdmin.role === 'SUPER_ADMIN') return true;
+    if (id === 'dashboard') return true;
+    const permMap = {
+      'products': 'products',
+      'inventory': 'inventory',
+      'import': 'products',
+      'categories': 'masterData',
+      'brands': 'masterData',
+      'car-brands': 'masterData',
+      'car-models': 'masterData',
+      'car-years': 'masterData',
+      'orders': 'orders',
+      'analytics': 'analytics',
+      'marketing': 'marketing',
+      'crm': 'crm',
+      'storefront': 'storefront',
+      'articles': 'articles',
+      'seo': 'seo',
+      'members': 'members',
+      'settings': 'settings',
+      'admins': 'admins',
+    };
+    const req = permMap[id] || id;
+    return currentAdmin.permissions?.includes(req);
   };
 
+  const handleSelectTab = (id) => {
+    const currentScrollTop = sidebarNavRef.current ? sidebarNavRef.current.scrollTop : 0;
+    setActiveTab(id);
+    if (sidebarNavRef.current) {
+      requestAnimationFrame(() => {
+        if (sidebarNavRef.current) {
+          sidebarNavRef.current.scrollTop = currentScrollTop;
+        }
+      });
+    }
+  };
+
+  const renderSidebarItem = (id, icon, label, badge) => (
+    <SidebarItem
+      key={id}
+      id={id}
+      icon={icon}
+      label={label}
+      badge={badge}
+      activeTab={activeTab}
+      onSelect={handleSelectTab}
+      hasPermission={hasPermission}
+    />
+  );
+
   return (
-    <div className="flex h-screen bg-[#f3f6f8] text-gray-800 font-sans antialiased selection:bg-[#ff6b2b] selection:text-white">
+    <div className="flex h-screen bg-[#f4f6fb] text-gray-800 font-sans antialiased selection:bg-[#ea580c] selection:text-white">
       {/* ADNEX Dark Teal Sidebar */}
       <aside
         className={`${
           isSidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
-        } bg-[#0c2b2f] flex flex-col transition-all duration-300 z-30 shrink-0 border-r border-[#133d42]`}
+        } bg-[#0c3175] flex flex-col transition-all duration-300 z-30 shrink-0 border-r border-[#0c3175]`}
       >
         {/* Brand Logo Header */}
-        <div className="h-20 flex items-center px-6 gap-3 border-b border-[#133d42]/60">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ff5500] to-[#ff8c42] flex items-center justify-center shadow-lg shadow-orange-950/40">
+        <div className="h-20 flex items-center px-6 gap-3 border-b border-[#0c3175]/60">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#ea580c] to-[#ff8c42] flex items-center justify-center shadow-lg shadow-orange-950/40">
             <svg viewBox="0 0 24 24" className="w-5 h-5 text-white fill-current">
               <path d="M12 2L2 19.5h20L12 2zm0 4.5l6.5 11h-13L12 6.5z" />
             </svg>
           </div>
           <div>
             <div className="text-white text-lg font-black tracking-wider flex items-center gap-1">
-              ADNEX <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#ff6b2b]/20 text-[#ff8c42] font-semibold tracking-normal border border-[#ff6b2b]/30">PRO</span>
+              ADNEX <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#ea580c]/20 text-[#ff8c42] font-semibold tracking-normal border border-[#ea580c]/30">PRO</span>
             </div>
-            <div className="text-[10px] text-[#6d8e94] font-medium tracking-wide">Automotive Commerce</div>
+            <div className="text-[10px] text-blue-300/70 font-medium tracking-wide">Automotive Commerce</div>
           </div>
         </div>
 
-        {/* Sidebar Nav */}
-        <nav className="flex-1 px-4 py-5 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-[#16474e]">
-          <div className="px-3 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Main Analytics</div>
-          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Overview" />
-          <SidebarItem id="marketing" icon={Megaphone} label="Campaigns & Ads" />
-          <SidebarItem id="crm" icon={UserCheck} label="Audience & CRM" />
-          <SidebarItem id="orders" icon={ShoppingBag} label="Reports & Orders" />
+        {/* Sidebar Nav: Reorganized into 5 Logical Groups */}
+        <nav ref={sidebarNavRef} className="flex-1 px-4 py-5 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-[#16474e]">
+          
+          {/* กลุ่ม 1: ภาพรวม & ยอดขาย */}
+          <div className="px-3 pb-1.5 text-[10px] uppercase text-blue-300 font-bold tracking-wider">
+            ภาพรวม & ยอดขาย
+          </div>
+          {renderSidebarItem("dashboard", LayoutDashboard, "ภาพรวมระบบ (Overview)")}
+          {renderSidebarItem("orders", ShoppingBag, "คำสั่งซื้อ & ออกใบเสร็จ")}
 
-          <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Commerce & Supply</div>
-          <SidebarItem id="inventory" icon={Warehouse} label="Inventory & Stock" />
-          <SidebarItem id="procurement" icon={Truck} label="Procurement & POs" />
-          <SidebarItem id="products" icon={Package} label="Catalog Products" />
-          <SidebarItem id="import" icon={FileSpreadsheet} label="Import Data" />
+          {/* กลุ่ม 2: การจัดการสินค้า (Product Management) */}
+          <div className="px-3 pt-4 pb-1.5 text-[10px] uppercase text-blue-300 font-bold tracking-wider">
+            การจัดการสินค้า
+          </div>
+          {renderSidebarItem("products", Package, "แค็ตตาล็อกสินค้า & SKU")}
+          {renderSidebarItem("inventory", Warehouse, "คลังสินค้า & สต็อก")}
+          {renderSidebarItem("categories", Layers, "หมวดหมู่สินค้า")}
+          {renderSidebarItem("brands", Tag, "แบรนด์ผู้ผลิตอะไหล่")}
+          {renderSidebarItem("car-brands", Car, "ยี่ห้อรถยนต์ (Car Makes)")}
+          {renderSidebarItem("car-models", Sliders, "รุ่นรถยนต์ (Car Models)")}
+          {renderSidebarItem("car-years", Calendar, "ปีรถยนต์ (Car Years)")}
+          {renderSidebarItem("import", FileSpreadsheet, "นำเข้าข้อมูลสินค้า (Excel)")}
 
-          <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Vehicle & Setup</div>
-          <SidebarItem id="categories" icon={Layers} label="Categories" />
-          <SidebarItem id="brands" icon={Tag} label="Brands" />
-          <SidebarItem id="car-brands" icon={Car} label="Car Brands" />
-          <SidebarItem id="car-models" icon={Sliders} label="Car Models" />
-          <SidebarItem id="car-years" icon={Calendar} label="Car Years" />
+          {/* กลุ่ม 3: การตลาด CRM & วิเคราะห์การขาย */}
+          <div className="px-3 pt-4 pb-1.5 text-[10px] uppercase text-blue-300 font-bold tracking-wider">
+            การตลาด & CRM
+          </div>
+          {renderSidebarItem("analytics", BarChart3, "วิเคราะห์ยอดขายเชิงลึก")}
+          {renderSidebarItem("marketing", Megaphone, "แคมเปญ & คูปองส่วนลด")}
+          {renderSidebarItem("members", Users, "ข้อมูลสมาชิก & สิทธิ์ราคา", "CRM")}
+          {renderSidebarItem("crm", UserCheck, "ข้อมูลลูกค้า & CRM 360")}
 
-          <div className="px-3 pt-5 pb-2 text-[10px] uppercase text-[#61858c] font-bold tracking-wider">Access & Admin</div>
-          <SidebarItem id="settings" icon={Settings} label="System & Payment API" badge="NEW" />
-          <SidebarItem id="articles" icon={FileText} label="Article CMS" />
-          <SidebarItem id="members" icon={Users} label="Members" />
-          <SidebarItem id="admins" icon={Shield} label="Administrators" />
+          {/* กลุ่ม 4: การจัดการเว็บไซต์ & SEO */}
+          <div className="px-3 pt-4 pb-1.5 text-[10px] uppercase text-blue-300 font-bold tracking-wider">
+            การจัดการเว็บไซต์ & SEO
+          </div>
+          {renderSidebarItem("storefront", Palette, "การจัดการเว็บไซต์ & ข้อมูลร้านค้า")}
+          {renderSidebarItem("articles", FileText, "ข่าวสาร & บทความ CMS")}
+          {renderSidebarItem("seo", Globe, "การจัดการ SEO", "NEW")}
+
+          {/* กลุ่ม 5: ผู้ใช้งาน & ผู้ดูแลระบบ */}
+          <div className="px-3 pt-4 pb-1.5 text-[10px] uppercase text-blue-300 font-bold tracking-wider">
+            ผู้ดูแลระบบ & ตั้งค่าระบบ
+          </div>
+          {renderSidebarItem("admins", Shield, "ผู้ดูแลระบบ & สิทธิ์")}
+          {renderSidebarItem("settings", Settings, "ตั้งค่าระบบ & ชำระเงิน")}
+
         </nav>
 
-        {/* Pro Plan Card */}
-        <div className="p-4 border-t border-[#133d42]/60">
-          <div className="bg-[#081e21] rounded-2xl p-4 border border-[#174e54]/50 relative overflow-hidden shadow-inner">
-            <div className="w-8 h-8 rounded-xl bg-[#ff6b2b]/15 text-[#ff8c42] flex items-center justify-center mb-2.5 border border-[#ff6b2b]/30">
-              <Rocket className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs font-bold text-white mb-1">Unlock more with Pro Plan</h4>
-            <p className="text-[11px] text-[#71969d] mb-3 leading-relaxed">
-              Get advanced insights, export reports and automated marketing.
-            </p>
-            <button
-              onClick={() => setActiveTab('marketing')}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#ff5500] to-[#ff7324] hover:from-[#e04b00] hover:to-[#ff5500] text-white text-xs font-bold transition-all shadow-md shadow-orange-950/40 flex items-center justify-center gap-1.5"
-            >
-              <span>Upgrade Now</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
         {/* User Profile Bar */}
-        <div className="p-4 border-t border-[#133d42]/60 flex items-center justify-between bg-[#081e21]/60">
+        <div className="p-4 border-t border-[#0c3175]/60 flex items-center justify-between bg-[#051124]/60">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-[#164e54] text-white flex items-center justify-center font-bold text-xs border border-[#2dd4bf]/40">
-                JD
+              <div className="w-9 h-9 rounded-full bg-[#0c3175] text-white flex items-center justify-center font-bold text-xs border border-[#2dd4bf]/40">
+                {currentAdmin?.avatar || 'JD'}
               </div>
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#2dd4bf] border-2 border-[#0c2b2f]"></span>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#2dd4bf] border-2 border-[#0c3175]"></span>
             </div>
             <div className="truncate">
-              <div className="text-xs font-bold text-white truncate">John Doe</div>
-              <div className="text-[10px] text-[#72979e] truncate">john.doe@adnex.com</div>
+              <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                <span>{currentAdmin?.name || 'John Doe'}</span>
+              </div>
+              <div className="text-[10px] text-[#72979e] truncate flex items-center gap-1">
+                <span className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                  currentAdmin?.role === 'SUPER_ADMIN' ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' : 'bg-blue-400/20 text-blue-300 border border-blue-400/30'
+                }`}>
+                  {currentAdmin?.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
+                </span>
+              </div>
             </div>
           </div>
           <button
             onClick={handleLogout}
             title="Logout"
-            className="p-1.5 rounded-lg text-[#72979e] hover:text-[#ff6b2b] hover:bg-[#10373d] transition-all"
+            className="p-1.5 rounded-lg text-[#72979e] hover:text-[#ea580c] hover:bg-[#0c3175] transition-all cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
           </button>
@@ -218,68 +310,59 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-xl text-gray-500 hover:text-[#0c2b2f] hover:bg-gray-100 transition-all"
+              className="p-2 rounded-xl text-gray-500 hover:text-[#0c3175] hover:bg-gray-100 transition-all cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div>
               <h1 className="text-xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                Welcome back, John! 👋
+                <span>ยินดีต้อนรับ, {currentAdmin?.name || 'John'}! 👋</span>
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                  currentAdmin?.role === 'SUPER_ADMIN' ? 'bg-violet-100 text-violet-800 border border-violet-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                }`}>
+                  {currentAdmin?.role === 'SUPER_ADMIN' ? '👑 Super Admin' : '🛡️ Admin'}
+                </span>
               </h1>
-              <p className="text-xs text-gray-500">Here's what's happening with your ad campaigns and commerce platform.</p>
+              <p className="text-xs text-gray-500">ระบบบริหารจัดการแค็ตตาล็อกอะไหล่ยานยนต์และการค้าครบวงจร</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3.5">
-            {/* Date Range Selector Pill */}
-            <div className="flex items-center gap-2 bg-white border border-gray-200/90 rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:border-gray-300 transition-all cursor-pointer">
-              <Calendar className="w-3.5 h-3.5 text-gray-400" />
-              <span>{selectedDateRange}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 ml-1" />
-            </div>
-
-            {/* Export Report Action */}
-            <button
-              onClick={() => alert('Exporting ad campaigns & performance report (CSV/PDF)...')}
-              className="flex items-center gap-2 bg-[#0c2b2f] hover:bg-[#071f22] text-white rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all"
-            >
-              <Download className="w-3.5 h-3.5 text-[#2dd4bf]" />
-              <span>Export Report</span>
-            </button>
-
             {/* View Storefront */}
             <button
               onClick={() => {
                 setIsAdmin(false);
                 navigate('home');
               }}
-              className="flex items-center gap-2 bg-white border border-gray-200 hover:border-[#ff6b2b] hover:text-[#ff6b2b] text-gray-700 rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all"
+              className="flex items-center gap-2 bg-white border border-gray-200 hover:border-[#ea580c] hover:text-[#ea580c] text-gray-700 rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all cursor-pointer"
             >
-              <Eye className="w-3.5 h-3.5 text-[#ff6b2b]" />
-              <span>Storefront</span>
+              <Eye className="w-3.5 h-3.5 text-[#ea580c]" />
+              <span>เปิดดูหน้าร้าน</span>
             </button>
           </div>
         </header>
 
         {/* Page Content Scrollable Area */}
-        <main className="flex-1 overflow-y-auto p-8 bg-[#f3f6f8] space-y-8">
-          {activeTab === 'dashboard' && <AdnexDashboardOverview stats={stats} setActiveTab={setActiveTab} />}
+        <main className="flex-1 overflow-y-auto p-8 bg-[#f4f6fb] space-y-8">
+          {activeTab === 'dashboard' && <AdnexDashboardOverview stats={stats} setActiveTab={setActiveTab} selectedDateRange={selectedDateRange} />}
           {activeTab === 'orders' && <OrderManager />}
+          {activeTab === 'analytics' && <SalesAnalyticsManager />}
           {activeTab === 'crm' && <CrmManager />}
           {activeTab === 'marketing' && <MarketingManager />}
           {activeTab === 'inventory' && <InventoryManager />}
-          {activeTab === 'procurement' && <ProcurementManager />}
           {activeTab === 'categories' && <CategoryManager />}
-          {activeTab === 'brands' && <CategoryManager />}
+          {activeTab === 'brands' && <BrandManager />}
           {activeTab === 'car-brands' && <CarBrandManager />}
           {activeTab === 'car-models' && <CarModelAdminManager />}
           {activeTab === 'car-years' && <CarYearAdminManager />}
-          {activeTab === 'products' && <ProductManager />}
+          {activeTab === 'products' && <ProductCatalogManager />}
           {activeTab === 'import' && <ExcelImporter />}
-          {activeTab === 'settings' && <SettingsManager />}
+          {activeTab === 'storefront' && <StorefrontManager />}
           {activeTab === 'articles' && <ArticleManager />}
+          {activeTab === 'seo' && <SeoManager />}
           {activeTab === 'members' && <MemberManager />}
-          {activeTab === 'admins' && <MemberManager />}
+          {activeTab === 'admins' && <AdminRoleManager currentAdmin={currentAdmin} setCurrentAdmin={setCurrentAdmin} />}
+          {activeTab === 'settings' && <SettingsManager setActiveTab={setActiveTab} />}
         </main>
       </div>
     </div>
@@ -289,9 +372,106 @@ const AdminDashboard = ({ navigate, setIsAdmin }) => {
 /**
  * ADNEX-style Dashboard Overview Component matching the user reference design
  */
-const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
+const AdnexDashboardOverview = ({ stats, setActiveTab, selectedDateRange = 'May 12 – May 18, 2024' }) => {
+  const [dateRange, setDateRange] = useState(selectedDateRange);
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
+
+  const dateOptions = [
+    'วันนี้ (Today)',
+    'May 12 – May 18, 2024',
+    '7 วันย้อนหลัง (Last 7 Days)',
+    '30 วันย้อนหลัง (Last 30 Days)',
+    'เดือนนี้ (This Month)',
+    'ไตรมาสนี้ (Q2 2024)',
+  ];
+
+  const handleExportDashboard = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      "Metric,Value,Period\n" +
+      `Total Impressions,24.68M,${dateRange}\n` +
+      `Total Clicks,312.47K,${dateRange}\n` +
+      `Avg CTR,1.27%,${dateRange}\n` +
+      `Total Spend,$18732.48,${dateRange}\n` +
+      `Total Users,${stats?.users || 32},Current\n` +
+      `Total Products,${stats?.products || 120},Current\n` +
+      `Total Categories,${stats?.categories || 18},Current\n` +
+      `Total Brands,${stats?.brands || 8},Current\n`;
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `ADNEX_Dashboard_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    alert(`ส่งออกรายงาน Dashboard ประจำรอบ (${dateRange}) เรียบร้อยแล้ว (ไฟล์ CSV)`);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Dashboard Top Action Bar with Date Filter and Export Report */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <LayoutDashboard className="w-5 h-5 text-[#ea580c]" />
+            <span>ภาพรวมและประสิทธิภาพระบบ (Dashboard Overview)</span>
+          </h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            สรุปข้อมูลสถิติยอดขาย จำนวนการเข้าชม การค้นหาอะไหล่ และประสิทธิภาพระบบประจำรอบ ({dateRange})
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Date Filter Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className="flex items-center gap-2 bg-white border border-gray-200/90 hover:border-gray-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm transition-all cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              <span>{dateRange}</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 ml-1 transition-transform ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isDateDropdownOpen && (
+              <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-100 rounded-xl shadow-xl z-30 py-1.5 animate-in fade-in slide-in-from-top-1">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 mb-1">
+                  เลือกรอบวันที่ (Date Range)
+                </div>
+                {dateOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => {
+                      setDateRange(opt);
+                      setIsDateDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-2 text-xs font-medium transition-colors cursor-pointer flex items-center justify-between ${
+                      dateRange === opt ? 'bg-orange-50 text-[#ea580c] font-bold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    {dateRange === opt && <CheckCircle className="w-3.5 h-3.5 text-[#ea580c]" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Export Report Action directly on Dashboard */}
+          <button
+            type="button"
+            onClick={handleExportDashboard}
+            className="flex items-center gap-2 bg-[#0c3175] hover:bg-[#051124] text-white rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all cursor-pointer shrink-0"
+            title="ส่งออกรายงาน Dashboard ประจำสัปดาห์ / เดือน"
+          >
+            <Download className="w-3.5 h-3.5 text-[#2dd4bf]" />
+            <span>Export Report</span>
+          </button>
+        </div>
+      </div>
       {/* Row 1: 4 Key Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Metric 1: Total Impressions */}
@@ -305,7 +485,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-[#0c2b2f] text-[#2dd4bf] flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-11 h-11 rounded-2xl bg-[#0c3175] text-[#2dd4bf] flex items-center justify-center shrink-0 shadow-sm">
             <Eye className="w-5 h-5" />
           </div>
         </div>
@@ -321,7 +501,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-[#ff6b2b] text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+          <div className="w-11 h-11 rounded-2xl bg-[#ea580c] text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
             <MousePointer className="w-5 h-5" />
           </div>
         </div>
@@ -337,7 +517,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-[#082226] text-[#34d399] flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-11 h-11 rounded-2xl bg-[#051124] text-[#34d399] flex items-center justify-center shrink-0 shadow-sm">
             <BarChart3 className="w-5 h-5" />
           </div>
         </div>
@@ -353,7 +533,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               <span className="text-gray-400 font-normal text-[11px]">vs May 5 – May 11</span>
             </div>
           </div>
-          <div className="w-11 h-11 rounded-2xl bg-[#ff5500] text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+          <div className="w-11 h-11 rounded-2xl bg-[#ea580c] text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
             <DollarSign className="w-5 h-5" />
           </div>
         </div>
@@ -366,14 +546,14 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#0c2b2f] text-[#2dd4bf] flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-[#0c3175] text-[#2dd4bf] flex items-center justify-center">
                   <Monitor className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-sm text-gray-900">Banner Ads</span>
               </div>
               <button
                 onClick={() => setActiveTab('marketing')}
-                className="text-xs font-semibold text-[#0c2b2f] hover:text-[#ff6b2b] flex items-center gap-1 transition-colors"
+                className="text-xs font-semibold text-[#0c3175] hover:text-[#ea580c] flex items-center gap-1 transition-colors"
               >
                 <span>View Details</span>
                 <span>→</span>
@@ -393,8 +573,8 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
                 <defs>
                   <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0c2b2f" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#0c2b2f" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor="#0c3175" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#0c3175" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
                 <path
@@ -404,14 +584,14 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
                 <path
                   d="M 0,65 Q 40,75 75,55 T 150,60 T 225,45 T 300,30"
                   fill="none"
-                  stroke="#0c2b2f"
+                  stroke="#0c3175"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
-                <circle cx="75" cy="55" r="3" fill="#0c2b2f" />
-                <circle cx="150" cy="60" r="3" fill="#0c2b2f" />
-                <circle cx="225" cy="45" r="3" fill="#0c2b2f" />
-                <circle cx="300" cy="30" r="3.5" fill="#2dd4bf" stroke="#0c2b2f" strokeWidth="2" />
+                <circle cx="75" cy="55" r="3" fill="#0c3175" />
+                <circle cx="150" cy="60" r="3" fill="#0c3175" />
+                <circle cx="225" cy="45" r="3" fill="#0c3175" />
+                <circle cx="300" cy="30" r="3.5" fill="#2dd4bf" stroke="#0c3175" strokeWidth="2" />
               </svg>
               <div className="flex justify-between text-[10px] text-gray-400 pt-1">
                 <span>May 12</span>
@@ -447,7 +627,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
             </div>
             <div className="flex justify-between items-center pt-1">
               <span className="text-gray-500">Top Campaign</span>
-              <span className="font-semibold text-[#0c2b2f] hover:underline cursor-pointer">Summer Sale Banner</span>
+              <span className="font-semibold text-[#0c3175] hover:underline cursor-pointer">Summer Sale Banner</span>
             </div>
           </div>
         </div>
@@ -457,14 +637,14 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#ff6b2b] text-white flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-[#ea580c] text-white flex items-center justify-center">
                   <LogIn className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-sm text-gray-900">Login Ads</span>
               </div>
               <button
                 onClick={() => setActiveTab('marketing')}
-                className="text-xs font-semibold text-[#ff6b2b] hover:text-[#e04b00] flex items-center gap-1 transition-colors"
+                className="text-xs font-semibold text-[#ea580c] hover:text-[#c2410c] flex items-center gap-1 transition-colors"
               >
                 <span>View Details</span>
                 <span>→</span>
@@ -484,8 +664,8 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible">
                 <defs>
                   <linearGradient id="orangeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ff6b2b" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#ff6b2b" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor="#ea580c" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#ea580c" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
                 <path
@@ -495,13 +675,13 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
                 <path
                   d="M 0,70 Q 50,85 100,65 T 200,55 T 300,40"
                   fill="none"
-                  stroke="#ff6b2b"
+                  stroke="#ea580c"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
-                <circle cx="100" cy="65" r="3" fill="#ff6b2b" />
-                <circle cx="200" cy="55" r="3" fill="#ff6b2b" />
-                <circle cx="300" cy="40" r="3.5" fill="#ff8c42" stroke="#ff5500" strokeWidth="2" />
+                <circle cx="100" cy="65" r="3" fill="#ea580c" />
+                <circle cx="200" cy="55" r="3" fill="#ea580c" />
+                <circle cx="300" cy="40" r="3.5" fill="#ff8c42" stroke="#ea580c" strokeWidth="2" />
               </svg>
               <div className="flex justify-between text-[10px] text-gray-400 pt-1">
                 <span>May 12</span>
@@ -537,7 +717,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
             </div>
             <div className="flex justify-between items-center pt-1">
               <span className="text-gray-500">Top Campaign</span>
-              <span className="font-semibold text-[#ff6b2b] hover:underline cursor-pointer">Login Fest May</span>
+              <span className="font-semibold text-[#ea580c] hover:underline cursor-pointer">Login Fest May</span>
             </div>
           </div>
         </div>
@@ -554,7 +734,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
               </div>
               <button
                 onClick={() => setActiveTab('marketing')}
-                className="text-xs font-semibold text-[#097969] hover:text-[#0c2b2f] flex items-center gap-1 transition-colors"
+                className="text-xs font-semibold text-[#097969] hover:text-[#0c3175] flex items-center gap-1 transition-colors"
               >
                 <span>View Details</span>
                 <span>→</span>
@@ -644,11 +824,11 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
                 <h3 className="font-bold text-base text-gray-900">Impressions Over Time (All Channels)</h3>
                 <div className="flex items-center gap-4 mt-2 text-xs">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#0c2b2f]"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0c3175]"></span>
                     <span className="text-gray-600 font-medium">Banner Ads</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff6b2b]"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ea580c]"></span>
                     <span className="text-gray-600 font-medium">Login Ads</span>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -685,33 +865,33 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
                 <path
                   d="M 60,135 Q 140,150 220,120 T 380,100 T 480,95 T 570,60"
                   fill="none"
-                  stroke="#0c2b2f"
+                  stroke="#0c3175"
                   strokeWidth="3"
                   strokeLinecap="round"
                 />
-                <circle cx="60" cy="135" r="4" fill="#0c2b2f" />
-                <circle cx="140" cy="142" r="4" fill="#0c2b2f" />
-                <circle cx="220" cy="120" r="4" fill="#0c2b2f" />
-                <circle cx="300" cy="115" r="4" fill="#0c2b2f" />
-                <circle cx="380" cy="100" r="4" fill="#0c2b2f" />
-                <circle cx="480" cy="95" r="4" fill="#0c2b2f" />
-                <circle cx="570" cy="60" r="5" fill="#2dd4bf" stroke="#0c2b2f" strokeWidth="2.5" />
+                <circle cx="60" cy="135" r="4" fill="#0c3175" />
+                <circle cx="140" cy="142" r="4" fill="#0c3175" />
+                <circle cx="220" cy="120" r="4" fill="#0c3175" />
+                <circle cx="300" cy="115" r="4" fill="#0c3175" />
+                <circle cx="380" cy="100" r="4" fill="#0c3175" />
+                <circle cx="480" cy="95" r="4" fill="#0c3175" />
+                <circle cx="570" cy="60" r="5" fill="#2dd4bf" stroke="#0c3175" strokeWidth="2.5" />
 
                 {/* Line 2: Login Ads (Orange) */}
                 <path
                   d="M 60,150 Q 140,165 220,148 T 380,130 T 480,138 T 570,110"
                   fill="none"
-                  stroke="#ff6b2b"
+                  stroke="#ea580c"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
-                <circle cx="60" cy="150" r="3.5" fill="#ff6b2b" />
-                <circle cx="140" cy="160" r="3.5" fill="#ff6b2b" />
-                <circle cx="220" cy="148" r="3.5" fill="#ff6b2b" />
-                <circle cx="300" cy="152" r="3.5" fill="#ff6b2b" />
-                <circle cx="380" cy="130" r="3.5" fill="#ff6b2b" />
-                <circle cx="480" cy="138" r="3.5" fill="#ff6b2b" />
-                <circle cx="570" cy="110" r="4" fill="#ff8c42" stroke="#ff5500" strokeWidth="2" />
+                <circle cx="60" cy="150" r="3.5" fill="#ea580c" />
+                <circle cx="140" cy="160" r="3.5" fill="#ea580c" />
+                <circle cx="220" cy="148" r="3.5" fill="#ea580c" />
+                <circle cx="300" cy="152" r="3.5" fill="#ea580c" />
+                <circle cx="380" cy="130" r="3.5" fill="#ea580c" />
+                <circle cx="480" cy="138" r="3.5" fill="#ea580c" />
+                <circle cx="570" cy="110" r="4" fill="#ff8c42" stroke="#ea580c" strokeWidth="2" />
 
                 {/* Line 3: Swipe Ads (Cyan) */}
                 <path
@@ -759,7 +939,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
                     cy="50"
                     r="35"
                     fill="transparent"
-                    stroke="#0c2b2f"
+                    stroke="#0c3175"
                     strokeWidth="16"
                     strokeDasharray="111 220"
                     strokeDashoffset="0"
@@ -770,7 +950,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
                     cy="50"
                     r="35"
                     fill="transparent"
-                    stroke="#ff6b2b"
+                    stroke="#ea580c"
                     strokeWidth="16"
                     strokeDasharray="70 220"
                     strokeDashoffset="-111"
@@ -798,14 +978,14 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
             <div className="space-y-3 pt-4 border-t border-gray-100">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-medium text-gray-700">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0c2b2f]"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#0c3175]"></span>
                   <span>Banner Ads</span>
                 </div>
                 <span className="font-bold text-gray-900">12.45M (50.5%)</span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 font-medium text-gray-700">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#ff6b2b]"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#ea580c]"></span>
                   <span>Login Ads</span>
                 </div>
                 <span className="font-bold text-gray-900">7.83M (31.7%)</span>
@@ -823,7 +1003,7 @@ const AdnexDashboardOverview = ({ stats, setActiveTab }) => {
           <div className="pt-4 mt-2">
             <button
               onClick={() => setActiveTab('marketing')}
-              className="text-xs font-bold text-[#0c2b2f] hover:text-[#ff6b2b] flex items-center justify-center gap-1.5 w-full py-2 bg-gray-50 hover:bg-orange-50/50 rounded-xl transition-all"
+              className="text-xs font-bold text-[#0c3175] hover:text-[#ea580c] flex items-center justify-center gap-1.5 w-full py-2 bg-gray-50 hover:bg-orange-50/50 rounded-xl transition-all"
             >
               <span>View Full Breakdown</span>
               <span>→</span>
