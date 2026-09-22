@@ -1,0 +1,35 @@
+# ==============================================================================
+# Apache Configuration for Plesk / Static Web Hosting
+# ==============================================================================
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Proxy /api requests to local backend port 3000 if mod_proxy is enabled
+  <IfModule mod_proxy.c>
+    RewriteRule ^api/(.*) http://127.0.0.1:3000/api/$1 [P,L]
+  </IfModule>
+
+  # Route root URL directly to dist/index.html
+  RewriteRule ^$ dist/index.html [L]
+
+  # If requested asset exists in dist/, rewrite to dist/
+  RewriteCond %{REQUEST_URI} !^/dist/
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
+  RewriteRule ^(.*)$ dist/$1 [L]
+
+  # Fallback for SPA navigation
+  RewriteCond %{REQUEST_URI} !^/dist/
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)$ dist/index.html [L]
+</IfModule>
+
+# Ensure correct MIME types for ES modules and modern assets
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType image/svg+xml .svg
+</IfModule>

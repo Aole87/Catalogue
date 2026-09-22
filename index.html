@@ -57,5 +57,17 @@
   <body class="bg-slate-50 text-slate-900 antialiased font-sans">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && (!root.children || root.children.length === 0)) {
+          if (window.location.port !== '5173' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            if (!window.location.pathname.startsWith('/dist')) {
+              window.location.replace('/dist/' + (window.location.search || '') + (window.location.hash || ''));
+            }
+          }
+        }
+      }, 350);
+    </script>
   </body>
 </html>
