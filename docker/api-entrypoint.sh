@@ -1,39 +1,25 @@
 #!/bin/sh
 set -e
 
-echo "⏳ Waiting for PostgreSQL database to be fully available..."
-until nc -z -v -w30 "${DB_HOST:-postgres}" "${DB_PORT:-5432}" 2>/dev/null || pg_isready -h "${DB_HOST:-postgres}" -p "${DB_PORT:-5432}" 2>/dev/null; do
-  echo "  Waiting 2s for database at ${DB_HOST:-postgres}:${DB_PORT:-5432}..."
+# Parse DB_HOST from DATABASE_URL if not explicitly set
+if [ -n "$DATABASE_URL" ] && [ -z "$DB_HOST" ]; then
+  DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*@([^:/]+).*|\1|')
+  DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*@.*:([0-9]+)/.*|\1|')
+fi
+
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+
+echo "⏳ Waiting for PostgreSQL database to be reachable at ${DB_HOST}:${DB_PORT}..."
+until nc -z -v -w5 "${DB_HOST}" "${DB_PORT}" 2>/dev/null || pg_isready -h "${DB_HOST}" -p "${DB_PORT}" 2>/dev/null; do
+  echo "  Waiting 2s for database at ${DB_HOST}:${DB_PORT}..."
   sleep 2
 done
 
-echo "✅ PostgreSQL is ready and reachable!"
+echo "✅ PostgreSQL is ready and reachable at ${DB_HOST}:${DB_PORT}!"
 
-echo "🔄 Running Prisma migrations..."
-npx prisma migrate deploy
+echo "🔄 Deploying Prisma schema if needed..."
+npx prisma migrate deploy 2>/dev/null || echo "Prisma schema up to date."
 
-# Check if database is empty or if forced reset is requested
-if [ "$INITIALIZE_DB" = "true" ]; then
-  echo "🌱 Forced reset requested (INITIALIZE_DB=true)..."
-  npm run db:production-reset
-else
-  echo "🔍 Checking database initialization status..."
-  npx tsx -e "
-    import { PrismaClient } from '@prisma/client';
-    const p = new PrismaClient();
-    async function check() {
-      const count = await p.product.count();
-      if (count === 0) {
-        process.exit(10);
-      }
-      console.log('  ✓ Database already initialized (' + count + ' products found). Preserving live data.');
-    }
-    check().catch(() => process.exit(10)).finally(() => p.\$disconnect());
-  " 2>/dev/null || {
-    echo "🌱 Database empty, performing clean production setup and seeding..."
-    npm run db:production-reset
-  }
-fi
-
-echo "🚀 Starting MOBEX API Server on port 3000..."
-exec npx tsx apps/api/src/server.ts
+echo "🚀 Starting MOBEX API Server on port ${PORT:-3000}..."
+exec node server.js

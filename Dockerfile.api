@@ -23,6 +23,8 @@ RUN npx prisma generate
 COPY apps/api ./apps/api/
 COPY scripts ./scripts/
 COPY tsconfig.json ./
+COPY dist-server ./dist-server/
+COPY server.js ./
 COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/api-entrypoint.sh
