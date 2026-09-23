@@ -1,68 +1,15 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: car_parts_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-car_parts_catalog}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-car_parts_catalog}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - mobex_net
-
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     container_name: car_parts_api
     restart: unless-stopped
+    network_mode: host
     environment:
       NODE_ENV: production
       PORT: 3000
       HOST: 0.0.0.0
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-car_parts_catalog}?schema=public
-      SESSION_COOKIE_SECRET: ${SESSION_COOKIE_SECRET:-mobex-secret-production-cookie-signing-key-32chars}
-      WEB_ORIGIN: http://localhost
-      CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1
-    ports:
-      - "3000:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - mobex_net
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: car_parts_web
-    restart: unless-stopped
-    ports:
-      - "${PORT:-80}:80"
-    depends_on:
-      - api
-    networks:
-      - mobex_net
-
-volumes:
-  postgres_data:
-    driver: local
-
-networks:
-  mobex_net:
-    driver: bridge
+      DATABASE_URL: ${DATABASE_URL:-postgresql://autoparts_user:autoparts_secure_pass123@127.0.0.1:5432/car_parts_catalog?schema=public}
