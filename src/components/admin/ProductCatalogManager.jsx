@@ -343,12 +343,15 @@ export default function ProductCatalogManager() {
         variants: hasVariants ? formData.variants : [],
       };
 
+      let savedProductData = null;
       if (editId) {
-        await ApiClient.updateProduct(editId, payload).catch((e) => console.warn('API updateProduct:', e));
+        const updateRes = await ApiClient.updateProduct(editId, payload);
+        savedProductData = updateRes?.data || updateRes;
       } else {
-        const createRes = await ApiClient.createProduct(payload).catch((e) => console.warn('API createProduct:', e));
-        if (createRes?.data?.id || createRes?.id) {
-          payload.id = createRes.data?.id || createRes.id;
+        const createRes = await ApiClient.createProduct(payload);
+        savedProductData = createRes?.data || createRes;
+        if (savedProductData?.id) {
+          payload.id = savedProductData.id;
         }
       }
 
@@ -357,8 +360,9 @@ export default function ProductCatalogManager() {
       const selectedBr = brands.find(b => b.id === payload.brandId);
 
       const savedProductItem = {
-        id: editId || `prod-${Date.now()}`,
+        id: editId || savedProductData?.id || `prod-${Date.now()}`,
         ...payload,
+        ...(savedProductData || {}),
         category: selectedCat ? { id: selectedCat.id, name: selectedCat.name } : { name: 'อะไหล่' },
         brand: selectedBr ? { id: selectedBr.id, name: selectedBr.name } : { name: 'แบรนด์' },
       };
@@ -385,12 +389,13 @@ export default function ProductCatalogManager() {
   const handleDelete = async (id) => {
     if (window.confirm('คุณต้องการลบสินค้านี้ออกจากแค็ตตาล็อกใช่หรือไม่?')) {
       try {
-        await ApiClient.deleteProduct(id).catch((e) => console.warn('API deleteProduct:', e));
+        await ApiClient.deleteProduct(id);
         setProducts(prev => prev.filter(p => p.id !== id));
         setSuccess('ลบสินค้าเรียบร้อยแล้ว');
         setTimeout(() => setSuccess(''), 2500);
       } catch (err) {
-        console.error('Failed to delete product:', err);
+        setError(err.message || 'ไม่สามารถลบสินค้าได้');
+        alert(err.message || 'ไม่สามารถลบสินค้าได้');
       }
     }
   };

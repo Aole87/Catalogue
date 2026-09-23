@@ -55,10 +55,16 @@ class ApiClient {
       config.body = JSON.stringify(config.body);
     }
 
+    const method = (options.method || 'GET').toUpperCase();
+    const isWrite = method !== 'GET' && method !== 'HEAD';
+
     let response;
     try {
       response = await fetch(url, config);
     } catch (networkErr) {
+      if (isWrite) {
+        throw new Error(`ไม่สามารถบันทึกข้อมูลได้: เชื่อมต่อ API Server ไม่สำเร็จ (${networkErr.message}) กรุณาตรวจสอบว่า API Server พอร์ต 3000 กำลังทำงาน`);
+      }
       console.warn(`[ApiClient] Network unreachable for ${endpoint}, using local offline store:`, networkErr.message);
       return OfflineDataStore.handle(endpoint, options);
     }
@@ -75,9 +81,16 @@ class ApiClient {
     }
 
     // When backend returns 502 Bad Gateway / 503 Service Unavailable / 504 on static/Plesk host:
-    if (response.status === 502 || response.status === 503 || response.status === 504 || response.status === 404) {
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      if (isWrite) {
+        throw new Error(`ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลจริงได้ (API Server พอร์ต 3000 ไม่พร้อมใช้งาน - HTTP ${response.status}) กรุณาตรวจสอบสถานะ service บน Server`);
+      }
       console.warn(`[ApiClient] Server returned HTTP ${response.status} for ${endpoint}, fallback to local store`);
       return OfflineDataStore.handle(endpoint, options);
+    }
+
+    if (response.status === 404 && isWrite) {
+      throw new Error(`ไม่พบ API Endpoint สำหรับการแก้ไขข้อมูล (HTTP 404: ${endpoint})`);
     }
 
     const json = await response.json().catch(() => ({}));
@@ -763,67 +776,6 @@ class ApiClient {
     return this.request(`/admin/customers/${id}`, {
       method: 'DELETE',
     });
-  }
-
-  // --- Admin Master Data (Categories, Brands, Vehicles) ---
-  static async createCategory(data) {
-    return this.request('/admin/categories', { method: 'POST', body: data });
-  }
-
-  static async updateCategory(id, data) {
-    return this.request(`/admin/categories/${id}`, { method: 'PATCH', body: data });
-  }
-
-  static async deleteCategory(id) {
-    return this.request(`/admin/categories/${id}`, { method: 'DELETE' });
-  }
-
-  static async createBrand(data) {
-    return this.request('/admin/brands', { method: 'POST', body: data });
-  }
-
-  static async updateBrand(id, data) {
-    return this.request(`/admin/brands/${id}`, { method: 'PATCH', body: data });
-  }
-
-  static async deleteBrand(id) {
-    return this.request(`/admin/brands/${id}`, { method: 'DELETE' });
-  }
-
-  static async createVehicleMake(data) {
-    return this.request('/admin/vehicles/makes', { method: 'POST', body: data });
-  }
-
-  static async updateVehicleMake(id, data) {
-    return this.request(`/admin/vehicles/makes/${id}`, { method: 'PATCH', body: data });
-  }
-
-  static async deleteVehicleMake(id) {
-    return this.request(`/admin/vehicles/makes/${id}`, { method: 'DELETE' });
-  }
-
-  static async createVehicleModel(data) {
-    return this.request('/admin/vehicles/models', { method: 'POST', body: data });
-  }
-
-  static async updateVehicleModel(id, data) {
-    return this.request(`/admin/vehicles/models/${id}`, { method: 'PATCH', body: data });
-  }
-
-  static async deleteVehicleModel(id) {
-    return this.request(`/admin/vehicles/models/${id}`, { method: 'DELETE' });
-  }
-
-  static async createVehicleGeneration(data) {
-    return this.request('/admin/vehicles/generations', { method: 'POST', body: data });
-  }
-
-  static async updateVehicleGeneration(id, data) {
-    return this.request(`/admin/vehicles/generations/${id}`, { method: 'PATCH', body: data });
-  }
-
-  static async deleteVehicleGeneration(id) {
-    return this.request(`/admin/vehicles/generations/${id}`, { method: 'DELETE' });
   }
 
   static async getAdminCustomerActivity(id) {

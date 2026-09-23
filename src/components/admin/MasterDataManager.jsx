@@ -11,6 +11,7 @@ export function CategoryManager() {
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({ name: '', slug: '', description: '', imageUrl: '', isActive: true });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const fetchCategories = async () => {
     try {
@@ -31,6 +32,7 @@ export function CategoryManager() {
     e.preventDefault();
     if (!formData.name.trim()) return;
     setError('');
+    setSuccess('');
     try {
       const rawSlug = (formData.slug || formData.name).trim().toLowerCase();
       let cleanSlug = rawSlug
@@ -49,28 +51,23 @@ export function CategoryManager() {
       };
 
       if (editId) {
-        try {
-          await ApiClient.updateCategory(editId, payload);
-        } catch (apiErr) {
-          console.warn('API updateCategory notice:', apiErr);
-        }
+        const res = await ApiClient.updateCategory(editId, payload);
+        const updated = res?.data || res;
         setCategories((prev) =>
-          prev.map((c) => (c.id === editId ? { ...c, ...payload } : c))
+          prev.map((c) => (c.id === editId ? { ...c, ...updated, ...payload } : c))
         );
+        setSuccess('แก้ไขหมวดหมู่เรียบร้อยแล้ว');
       } else {
-        let created = null;
-        try {
-          const res = await ApiClient.createCategory(payload);
-          created = res?.data || res;
-        } catch (apiErr) {
-          console.warn('API createCategory notice:', apiErr);
-        }
+        const res = await ApiClient.createCategory(payload);
+        const created = res?.data || res;
         const newCat = created?.id ? created : { id: `cat-${Date.now()}`, ...payload };
         setCategories((prev) => [newCat, ...prev]);
+        setSuccess('เพิ่มหมวดหมู่ใหม่เรียบร้อยแล้ว');
       }
       setEditId(null);
       setFormData({ name: '', slug: '', description: '', imageUrl: '', isActive: true });
       fetchCategories();
+      setTimeout(() => setSuccess(''), 3500);
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     }
@@ -102,6 +99,7 @@ export function CategoryManager() {
       </div>
 
       {error && <div className="p-3 bg-rose-50 text-rose-600 rounded-lg text-xs font-semibold">{error}</div>}
+      {success && <div className="p-3 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">{success}</div>}
 
       {/* Form */}
       <form onSubmit={handleSave} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
@@ -235,6 +233,7 @@ export function CarBrandManager() {
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({ name: '', slug: '', countryOfOrigin: '', logoUrl: '', isActive: true });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const fetchMakes = async () => {
     try {
@@ -252,6 +251,7 @@ export function CarBrandManager() {
     e.preventDefault();
     if (!formData.name.trim()) return;
     setError('');
+    setSuccess('');
     try {
       const rawSlug = (formData.slug || formData.name).trim().toLowerCase();
       let cleanSlug = rawSlug
@@ -270,28 +270,23 @@ export function CarBrandManager() {
       };
 
       if (editId) {
-        try {
-          await ApiClient.updateVehicleMake(editId, payload);
-        } catch (apiErr) {
-          console.warn('API updateVehicleMake notice:', apiErr);
-        }
+        const res = await ApiClient.updateVehicleMake(editId, payload);
+        const updated = res?.make || res?.data || res;
         setMakes((prev) =>
-          prev.map((m) => (m.id === editId ? { ...m, ...payload } : m))
+          prev.map((m) => (m.id === editId ? { ...m, ...updated, ...payload } : m))
         );
+        setSuccess('แก้ไขยี่ห้อรถเรียบร้อยแล้ว');
       } else {
-        let created = null;
-        try {
-          const res = await ApiClient.createVehicleMake(payload);
-          created = res?.make || res?.data || res;
-        } catch (apiErr) {
-          console.warn('API createVehicleMake notice:', apiErr);
-        }
+        const res = await ApiClient.createVehicleMake(payload);
+        const created = res?.make || res?.data || res;
         const newMake = created?.id ? created : { id: `make-${Date.now()}`, ...payload };
         setMakes((prev) => [newMake, ...prev]);
+        setSuccess('เพิ่มยี่ห้อรถใหม่เรียบร้อยแล้ว');
       }
       setEditId(null);
       setFormData({ name: '', slug: '', countryOfOrigin: '', logoUrl: '', isActive: true });
       fetchMakes();
+      setTimeout(() => setSuccess(''), 3500);
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     }
@@ -323,6 +318,7 @@ export function CarBrandManager() {
       </div>
 
       {error && <div className="p-3 bg-rose-50 text-rose-600 rounded-lg text-xs font-semibold">{error}</div>}
+      {success && <div className="p-3 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">{success}</div>}
 
       <form onSubmit={handleSave} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-slate-800 border-b pb-2">{editId ? 'แก้ไขยี่ห้อรถ' : 'เพิ่มยี่ห้อรถใหม่'}</h3>
@@ -444,6 +440,7 @@ export function CarModelManager() {
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({ makeId: '', name: '', slug: '', isActive: true });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const fetchMakes = async () => {
     try {
@@ -473,6 +470,7 @@ export function CarModelManager() {
     e.preventDefault();
     if (!formData.name.trim() || !formData.makeId) return;
     setError('');
+    setSuccess('');
     try {
       const rawSlug = (formData.slug || formData.name).trim().toLowerCase();
       let cleanSlug = rawSlug
@@ -490,28 +488,23 @@ export function CarModelManager() {
       };
 
       if (editId) {
-        try {
-          await ApiClient.updateVehicleModel(editId, payload);
-        } catch (apiErr) {
-          console.warn('API updateVehicleModel notice:', apiErr);
-        }
+        const res = await ApiClient.updateVehicleModel(editId, payload);
+        const updated = res?.model || res?.data || res;
         setModels((prev) =>
-          prev.map((m) => (m.id === editId ? { ...m, ...payload } : m))
+          prev.map((m) => (m.id === editId ? { ...m, ...updated, ...payload } : m))
         );
+        setSuccess('แก้ไขรุ่นรถเรียบร้อยแล้ว');
       } else {
-        let created = null;
-        try {
-          const res = await ApiClient.createVehicleModel(payload);
-          created = res?.model || res?.data || res;
-        } catch (apiErr) {
-          console.warn('API createVehicleModel notice:', apiErr);
-        }
+        const res = await ApiClient.createVehicleModel(payload);
+        const created = res?.model || res?.data || res;
         const newModel = created?.id ? created : { id: `model-${Date.now()}`, ...payload };
         setModels((prev) => [newModel, ...prev]);
+        setSuccess('เพิ่มรุ่นรถใหม่เรียบร้อยแล้ว');
       }
       setEditId(null);
       setFormData({ makeId: selectedMakeId || '', name: '', slug: '', isActive: true });
       fetchModels(selectedMakeId || null);
+      setTimeout(() => setSuccess(''), 3500);
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
     }
@@ -552,6 +545,7 @@ export function CarModelManager() {
       </div>
 
       {error && <div className="p-3 bg-rose-50 text-rose-600 rounded-lg text-xs font-semibold">{error}</div>}
+      {success && <div className="p-3 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">{success}</div>}
 
       <form onSubmit={handleSave} className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-slate-800 border-b pb-2">{editId ? 'แก้ไขรุ่นรถ' : 'เพิ่มรุ่นรถใหม่'}</h3>

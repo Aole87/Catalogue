@@ -32,10 +32,13 @@ export async function vehicleRoutes(fastify: FastifyInstance) {
   // PROTECTED ADMIN VEHICLE MASTER DATA ROUTES
   // ==========================================
   // Makes
-  fastify.post('/admin/vehicles/makes', {
+  const makeCreateOpts = {
     preHandler: [authenticate, requirePermission('vehicle.create')],
     handler: VehicleController.createMake,
-  });
+  };
+  fastify.post('/admin/vehicles/makes', makeCreateOpts);
+  fastify.post('/vehicles/makes', makeCreateOpts);
+
   fastify.get('/admin/vehicles/makes', {
     preHandler: [authenticate, requirePermission('vehicle.read')],
     handler: VehicleController.listMakes,
@@ -44,20 +47,31 @@ export async function vehicleRoutes(fastify: FastifyInstance) {
     preHandler: [authenticate, requirePermission('vehicle.read')],
     handler: VehicleController.getMake,
   });
-  fastify.patch('/admin/vehicles/makes/:id', {
+
+  const makeUpdateOpts = {
     preHandler: [authenticate, requirePermission('vehicle.update')],
     handler: VehicleController.updateMake,
-  });
-  fastify.delete('/admin/vehicles/makes/:id', {
+  };
+  fastify.patch('/admin/vehicles/makes/:id', makeUpdateOpts);
+  fastify.put('/admin/vehicles/makes/:id', makeUpdateOpts);
+  fastify.patch('/vehicles/makes/:id', makeUpdateOpts);
+  fastify.put('/vehicles/makes/:id', makeUpdateOpts);
+
+  const makeDeleteOpts = {
     preHandler: [authenticate, requirePermission('vehicle.delete')],
     handler: VehicleController.deleteMake,
-  });
+  };
+  fastify.delete('/admin/vehicles/makes/:id', makeDeleteOpts);
+  fastify.delete('/vehicles/makes/:id', makeDeleteOpts);
 
   // Models
-  fastify.post('/admin/vehicles/models', {
+  const modelCreateOpts = {
     preHandler: [authenticate, requirePermission('vehicle.create')],
     handler: VehicleController.createModel,
-  });
+  };
+  fastify.post('/admin/vehicles/models', modelCreateOpts);
+  fastify.post('/vehicles/models', modelCreateOpts);
+
   fastify.get('/admin/vehicles/models', {
     preHandler: [authenticate, requirePermission('vehicle.read')],
     handler: VehicleController.listModels,
@@ -66,20 +80,31 @@ export async function vehicleRoutes(fastify: FastifyInstance) {
     preHandler: [authenticate, requirePermission('vehicle.read')],
     handler: VehicleController.getModel,
   });
-  fastify.patch('/admin/vehicles/models/:id', {
+
+  const modelUpdateOpts = {
     preHandler: [authenticate, requirePermission('vehicle.update')],
     handler: VehicleController.updateModel,
-  });
-  fastify.delete('/admin/vehicles/models/:id', {
+  };
+  fastify.patch('/admin/vehicles/models/:id', modelUpdateOpts);
+  fastify.put('/admin/vehicles/models/:id', modelUpdateOpts);
+  fastify.patch('/vehicles/models/:id', modelUpdateOpts);
+  fastify.put('/vehicles/models/:id', modelUpdateOpts);
+
+  const modelDeleteOpts = {
     preHandler: [authenticate, requirePermission('vehicle.delete')],
     handler: VehicleController.deleteModel,
-  });
+  };
+  fastify.delete('/admin/vehicles/models/:id', modelDeleteOpts);
+  fastify.delete('/vehicles/models/:id', modelDeleteOpts);
 
   // Generations
-  fastify.post('/admin/vehicles/generations', {
+  const genCreateOpts = {
     preHandler: [authenticate, requirePermission('vehicle.create')],
     handler: VehicleController.createGeneration,
-  });
+  };
+  fastify.post('/admin/vehicles/generations', genCreateOpts);
+  fastify.post('/vehicles/generations', genCreateOpts);
+
   fastify.get('/admin/vehicles/generations', {
     preHandler: [authenticate, requirePermission('vehicle.read')],
     handler: VehicleController.listGenerations,
@@ -88,14 +113,22 @@ export async function vehicleRoutes(fastify: FastifyInstance) {
     preHandler: [authenticate, requirePermission('vehicle.read')],
     handler: VehicleController.getGeneration,
   });
-  fastify.patch('/admin/vehicles/generations/:id', {
+
+  const genUpdateOpts = {
     preHandler: [authenticate, requirePermission('vehicle.update')],
     handler: VehicleController.updateGeneration,
-  });
-  fastify.delete('/admin/vehicles/generations/:id', {
+  };
+  fastify.patch('/admin/vehicles/generations/:id', genUpdateOpts);
+  fastify.put('/admin/vehicles/generations/:id', genUpdateOpts);
+  fastify.patch('/vehicles/generations/:id', genUpdateOpts);
+  fastify.put('/vehicles/generations/:id', genUpdateOpts);
+
+  const genDeleteOpts = {
     preHandler: [authenticate, requirePermission('vehicle.delete')],
     handler: VehicleController.deleteGeneration,
-  });
+  };
+  fastify.delete('/admin/vehicles/generations/:id', genDeleteOpts);
+  fastify.delete('/vehicles/generations/:id', genDeleteOpts);
 
   // Engines
   fastify.post('/admin/vehicles/engines', {
