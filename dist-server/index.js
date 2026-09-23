@@ -216,6 +216,47 @@ function errorHandler(error, request, reply) {
       }
     });
   }
+  const prismaCode = error.code;
+  if (typeof prismaCode === "string" && prismaCode.startsWith("P")) {
+    if (prismaCode === "P2023") {
+      return reply.status(400).send({
+        error: {
+          code: "BAD_REQUEST",
+          message: "Invalid ID or parameter format (UUID required)",
+          requestId
+        }
+      });
+    }
+    if (prismaCode === "P2025") {
+      return reply.status(404).send({
+        error: {
+          code: "NOT_FOUND",
+          message: "The requested resource was not found",
+          requestId
+        }
+      });
+    }
+    if (prismaCode === "P2002") {
+      const target = error.meta?.target;
+      const targetMsg = Array.isArray(target) ? ` on (${target.join(", ")})` : "";
+      return reply.status(409).send({
+        error: {
+          code: "CONFLICT",
+          message: `A record with this identifier already exists${targetMsg}`,
+          requestId
+        }
+      });
+    }
+    if (prismaCode === "P2003") {
+      return reply.status(400).send({
+        error: {
+          code: "FOREIGN_KEY_VIOLATION",
+          message: "Referenced related record does not exist or cannot be deleted",
+          requestId
+        }
+      });
+    }
+  }
   request.log.error({ err: error, requestId }, "Unhandled Server Error");
   return reply.status(500).send({
     error: {
@@ -951,7 +992,7 @@ async function authenticate(request, _reply) {
       request.user = AuthService.formatUserResponse(adminUser);
     } else {
       request.user = {
-        id: "super-admin-dev-id",
+        id: "00000000-0000-0000-0000-000000000001",
         email: "admin@mobex.co.th",
         firstName: "System",
         lastName: "SuperAdmin",
@@ -1002,7 +1043,7 @@ async function authenticateOptional(request, _reply) {
       request.user = AuthService.formatUserResponse(adminUser);
     } else {
       request.user = {
-        id: "super-admin-dev-id",
+        id: "00000000-0000-0000-0000-000000000001",
         email: "admin@mobex.co.th",
         firstName: "System",
         lastName: "SuperAdmin",
@@ -1543,8 +1584,25 @@ var ProductRepository = class {
 };
 
 // apps/api/src/repositories/category.repository.ts
+var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var LEGACY_CATEGORY_MAP = {
+  "cat-1": "brakes",
+  "cat-2": "front-brake-pads",
+  "cat-3": "rear-brake-pads",
+  "cat-4": "filters",
+  "cat-5": "oil-filters",
+  "cat-6": "air-filters",
+  "cat-7": "suspension",
+  "cat-8": "engine",
+  "cat-9": "spark-plugs",
+  "cat-10": "fluids"
+};
 var CategoryRepository = class {
   static async findById(id) {
+    if (!UUID_REGEX.test(id)) {
+      const slug = LEGACY_CATEGORY_MAP[id] || id;
+      return this.findBySlug(slug);
+    }
     return prisma.category.findUnique({
       where: { id },
       include: {
@@ -1602,8 +1660,16 @@ var CategoryRepository = class {
     });
   }
   static async update(id, data) {
+    let resolvedId = id;
+    if (!UUID_REGEX.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Category not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
     return prisma.category.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         ...data.name !== void 0 ? { name: data.name } : {},
         ...data.slug !== void 0 ? { slug: data.slug } : {},
@@ -1619,8 +1685,16 @@ var CategoryRepository = class {
     });
   }
   static async softDelete(id) {
+    let resolvedId = id;
+    if (!UUID_REGEX.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Category not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
     return prisma.category.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         deletedAt: /* @__PURE__ */ new Date(),
         isActive: false
@@ -1628,28 +1702,46 @@ var CategoryRepository = class {
     });
   }
   static async countProducts(categoryId) {
+    let resolvedId = categoryId;
+    if (!UUID_REGEX.test(categoryId)) {
+      const existing = await this.findById(categoryId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
     return prisma.product.count({
       where: {
-        categoryId,
+        categoryId: resolvedId,
         deletedAt: null
       }
     });
   }
   static async countChildren(categoryId) {
+    let resolvedId = categoryId;
+    if (!UUID_REGEX.test(categoryId)) {
+      const existing = await this.findById(categoryId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
     return prisma.category.count({
       where: {
-        parentId: categoryId,
+        parentId: resolvedId,
         deletedAt: null
       }
     });
   }
   static async getAllDescendantIds(categoryId) {
+    let resolvedId = categoryId;
+    if (!UUID_REGEX.test(categoryId)) {
+      const existing = await this.findById(categoryId);
+      if (!existing) return [];
+      resolvedId = existing.id;
+    }
     const allCategories = await prisma.category.findMany({
       where: { deletedAt: null },
       select: { id: true, parentId: true }
     });
     const descendantIds = [];
-    const queue = [categoryId];
+    const queue = [resolvedId];
     while (queue.length > 0) {
       const currentId = queue.shift();
       const children = allCategories.filter((c) => c.parentId === currentId);
@@ -1663,8 +1755,24 @@ var CategoryRepository = class {
 };
 
 // apps/api/src/repositories/brand.repository.ts
+var UUID_REGEX2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var LEGACY_BRAND_MAP = {
+  "brand-1": "trw",
+  "brand-2": "bosch",
+  "brand-3": "brembo",
+  "brand-4": "denso",
+  "brand-5": "aisin",
+  "brand-6": "mann-filter",
+  "brand-7": "mobil1",
+  "brand-8": "motul",
+  "brand-9": "castrol"
+};
 var BrandRepository = class {
   static async findById(id) {
+    if (!UUID_REGEX2.test(id)) {
+      const slug = LEGACY_BRAND_MAP[id] || id;
+      return this.findBySlug(slug);
+    }
     return prisma.brand.findUnique({
       where: { id }
     });
@@ -1707,8 +1815,16 @@ var BrandRepository = class {
     });
   }
   static async update(id, data) {
+    let resolvedId = id;
+    if (!UUID_REGEX2.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Brand not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
     return prisma.brand.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         ...data.name !== void 0 ? { name: data.name } : {},
         ...data.slug !== void 0 ? { slug: data.slug } : {},
@@ -1720,8 +1836,16 @@ var BrandRepository = class {
     });
   }
   static async softDelete(id) {
+    let resolvedId = id;
+    if (!UUID_REGEX2.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Brand not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
     return prisma.brand.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         deletedAt: /* @__PURE__ */ new Date(),
         isActive: false
@@ -1729,9 +1853,15 @@ var BrandRepository = class {
     });
   }
   static async countProducts(brandId) {
+    let resolvedId = brandId;
+    if (!UUID_REGEX2.test(brandId)) {
+      const existing = await this.findById(brandId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
     return prisma.product.count({
       where: {
-        brandId,
+        brandId: resolvedId,
         deletedAt: null
       }
     });
@@ -2816,6 +2946,20 @@ var VehicleRepository = class {
     });
   }
   static async findMakeById(id) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      const legacyMakes = {
+        "make-1": "toyota",
+        "make-2": "honda",
+        "make-3": "isuzu",
+        "make-4": "mitsubishi",
+        "make-5": "ford",
+        "make-6": "mazda",
+        "make-7": "nissan"
+      };
+      const slug = legacyMakes[id] || id;
+      return this.findMakeBySlug(slug);
+    }
     return prisma.vehicleMake.findUnique({
       where: { id }
     });
@@ -2842,19 +2986,40 @@ var VehicleRepository = class {
     });
   }
   static async updateMake(id, data) {
+    let resolvedId = id;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      const existing = await this.findMakeById(id);
+      if (!existing) throw new Error(`Vehicle make not found: ${id}`);
+      resolvedId = existing.id;
+    }
     return prisma.vehicleMake.update({
-      where: { id },
+      where: { id: resolvedId },
       data
     });
   }
   static async deleteMake(id) {
+    let resolvedId = id;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      const existing = await this.findMakeById(id);
+      if (!existing) throw new Error(`Vehicle make not found: ${id}`);
+      resolvedId = existing.id;
+    }
     return prisma.vehicleMake.delete({
-      where: { id }
+      where: { id: resolvedId }
     });
   }
   static async countModelsByMake(makeId) {
+    let resolvedId = makeId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(makeId);
+    if (!isUuid) {
+      const existing = await this.findMakeById(makeId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
     return prisma.vehicleModel.count({
-      where: { makeId }
+      where: { makeId: resolvedId }
     });
   }
   // ==========================================

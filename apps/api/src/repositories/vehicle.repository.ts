@@ -124,6 +124,20 @@ export class VehicleRepository {
   }
 
   static async findMakeById(id: string): Promise<VehicleMake | null> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      const legacyMakes: Record<string, string> = {
+        'make-1': 'toyota',
+        'make-2': 'honda',
+        'make-3': 'isuzu',
+        'make-4': 'mitsubishi',
+        'make-5': 'ford',
+        'make-6': 'mazda',
+        'make-7': 'nissan',
+      };
+      const slug = legacyMakes[id] || id;
+      return this.findMakeBySlug(slug);
+    }
     return prisma.vehicleMake.findUnique({
       where: { id },
     });
@@ -154,21 +168,42 @@ export class VehicleRepository {
   }
 
   static async updateMake(id: string, data: UpdateVehicleMakeInput): Promise<VehicleMake> {
+    let resolvedId = id;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      const existing = await this.findMakeById(id);
+      if (!existing) throw new Error(`Vehicle make not found: ${id}`);
+      resolvedId = existing.id;
+    }
     return prisma.vehicleMake.update({
-      where: { id },
+      where: { id: resolvedId },
       data,
     });
   }
 
   static async deleteMake(id: string): Promise<VehicleMake> {
+    let resolvedId = id;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      const existing = await this.findMakeById(id);
+      if (!existing) throw new Error(`Vehicle make not found: ${id}`);
+      resolvedId = existing.id;
+    }
     return prisma.vehicleMake.delete({
-      where: { id },
+      where: { id: resolvedId },
     });
   }
 
   static async countModelsByMake(makeId: string): Promise<number> {
+    let resolvedId = makeId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(makeId);
+    if (!isUuid) {
+      const existing = await this.findMakeById(makeId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
     return prisma.vehicleModel.count({
-      where: { makeId },
+      where: { makeId: resolvedId },
     });
   }
 

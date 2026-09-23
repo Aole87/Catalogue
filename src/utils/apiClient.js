@@ -109,6 +109,16 @@ class ApiClient {
       throw error;
     }
 
+    if (typeof window !== 'undefined' && response.ok) {
+      if (endpoint.includes('/categories')) {
+        try { localStorage.removeItem('mobex_db_categories'); } catch (e) {}
+      } else if (endpoint.includes('/brands')) {
+        try { localStorage.removeItem('mobex_db_brands'); } catch (e) {}
+      } else if (endpoint.includes('/vehicles/makes')) {
+        try { localStorage.removeItem('mobex_db_makes'); } catch (e) {}
+      }
+    }
+
     return json;
   }
 

@@ -18,8 +18,26 @@ export interface UpdateBrandData {
   isActive?: boolean;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const LEGACY_BRAND_MAP: Record<string, string> = {
+  'brand-1': 'trw',
+  'brand-2': 'bosch',
+  'brand-3': 'brembo',
+  'brand-4': 'denso',
+  'brand-5': 'aisin',
+  'brand-6': 'mann-filter',
+  'brand-7': 'mobil1',
+  'brand-8': 'motul',
+  'brand-9': 'castrol',
+};
+
 export class BrandRepository {
   static async findById(id: string): Promise<Brand | null> {
+    if (!UUID_REGEX.test(id)) {
+      const slug = LEGACY_BRAND_MAP[id] || id;
+      return this.findBySlug(slug);
+    }
     return prisma.brand.findUnique({
       where: { id },
     });
@@ -69,8 +87,17 @@ export class BrandRepository {
   }
 
   static async update(id: string, data: UpdateBrandData): Promise<Brand> {
+    let resolvedId = id;
+    if (!UUID_REGEX.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Brand not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
+
     return prisma.brand.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.slug !== undefined ? { slug: data.slug } : {}),
@@ -83,8 +110,17 @@ export class BrandRepository {
   }
 
   static async softDelete(id: string): Promise<Brand> {
+    let resolvedId = id;
+    if (!UUID_REGEX.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Brand not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
+
     return prisma.brand.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         deletedAt: new Date(),
         isActive: false,
@@ -93,9 +129,16 @@ export class BrandRepository {
   }
 
   static async countProducts(brandId: string): Promise<number> {
+    let resolvedId = brandId;
+    if (!UUID_REGEX.test(brandId)) {
+      const existing = await this.findById(brandId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
+
     return prisma.product.count({
       where: {
-        brandId,
+        brandId: resolvedId,
         deletedAt: null,
       },
     });

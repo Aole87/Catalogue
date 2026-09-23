@@ -30,7 +30,7 @@ export async function authenticate(request: FastifyRequest, _reply: FastifyReply
       request.user = AuthService.formatUserResponse(adminUser);
     } else {
       request.user = {
-        id: 'super-admin-dev-id',
+        id: '00000000-0000-0000-0000-000000000001',
         email: 'admin@mobex.co.th',
         firstName: 'System',
         lastName: 'SuperAdmin',
@@ -98,7 +98,7 @@ export async function authenticateOptional(request: FastifyRequest, _reply: Fast
       request.user = AuthService.formatUserResponse(adminUser);
     } else {
       request.user = {
-        id: 'super-admin-dev-id',
+        id: '00000000-0000-0000-0000-000000000001',
         email: 'admin@mobex.co.th',
         firstName: 'System',
         lastName: 'SuperAdmin',

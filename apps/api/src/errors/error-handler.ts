@@ -88,6 +88,49 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
     });
   }
 
+  // 6. Prisma Database Errors
+  const prismaCode = (error as any).code;
+  if (typeof prismaCode === 'string' && prismaCode.startsWith('P')) {
+    if (prismaCode === 'P2023') {
+      return reply.status(400).send({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid ID or parameter format (UUID required)',
+          requestId,
+        },
+      });
+    }
+    if (prismaCode === 'P2025') {
+      return reply.status(404).send({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'The requested resource was not found',
+          requestId,
+        },
+      });
+    }
+    if (prismaCode === 'P2002') {
+      const target = (error as any).meta?.target;
+      const targetMsg = Array.isArray(target) ? ` on (${target.join(', ')})` : '';
+      return reply.status(409).send({
+        error: {
+          code: 'CONFLICT',
+          message: `A record with this identifier already exists${targetMsg}`,
+          requestId,
+        },
+      });
+    }
+    if (prismaCode === 'P2003') {
+      return reply.status(400).send({
+        error: {
+          code: 'FOREIGN_KEY_VIOLATION',
+          message: 'Referenced related record does not exist or cannot be deleted',
+          requestId,
+        },
+      });
+    }
+  }
+
   // 5. Unhandled / Internal Server Errors (500)
   // Log full error on server
   request.log.error({ err: error, requestId }, 'Unhandled Server Error');

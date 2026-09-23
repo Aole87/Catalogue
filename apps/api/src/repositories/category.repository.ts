@@ -20,8 +20,27 @@ export interface UpdateCategoryData {
   isActive?: boolean;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const LEGACY_CATEGORY_MAP: Record<string, string> = {
+  'cat-1': 'brakes',
+  'cat-2': 'front-brake-pads',
+  'cat-3': 'rear-brake-pads',
+  'cat-4': 'filters',
+  'cat-5': 'oil-filters',
+  'cat-6': 'air-filters',
+  'cat-7': 'suspension',
+  'cat-8': 'engine',
+  'cat-9': 'spark-plugs',
+  'cat-10': 'fluids',
+};
+
 export class CategoryRepository {
   static async findById(id: string): Promise<Category | null> {
+    if (!UUID_REGEX.test(id)) {
+      const slug = LEGACY_CATEGORY_MAP[id] || id;
+      return this.findBySlug(slug);
+    }
     return prisma.category.findUnique({
       where: { id },
       include: {
@@ -85,8 +104,17 @@ export class CategoryRepository {
   }
 
   static async update(id: string, data: UpdateCategoryData): Promise<Category> {
+    let resolvedId = id;
+    if (!UUID_REGEX.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Category not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
+
     return prisma.category.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.slug !== undefined ? { slug: data.slug } : {}),
@@ -103,8 +131,17 @@ export class CategoryRepository {
   }
 
   static async softDelete(id: string): Promise<Category> {
+    let resolvedId = id;
+    if (!UUID_REGEX.test(id)) {
+      const existing = await this.findById(id);
+      if (!existing) {
+        throw new Error(`Category not found with identifier: ${id}`);
+      }
+      resolvedId = existing.id;
+    }
+
     return prisma.category.update({
-      where: { id },
+      where: { id: resolvedId },
       data: {
         deletedAt: new Date(),
         isActive: false,
@@ -113,31 +150,52 @@ export class CategoryRepository {
   }
 
   static async countProducts(categoryId: string): Promise<number> {
+    let resolvedId = categoryId;
+    if (!UUID_REGEX.test(categoryId)) {
+      const existing = await this.findById(categoryId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
+
     return prisma.product.count({
       where: {
-        categoryId,
+        categoryId: resolvedId,
         deletedAt: null,
       },
     });
   }
 
   static async countChildren(categoryId: string): Promise<number> {
+    let resolvedId = categoryId;
+    if (!UUID_REGEX.test(categoryId)) {
+      const existing = await this.findById(categoryId);
+      if (!existing) return 0;
+      resolvedId = existing.id;
+    }
+
     return prisma.category.count({
       where: {
-        parentId: categoryId,
+        parentId: resolvedId,
         deletedAt: null,
       },
     });
   }
 
   static async getAllDescendantIds(categoryId: string): Promise<string[]> {
+    let resolvedId = categoryId;
+    if (!UUID_REGEX.test(categoryId)) {
+      const existing = await this.findById(categoryId);
+      if (!existing) return [];
+      resolvedId = existing.id;
+    }
+
     const allCategories = await prisma.category.findMany({
       where: { deletedAt: null },
       select: { id: true, parentId: true },
     });
 
     const descendantIds: string[] = [];
-    const queue = [categoryId];
+    const queue = [resolvedId];
 
     while (queue.length > 0) {
       const currentId = queue.shift()!;
