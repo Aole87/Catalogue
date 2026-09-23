@@ -21,13 +21,14 @@ RUN npx prisma generate
 
 # Copy backend source code and config
 COPY apps/api ./apps/api/
+COPY packages ./packages/
 COPY scripts ./scripts/
 COPY tsconfig.json ./
 COPY server.js ./
 COPY docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
 
 # Compile production bundle directly inside container
-RUN npx esbuild apps/api/src/server.ts --bundle --platform=node --target=node20 --outfile=dist-server/index.js --packages=external
+RUN npx esbuild apps/api/src/server.ts --bundle --platform=node --target=node20 --outfile=dist-server/index.js --alias:@car-parts/database=./packages/database/src/index.ts --packages=external
 
 RUN chmod +x /usr/local/bin/api-entrypoint.sh
 
