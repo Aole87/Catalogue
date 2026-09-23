@@ -34,7 +34,7 @@ export async function brandRoutes(app: FastifyInstance) {
     schema: {
       description: 'List all brands including inactive ones (Admin)',
       tags: ['Admin Brands'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: BrandController.listAdmin,
   };
@@ -45,7 +45,7 @@ export async function brandRoutes(app: FastifyInstance) {
     schema: {
       description: 'Create a new manufacturer/brand (Admin)',
       tags: ['Admin Brands'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: BrandController.create,
   };
@@ -57,7 +57,7 @@ export async function brandRoutes(app: FastifyInstance) {
     schema: {
       description: 'Update brand information (Admin)',
       tags: ['Admin Brands'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: BrandController.update,
   };
@@ -71,7 +71,7 @@ export async function brandRoutes(app: FastifyInstance) {
     schema: {
       description: 'Soft-delete brand with active product association safety checks (Admin)',
       tags: ['Admin Brands'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: BrandController.delete,
   };

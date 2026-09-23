@@ -37,7 +37,7 @@ export async function productRoutes(app: FastifyInstance) {
     schema: {
       description: 'List all products including inactive and unpublished items (Admin)',
       tags: ['Admin Products'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: ProductController.listAdmin,
   });
@@ -47,7 +47,7 @@ export async function productRoutes(app: FastifyInstance) {
     schema: {
       description: 'Get full product details including all pricing tiers and metadata (Admin)',
       tags: ['Admin Products'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: ProductController.getAdminById,
   });
@@ -57,7 +57,7 @@ export async function productRoutes(app: FastifyInstance) {
     schema: {
       description: 'Create a new product with prices, images, attributes, and cross references (Admin)',
       tags: ['Admin Products'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: ProductController.create,
   };
@@ -69,7 +69,7 @@ export async function productRoutes(app: FastifyInstance) {
     schema: {
       description: 'Update an existing product (Admin)',
       tags: ['Admin Products'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: ProductController.update,
   };
@@ -83,7 +83,7 @@ export async function productRoutes(app: FastifyInstance) {
     schema: {
       description: 'Soft-delete a product from the active catalog (Admin)',
       tags: ['Admin Products'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: ProductController.delete,
   };
@@ -95,7 +95,7 @@ export async function productRoutes(app: FastifyInstance) {
     schema: {
       description: 'Update or set pricing tiers for a product with Decimal precision (Admin)',
       tags: ['Admin Products'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: ProductController.updatePrices,
   });

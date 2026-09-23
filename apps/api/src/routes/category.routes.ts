@@ -42,7 +42,7 @@ export async function categoryRoutes(app: FastifyInstance) {
     schema: {
       description: 'List all categories including inactive ones (Admin)',
       tags: ['Admin Categories'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: CategoryController.listAdmin,
   };
@@ -53,7 +53,7 @@ export async function categoryRoutes(app: FastifyInstance) {
     schema: {
       description: 'Create a new category (Admin)',
       tags: ['Admin Categories'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: CategoryController.create,
   };
@@ -65,7 +65,7 @@ export async function categoryRoutes(app: FastifyInstance) {
     schema: {
       description: 'Update category details and hierarchy with cycle prevention (Admin)',
       tags: ['Admin Categories'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: CategoryController.update,
   };
@@ -79,7 +79,7 @@ export async function categoryRoutes(app: FastifyInstance) {
     schema: {
       description: 'Soft-delete category with product/child orphan safety checks (Admin)',
       tags: ['Admin Categories'],
-      security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+      security: [{ cookieAuth: [] }, { bearerAuth: [] }] as any,
     },
     handler: CategoryController.delete,
   };
