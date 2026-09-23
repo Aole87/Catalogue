@@ -1,0 +1,115 @@
+import { z } from 'zod';
+export declare const supplierQuerySchema: z.ZodPipe<z.ZodObject<{
+    q: z.ZodOptional<z.ZodString>;
+    search: z.ZodOptional<z.ZodString>;
+    code: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
+    isActive: z.ZodPipe<z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodString]>>, z.ZodTransform<boolean | undefined, string | boolean | undefined>>;
+    page: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
+    offset: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
+    limit: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
+    sortBy: z.ZodOptional<z.ZodEnum<{
+        name: "name";
+        createdAt: "createdAt";
+        updatedAt: "updatedAt";
+        code: "code";
+    }>>;
+    sortOrder: z.ZodOptional<z.ZodEnum<{
+        asc: "asc";
+        desc: "desc";
+    }>>;
+}, z.core.$strip>, z.ZodTransform<{
+    q: string | undefined;
+    isActive: boolean | undefined;
+    page: number;
+    offset: number;
+    limit: number;
+    search?: string | undefined;
+    code?: string | undefined;
+    name?: string | undefined;
+    sortBy?: "name" | "createdAt" | "updatedAt" | "code" | undefined;
+    sortOrder?: "asc" | "desc" | undefined;
+}, {
+    isActive: boolean | undefined;
+    page: number;
+    offset: number;
+    limit: number;
+    q?: string | undefined;
+    search?: string | undefined;
+    code?: string | undefined;
+    name?: string | undefined;
+    sortBy?: "name" | "createdAt" | "updatedAt" | "code" | undefined;
+    sortOrder?: "asc" | "desc" | undefined;
+}>>;
+export declare const createSupplierSchema: z.ZodObject<{
+    code: z.ZodString;
+    name: z.ZodString;
+    displayName: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    taxId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    contactName: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    email: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    phone: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    addressLine1: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    addressLine2: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    subdistrict: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    district: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    province: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    postalCode: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    country: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    paymentTerms: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    currency: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    leadTimeDays: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    notes: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, z.core.$strip>;
+export declare const updateSupplierSchema: z.ZodObject<{
+    code: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
+    displayName: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    taxId: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    contactName: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    email: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    phone: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    addressLine1: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    addressLine2: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    subdistrict: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    district: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    province: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    postalCode: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    country: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodString>>>;
+    paymentTerms: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+    currency: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodString>>>;
+    leadTimeDays: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodNumber>>>;
+    isActive: z.ZodOptional<z.ZodDefault<z.ZodOptional<z.ZodBoolean>>>;
+    notes: z.ZodOptional<z.ZodNullable<z.ZodOptional<z.ZodString>>>;
+}, z.core.$strip>;
+export declare const supplierProductQuerySchema: z.ZodObject<{
+    supplierId: z.ZodOptional<z.ZodString>;
+    productId: z.ZodOptional<z.ZodString>;
+    isActive: z.ZodPipe<z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodString]>>, z.ZodTransform<boolean | undefined, string | boolean | undefined>>;
+    isPreferred: z.ZodPipe<z.ZodOptional<z.ZodUnion<readonly [z.ZodBoolean, z.ZodString]>>, z.ZodTransform<boolean | undefined, string | boolean | undefined>>;
+    page: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
+    limit: z.ZodPipe<z.ZodOptional<z.ZodString>, z.ZodTransform<number, string | undefined>>;
+}, z.core.$strip>;
+export declare const createSupplierProductSchema: z.ZodObject<{
+    supplierId: z.ZodOptional<z.ZodString>;
+    productId: z.ZodString;
+    supplierSku: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    purchaseCost: z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>;
+    currency: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    moq: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    packSize: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    leadTimeDays: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    isPreferred: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    isActive: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+}, z.core.$strip>;
+export declare const updateSupplierProductSchema: z.ZodObject<{
+    supplierSku: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    purchaseCost: z.ZodOptional<z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>>;
+    currency: z.ZodOptional<z.ZodString>;
+    moq: z.ZodOptional<z.ZodNumber>;
+    packSize: z.ZodOptional<z.ZodNumber>;
+    leadTimeDays: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    isPreferred: z.ZodOptional<z.ZodBoolean>;
+    isActive: z.ZodOptional<z.ZodBoolean>;
+}, z.core.$strip>;

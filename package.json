@@ -5,13 +5,13 @@
   "main": "main.js",
   "scripts": {
     "dev": "vite",
-    "build": "NODE_ENV=production vite build --mode production",
+    "build": "NODE_ENV=production vite build --mode production && npm run build:server",
+    "build:server": "esbuild apps/api/src/server.ts --bundle --platform=node --target=node20 --outfile=dist-server/index.js --packages=external",
     "preview": "vite preview",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "electron:start": "electron .",
     "db:format": "prisma format",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
@@ -45,10 +45,9 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@electron/rebuild": "^4.0.4",
     "@types/node": "^26.5.0",
     "@vitejs/plugin-react": "^6.0.2",
-    "electron": "^42.3.3",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.16"
   },
