@@ -28,6 +28,7 @@ docker run -d \
   -e PORT=3000 \
   -e HOST=0.0.0.0 \
   -e DATABASE_URL="${DATABASE_URL:-postgresql://autoparts_user:autoparts_secure_pass123@127.0.0.1:5432/car_parts_catalog?schema=public}" \
+  -e CORS_ALLOWED_ORIGINS="https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173" \
   car-parts-api:latest
 
 echo "-------------------------------------------------"

@@ -13,3 +13,4 @@ services:
       PORT: 3000
       HOST: 0.0.0.0
       DATABASE_URL: ${DATABASE_URL:-postgresql://autoparts_user:autoparts_secure_pass123@127.0.0.1:5432/car_parts_catalog?schema=public}
+      CORS_ALLOWED_ORIGINS: "https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173"

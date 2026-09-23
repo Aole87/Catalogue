@@ -131,6 +131,17 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
     }
   }
 
+  // 7. CORS Errors
+  if (error.message?.includes('CORS') || error.message?.includes('Not allowed by CORS')) {
+    return reply.status(403).send({
+      error: {
+        code: 'CORS_ERROR',
+        message: 'Origin or headers not permitted by CORS policy',
+        requestId,
+      },
+    });
+  }
+
   // 5. Unhandled / Internal Server Errors (500)
   // Log full error on server
   request.log.error({ err: error, requestId }, 'Unhandled Server Error');

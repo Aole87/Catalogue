@@ -61,14 +61,20 @@ export async function buildApp(): Promise<FastifyInstance> {
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || config.NODE_ENV === 'development') {
+      if (
+        allowedOrigins.includes(origin) ||
+        config.NODE_ENV === 'development' ||
+        origin.endsWith('autocentric.net') ||
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1')
+      ) {
         return callback(null, true);
       }
-      callback(new Error('Not allowed by CORS'), false);
+      callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Session-Token', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key', 'X-Request-ID', 'X-Session-Token', 'Accept'],
     exposedHeaders: ['X-Request-ID', 'X-Session-Token'],
   });
 

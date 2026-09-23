@@ -49,8 +49,8 @@ var envSchema = import_zod.z.object({
   SESSION_COOKIE_SECRET: import_zod.z.string().min(16, "SESSION_COOKIE_SECRET must be at least 16 characters").default("super-secret-cookie-signing-key-minimum-16-chars"),
   SESSION_TTL_HOURS: import_zod.z.coerce.number().default(24 * 7),
   // 7 days
-  WEB_ORIGIN: import_zod.z.string().default("http://localhost:5173"),
-  CORS_ALLOWED_ORIGINS: import_zod.z.string().default("http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174"),
+  WEB_ORIGIN: import_zod.z.string().default("https://market.autocentric.net"),
+  CORS_ALLOWED_ORIGINS: import_zod.z.string().default("https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174"),
   RATE_LIMIT_MAX: import_zod.z.coerce.number().default(100),
   RATE_LIMIT_TIME_WINDOW: import_zod.z.string().default("1 minute"),
   AUTH_RATE_LIMIT_MAX: import_zod.z.coerce.number().default(10),
@@ -256,6 +256,15 @@ function errorHandler(error, request, reply) {
         }
       });
     }
+  }
+  if (error.message?.includes("CORS") || error.message?.includes("Not allowed by CORS")) {
+    return reply.status(403).send({
+      error: {
+        code: "CORS_ERROR",
+        message: "Origin or headers not permitted by CORS policy",
+        requestId
+      }
+    });
   }
   request.log.error({ err: error, requestId }, "Unhandled Server Error");
   return reply.status(500).send({
@@ -17608,14 +17617,14 @@ async function buildApp() {
   await app.register(import_cors.default, {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || env_default.NODE_ENV === "development") {
+      if (allowedOrigins.includes(origin) || env_default.NODE_ENV === "development" || origin.endsWith("autocentric.net") || origin.includes("localhost") || origin.includes("127.0.0.1")) {
         return callback(null, true);
       }
-      callback(new Error("Not allowed by CORS"), false);
+      callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID", "X-Session-Token", "Accept"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Key", "X-Request-ID", "X-Session-Token", "Accept"],
     exposedHeaders: ["X-Request-ID", "X-Session-Token"]
   });
   await app.register(import_cookie.default, {

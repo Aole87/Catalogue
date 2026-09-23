@@ -12,8 +12,8 @@ const envSchema = z.object({
   SESSION_COOKIE_NAME: z.string().default('autoparts_session'),
   SESSION_COOKIE_SECRET: z.string().min(16, 'SESSION_COOKIE_SECRET must be at least 16 characters').default('super-secret-cookie-signing-key-minimum-16-chars'),
   SESSION_TTL_HOURS: z.coerce.number().default(24 * 7), // 7 days
-  WEB_ORIGIN: z.string().default('http://localhost:5173'),
-  CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174'),
+  WEB_ORIGIN: z.string().default('https://market.autocentric.net'),
+  CORS_ALLOWED_ORIGINS: z.string().default('https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174'),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   RATE_LIMIT_TIME_WINDOW: z.string().default('1 minute'),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10), // Brute force protection on auth routes
