@@ -91,6 +91,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     max: config.NODE_ENV === 'test' ? 10000 : config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_TIME_WINDOW,
     errorResponseBuilder: (_req, context) => ({
+      statusCode: 429,
       error: {
         code: 'RATE_LIMIT_EXCEEDED',
         message: `Too many requests. Rate limit exceeded. Try again in ${context.after}`,

@@ -25,6 +25,7 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default('MOBEX Auto Parts <noreply@autocentric.net>'),
   OTP_TTL_MINUTES: z.coerce.number().default(5),
   ADMIN_BYPASS_KEY: z.string().default('mobex_admin_bypass_2026'),
+  ENABLE_SWAGGER: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

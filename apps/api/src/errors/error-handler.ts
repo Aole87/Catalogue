@@ -56,11 +56,16 @@ export function errorHandler(error: FastifyError | Error, request: FastifyReques
   }
 
   // 4. Fastify Rate Limit Errors (429)
-  if ('statusCode' in error && error.statusCode === 429) {
+  if (
+    ('statusCode' in error && error.statusCode === 429) ||
+    (error as any).code === 'FST_ERR_RATE_LIMIT_EXCEEDED' ||
+    (error as any).error?.code === 'RATE_LIMIT_EXCEEDED'
+  ) {
+    const errorMsg = (error as any).error?.message || error.message || 'Too many requests. Please try again later.';
     return reply.status(429).send({
       error: {
         code: 'RATE_LIMIT_EXCEEDED',
-        message: 'Too many requests. Please try again later.',
+        message: errorMsg,
         requestId,
       },
     });

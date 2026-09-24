@@ -62,7 +62,8 @@ var envSchema = import_zod.z.object({
   SMTP_PASS: import_zod.z.string().optional(),
   SMTP_FROM: import_zod.z.string().default("MOBEX Auto Parts <noreply@autocentric.net>"),
   OTP_TTL_MINUTES: import_zod.z.coerce.number().default(5),
-  ADMIN_BYPASS_KEY: import_zod.z.string().default("mobex_admin_bypass_2026")
+  ADMIN_BYPASS_KEY: import_zod.z.string().default("mobex_admin_bypass_2026"),
+  ENABLE_SWAGGER: import_zod.z.preprocess((val) => val === "true" || val === true, import_zod.z.boolean()).default(false)
 });
 var config = envSchema.parse(process.env);
 var env_default = config;
@@ -196,11 +197,12 @@ function errorHandler(error, request, reply) {
       }
     });
   }
-  if ("statusCode" in error && error.statusCode === 429) {
+  if ("statusCode" in error && error.statusCode === 429 || error.code === "FST_ERR_RATE_LIMIT_EXCEEDED" || error.error?.code === "RATE_LIMIT_EXCEEDED") {
+    const errorMsg = error.error?.message || error.message || "Too many requests. Please try again later.";
     return reply.status(429).send({
       error: {
         code: "RATE_LIMIT_EXCEEDED",
-        message: "Too many requests. Please try again later.",
+        message: errorMsg,
         requestId
       }
     });
@@ -288,6 +290,9 @@ function errorHandler(error, request, reply) {
 var import_swagger = __toESM(require("@fastify/swagger"));
 var import_swagger_ui = __toESM(require("@fastify/swagger-ui"));
 async function registerSwagger(app) {
+  if (env_default.NODE_ENV === "production" && !env_default.ENABLE_SWAGGER) {
+    return;
+  }
   await app.register(import_swagger.default, {
     openapi: {
       info: {
@@ -18043,6 +18048,7 @@ async function buildApp() {
     max: env_default.NODE_ENV === "test" ? 1e4 : env_default.RATE_LIMIT_MAX,
     timeWindow: env_default.RATE_LIMIT_TIME_WINDOW,
     errorResponseBuilder: (_req, context) => ({
+      statusCode: 429,
       error: {
         code: "RATE_LIMIT_EXCEEDED",
         message: `Too many requests. Rate limit exceeded. Try again in ${context.after}`,

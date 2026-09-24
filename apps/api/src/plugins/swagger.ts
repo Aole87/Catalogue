@@ -1,8 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import config from '../config/env';
 
 export async function registerSwagger(app: FastifyInstance) {
+  // In production, skip Swagger unless explicitly requested to save CPU & RAM (~40MB heap)
+  if (config.NODE_ENV === 'production' && !config.ENABLE_SWAGGER) {
+    return;
+  }
+
   await app.register(swagger, {
     openapi: {
       info: {
