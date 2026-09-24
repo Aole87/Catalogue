@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { registerSchema, loginSchema, changePasswordSchema } from '../schemas/auth.schema';
+import { registerSchema, loginSchema, changePasswordSchema, sendOtpSchema, verifyOtpSchema } from '../schemas/auth.schema';
 import { AuthService } from '../services/auth.service';
 import config from '../config/env';
 
@@ -29,6 +29,18 @@ export class AuthController {
       secure: config.NODE_ENV === 'production',
       sameSite: config.NODE_ENV === 'production' ? 'strict' : 'lax',
     });
+  }
+
+  static async sendOtp(request: FastifyRequest, reply: FastifyReply) {
+    const input = sendOtpSchema.parse(request.body);
+    const result = await AuthService.sendOtp(input);
+    return reply.status(200).send({ data: result });
+  }
+
+  static async verifyOtp(request: FastifyRequest, reply: FastifyReply) {
+    const input = verifyOtpSchema.parse(request.body);
+    const result = await AuthService.verifyOtp(input);
+    return reply.status(200).send({ data: result });
   }
 
   static async register(request: FastifyRequest, reply: FastifyReply) {

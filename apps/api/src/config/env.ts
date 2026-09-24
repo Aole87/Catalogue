@@ -18,6 +18,13 @@ const envSchema = z.object({
   RATE_LIMIT_TIME_WINDOW: z.string().default('1 minute'),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10), // Brute force protection on auth routes
   AUTH_RATE_LIMIT_TIME_WINDOW: z.string().default('1 minute'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().default('MOBEX Auto Parts <noreply@autocentric.net>'),
+  OTP_TTL_MINUTES: z.coerce.number().default(5),
+  ADMIN_BYPASS_KEY: z.string().default('mobex_admin_bypass_2026'),
 });
 
 export type Env = z.infer<typeof envSchema>;

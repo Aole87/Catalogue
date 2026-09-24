@@ -9,6 +9,9 @@ export interface CreateUserData {
   phone?: string;
   displayName?: string;
   customerType?: CustomerType;
+  companyName?: string;
+  taxId?: string;
+  emailVerifiedAt?: Date | null;
 }
 
 export class UserRepository {
@@ -67,6 +70,7 @@ export class UserRepository {
           displayName: data.displayName || `${data.firstName} ${data.lastName}`.trim(),
           phone: data.phone,
           isActive: true,
+          emailVerifiedAt: data.emailVerifiedAt ?? null,
           roles: {
             create: {
               roleId,
@@ -75,6 +79,8 @@ export class UserRepository {
           customerProfile: {
             create: {
               customerType: data.customerType || CustomerType.CUSTOMER,
+              companyName: data.companyName || null,
+              taxId: data.taxId || null,
               phone: data.phone,
             },
           },

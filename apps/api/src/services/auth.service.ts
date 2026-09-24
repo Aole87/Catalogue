@@ -4,8 +4,9 @@ import { RoleRepository } from '../repositories/role.repository';
 import { AuditRepository } from '../repositories/audit.repository';
 import { PasswordService } from '../security/password';
 import { TokenService } from '../security/tokens';
-import { RegisterInput, LoginInput, ChangePasswordInput, AuthUserResponse } from '../schemas/auth.schema';
-import { ConflictError, UnauthorizedError, NotFoundError } from '../errors/app-error';
+import { RegisterInput, LoginInput, ChangePasswordInput, AuthUserResponse, SendOtpInput, VerifyOtpInput } from '../schemas/auth.schema';
+import { ConflictError, UnauthorizedError, NotFoundError, BadRequestError } from '../errors/app-error';
+import { OtpService } from './otp.service';
 import config from '../config/env';
 
 export interface RequestMetadata {
@@ -15,6 +16,29 @@ export interface RequestMetadata {
 }
 
 export class AuthService {
+  /**
+   * Request an OTP sent to email for registration or verification
+   */
+  static async sendOtp(input: SendOtpInput) {
+    const normalizedEmail = input.email.toLowerCase().trim();
+
+    if (input.purpose === 'REGISTRATION') {
+      const existing = await UserRepository.findByEmail(normalizedEmail);
+      if (existing) {
+        throw new ConflictError('อีเมลนี้ลงทะเบียนไว้ในระบบแล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น');
+      }
+    }
+
+    return OtpService.sendOtp(normalizedEmail, input.purpose);
+  }
+
+  /**
+   * Verify an OTP code submitted by the user
+   */
+  static async verifyOtp(input: VerifyOtpInput) {
+    return OtpService.verifyOtp(input.email, input.code, input.purpose);
+  }
+
   /**
    * Transforms raw User entity into secure AuthUserResponse (zero password or token leaks).
    */
@@ -70,6 +94,19 @@ export class AuthService {
       throw new ConflictError('An account with this email already exists', { field: 'email' });
     }
 
+    // 1.5 Verify OTP if provided (or require token if email verification is enforced)
+    let isEmailVerified = false;
+    if (input.verificationCode) {
+      await OtpService.verifyOtp(normalizedEmail, input.verificationCode, 'REGISTRATION');
+      isEmailVerified = true;
+    } else if (input.verificationToken) {
+      const isValid = OtpService.validateVerificationToken(normalizedEmail, input.verificationToken, 'REGISTRATION');
+      if (!isValid) {
+        throw new BadRequestError('รหัสยืนยันอีเมลหมดอายุหรือไม่ถูกต้อง กรุณายืนยันใหม่อีกครั้ง');
+      }
+      isEmailVerified = true;
+    }
+
     // 2. Fetch standard non-privileged CUSTOMER role (Prevents self-assigned privilege escalation)
     const customerRole = await RoleRepository.getOrCreateDefaultCustomerRole();
 
@@ -85,6 +122,10 @@ export class AuthService {
         lastName: input.lastName,
         phone: input.phone,
         displayName: input.displayName,
+        customerType: (input.customerType as any) || 'CUSTOMER',
+        companyName: input.companyName,
+        taxId: input.taxId,
+        emailVerifiedAt: isEmailVerified ? new Date() : null,
       },
       customerRole.id
     );
@@ -108,7 +149,11 @@ export class AuthService {
       action: 'REGISTERED',
       resource: 'User',
       resourceId: user.id,
-      after: { email: user.email, customerType: 'CUSTOMER' },
+      after: {
+        email: user.email,
+        customerType: input.customerType || 'CUSTOMER',
+        isEmailVerified,
+      },
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent,
     });

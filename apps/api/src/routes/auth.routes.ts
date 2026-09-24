@@ -10,6 +10,30 @@ export async function authRoutes(app: FastifyInstance) {
     timeWindow: config.AUTH_RATE_LIMIT_TIME_WINDOW,
   };
 
+  // POST /api/v1/auth/otp/send
+  app.post('/otp/send', {
+    config: {
+      rateLimit: authRateLimitConfig,
+    },
+    schema: {
+      description: 'Generate and send a 6-digit email OTP for registration or verification',
+      tags: ['Authentication'],
+    },
+    handler: AuthController.sendOtp,
+  });
+
+  // POST /api/v1/auth/otp/verify
+  app.post('/otp/verify', {
+    config: {
+      rateLimit: authRateLimitConfig,
+    },
+    schema: {
+      description: 'Verify 6-digit email OTP code and receive verification proof',
+      tags: ['Authentication'],
+    },
+    handler: AuthController.verifyOtp,
+  });
+
   // POST /api/v1/auth/register
   app.post('/register', {
     config: {

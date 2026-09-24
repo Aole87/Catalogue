@@ -33,7 +33,7 @@ var import_cookie = __toESM(require("@fastify/cookie"));
 var import_cors = __toESM(require("@fastify/cors"));
 var import_helmet = __toESM(require("@fastify/helmet"));
 var import_rate_limit = __toESM(require("@fastify/rate-limit"));
-var import_crypto13 = __toESM(require("crypto"));
+var import_crypto14 = __toESM(require("crypto"));
 
 // apps/api/src/config/env.ts
 var import_zod = require("zod");
@@ -55,7 +55,14 @@ var envSchema = import_zod.z.object({
   RATE_LIMIT_TIME_WINDOW: import_zod.z.string().default("1 minute"),
   AUTH_RATE_LIMIT_MAX: import_zod.z.coerce.number().default(10),
   // Brute force protection on auth routes
-  AUTH_RATE_LIMIT_TIME_WINDOW: import_zod.z.string().default("1 minute")
+  AUTH_RATE_LIMIT_TIME_WINDOW: import_zod.z.string().default("1 minute"),
+  SMTP_HOST: import_zod.z.string().optional(),
+  SMTP_PORT: import_zod.z.coerce.number().default(587),
+  SMTP_USER: import_zod.z.string().optional(),
+  SMTP_PASS: import_zod.z.string().optional(),
+  SMTP_FROM: import_zod.z.string().default("MOBEX Auto Parts <noreply@autocentric.net>"),
+  OTP_TTL_MINUTES: import_zod.z.coerce.number().default(5),
+  ADMIN_BYPASS_KEY: import_zod.z.string().default("mobex_admin_bypass_2026")
 });
 var config = envSchema.parse(process.env);
 var env_default = config;
@@ -417,13 +424,27 @@ async function healthRoutes(app) {
 
 // apps/api/src/schemas/auth.schema.ts
 var import_zod3 = require("zod");
+var sendOtpSchema = import_zod3.z.object({
+  email: import_zod3.z.string().trim().toLowerCase().email("\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07"),
+  purpose: import_zod3.z.enum(["REGISTRATION", "PASSWORD_RESET", "VERIFY_EMAIL"]).default("REGISTRATION")
+});
+var verifyOtpSchema = import_zod3.z.object({
+  email: import_zod3.z.string().trim().toLowerCase().email("\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07"),
+  code: import_zod3.z.string().trim().min(4, "\u0E23\u0E2B\u0E31\u0E2A OTP \u0E15\u0E49\u0E2D\u0E07\u0E21\u0E35\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E19\u0E49\u0E2D\u0E22 4 \u0E2B\u0E25\u0E31\u0E01").max(8, "\u0E23\u0E2B\u0E31\u0E2A OTP \u0E44\u0E21\u0E48\u0E40\u0E01\u0E34\u0E19 8 \u0E2B\u0E25\u0E31\u0E01"),
+  purpose: import_zod3.z.enum(["REGISTRATION", "PASSWORD_RESET", "VERIFY_EMAIL"]).default("REGISTRATION")
+});
 var registerSchema = import_zod3.z.object({
   email: import_zod3.z.string().trim().toLowerCase().email("Invalid email address"),
   password: import_zod3.z.string().min(8, "Password must be at least 8 characters").max(100, "Password cannot exceed 100 characters"),
   firstName: import_zod3.z.string().trim().min(1, "First name is required").max(50),
   lastName: import_zod3.z.string().trim().min(1, "Last name is required").max(50),
   phone: import_zod3.z.string().trim().optional(),
-  displayName: import_zod3.z.string().trim().optional()
+  displayName: import_zod3.z.string().trim().optional(),
+  verificationToken: import_zod3.z.string().trim().optional(),
+  verificationCode: import_zod3.z.string().trim().optional(),
+  customerType: import_zod3.z.enum(["CUSTOMER", "GARAGE", "SHOP"]).default("CUSTOMER"),
+  companyName: import_zod3.z.string().trim().max(100).optional(),
+  taxId: import_zod3.z.string().trim().max(20).optional()
 });
 var loginSchema = import_zod3.z.object({
   email: import_zod3.z.string().trim().min(1, "Username or Email is required"),
@@ -491,6 +512,7 @@ var UserRepository = class {
           displayName: data.displayName || `${data.firstName} ${data.lastName}`.trim(),
           phone: data.phone,
           isActive: true,
+          emailVerifiedAt: data.emailVerifiedAt ?? null,
           roles: {
             create: {
               roleId
@@ -499,6 +521,8 @@ var UserRepository = class {
           customerProfile: {
             create: {
               customerType: data.customerType || import_client3.CustomerType.CUSTOMER,
+              companyName: data.companyName || null,
+              taxId: data.taxId || null,
               phone: data.phone
             }
           }
@@ -695,8 +719,275 @@ var TokenService = class {
   }
 };
 
+// apps/api/src/services/otp.service.ts
+var import_crypto2 = __toESM(require("crypto"));
+
+// apps/api/src/services/mail.service.ts
+var import_nodemailer = __toESM(require("nodemailer"));
+var MailService = class {
+  static transporter = null;
+  static getTransporter() {
+    if (this.transporter) return this.transporter;
+    if (env_default.SMTP_HOST && env_default.SMTP_USER && env_default.SMTP_PASS) {
+      this.transporter = import_nodemailer.default.createTransport({
+        host: env_default.SMTP_HOST,
+        port: env_default.SMTP_PORT,
+        secure: env_default.SMTP_PORT === 465,
+        auth: {
+          user: env_default.SMTP_USER,
+          pass: env_default.SMTP_PASS
+        }
+      });
+      return this.transporter;
+    }
+    return null;
+  }
+  /**
+   * Sends a styled OTP verification email for registration or password reset.
+   */
+  static async sendOtpEmail(to, code, purpose = "REGISTRATION") {
+    const purposeTitle = purpose === "REGISTRATION" ? "\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E01\u0E32\u0E23\u0E2A\u0E21\u0E31\u0E04\u0E23\u0E2A\u0E21\u0E32\u0E0A\u0E34\u0E01" : purpose === "PASSWORD_RESET" ? "\u0E23\u0E35\u0E40\u0E0B\u0E47\u0E15\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19" : "\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13";
+    const subject = `[MOBEX Auto Parts] \u0E23\u0E2B\u0E31\u0E2A OTP \u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A${purposeTitle}: ${code}`;
+    const html = `
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${purposeTitle}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td align="center" style="padding: 40px 10px;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 560px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 40px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: 0.5px;">
+                \u{1F697} MOBEX <span style="color: #41cac0; font-weight: 400;">Auto Parts</span>
+              </h1>
+              <p style="margin: 6px 0 0; color: #94a3b8; font-size: 13px;">\u0E28\u0E39\u0E19\u0E22\u0E4C\u0E23\u0E27\u0E21\u0E2D\u0E30\u0E44\u0E2B\u0E25\u0E48\u0E23\u0E16\u0E22\u0E19\u0E15\u0E4C\u0E15\u0E23\u0E07\u0E23\u0E38\u0E48\u0E19\u0E04\u0E38\u0E13\u0E20\u0E32\u0E1E\u0E2A\u0E39\u0E07</p>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 40px 40px 30px;">
+              <h2 style="margin: 0 0 16px; color: #0f172a; font-size: 20px; font-weight: 700; text-align: center;">
+                ${purposeTitle}
+              </h2>
+              <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+                \u0E04\u0E38\u0E13\u0E44\u0E14\u0E49\u0E17\u0E33\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E1A\u0E31\u0E0D\u0E0A\u0E35 <strong>${to}</strong><br>\u0E01\u0E23\u0E38\u0E13\u0E32\u0E19\u0E33\u0E23\u0E2B\u0E31\u0E2A\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19 OTP \u0E14\u0E49\u0E32\u0E19\u0E25\u0E48\u0E32\u0E07\u0E19\u0E35\u0E49\u0E44\u0E1B\u0E01\u0E23\u0E2D\u0E01\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E40\u0E27\u0E47\u0E1A\u0E44\u0E0B\u0E15\u0E4C\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E17\u0E33\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E15\u0E48\u0E2D:
+              </p>
+
+              <!-- OTP Box -->
+              <div style="background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 24px;">
+                <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #0284c7;">
+                  ${code}
+                </span>
+                <p style="margin: 10px 0 0; color: #64748b; font-size: 12px;">
+                  \u23F1\uFE0F \u0E23\u0E2B\u0E31\u0E2A\u0E19\u0E35\u0E49\u0E21\u0E35\u0E2D\u0E32\u0E22\u0E38\u0E01\u0E32\u0E23\u0E43\u0E0A\u0E49\u0E07\u0E32\u0E19 <strong>${env_default.OTP_TTL_MINUTES} \u0E19\u0E32\u0E17\u0E35</strong>
+                </p>
+              </div>
+
+              <!-- Security Advice -->
+              <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 14px; margin-bottom: 24px;">
+                <p style="margin: 0; color: #b45309; font-size: 12px; line-height: 1.5;">
+                  \u{1F512} <strong>\u0E04\u0E33\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E04\u0E27\u0E32\u0E21\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22:</strong> \u0E42\u0E1B\u0E23\u0E14\u0E2D\u0E22\u0E48\u0E32\u0E40\u0E1B\u0E34\u0E14\u0E40\u0E1C\u0E22\u0E23\u0E2B\u0E31\u0E2A OTP \u0E19\u0E35\u0E49\u0E41\u0E01\u0E48\u0E1C\u0E39\u0E49\u0E2D\u0E37\u0E48\u0E19 \u0E40\u0E08\u0E49\u0E32\u0E2B\u0E19\u0E49\u0E32\u0E17\u0E35\u0E48\u0E02\u0E2D\u0E07 MOBEX \u0E08\u0E30\u0E44\u0E21\u0E48\u0E21\u0E35\u0E27\u0E31\u0E19\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A OTP \u0E08\u0E32\u0E01\u0E17\u0E48\u0E32\u0E19
+                </p>
+              </div>
+
+              <p style="margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center;">
+                \u0E2B\u0E32\u0E01\u0E17\u0E48\u0E32\u0E19\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49\u0E40\u0E1B\u0E47\u0E19\u0E1C\u0E39\u0E49\u0E17\u0E33\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E19\u0E35\u0E49 \u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E25\u0E30\u0E40\u0E27\u0E49\u0E19\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E09\u0E1A\u0E31\u0E1A\u0E19\u0E35\u0E49\u0E44\u0E14\u0E49\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 24px 40px; text-align: center;">
+              <p style="margin: 0 0 4px; color: #64748b; font-size: 12px; font-weight: 600;">
+                MOBEX Auto Parts Platform &bull; market.autocentric.net
+              </p>
+              <p style="margin: 0; color: #94a3b8; font-size: 11px;">
+                \u0E23\u0E30\u0E1A\u0E1A\u0E1A\u0E23\u0E34\u0E2B\u0E32\u0E23\u0E08\u0E31\u0E14\u0E01\u0E32\u0E23\u0E41\u0E04\u0E47\u0E15\u0E15\u0E32\u0E25\u0E47\u0E2D\u0E01\u0E2D\u0E30\u0E44\u0E2B\u0E25\u0E48\u0E22\u0E32\u0E19\u0E22\u0E19\u0E15\u0E4C\u0E41\u0E25\u0E30\u0E01\u0E32\u0E23\u0E04\u0E49\u0E32\u0E04\u0E23\u0E1A\u0E27\u0E07\u0E08\u0E23
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+    const transporter = this.getTransporter();
+    if (transporter) {
+      try {
+        await transporter.sendMail({
+          from: env_default.SMTP_FROM,
+          to,
+          subject,
+          html
+        });
+        console.log(`[MailService] \u2705 OTP email delivered via SMTP to ${to} (${purpose})`);
+        return true;
+      } catch (err) {
+        console.error(`[MailService] \u26A0\uFE0F SMTP delivery failed to ${to}:`, err.message);
+      }
+    }
+    console.log(`
+=================================================`);
+    console.log(` \u{1F4E7} [EMAIL OTP SIMULATOR] To: ${to}`);
+    console.log(` \u{1F511} OTP CODE: ${code}`);
+    console.log(` \u{1F3AF} PURPOSE: ${purpose} (Valid for ${env_default.OTP_TTL_MINUTES} mins)`);
+    console.log(`=================================================
+`);
+    return true;
+  }
+};
+
+// apps/api/src/services/otp.service.ts
+var OtpService = class {
+  // Thread-safe in-memory store for OTPs (or Redis in clustered setups)
+  static store = /* @__PURE__ */ new Map();
+  static getStoreKey(email, purpose) {
+    return `${purpose}:${email.toLowerCase().trim()}`;
+  }
+  static hashCode(code) {
+    return import_crypto2.default.createHash("sha256").update(`${code}:${env_default.SESSION_COOKIE_SECRET}`).digest("hex");
+  }
+  /**
+   * Generates a 6-digit cryptographic OTP, stores its hash, and dispatches it via email.
+   */
+  static async sendOtp(email, purpose = "REGISTRATION") {
+    const normalizedEmail = email.toLowerCase().trim();
+    const key = this.getStoreKey(normalizedEmail, purpose);
+    const now = /* @__PURE__ */ new Date();
+    const existing = this.store.get(key);
+    if (existing && existing.resendAllowedAt > now) {
+      const waitSeconds = Math.ceil((existing.resendAllowedAt.getTime() - now.getTime()) / 1e3);
+      throw new BadRequestError(`\u0E01\u0E23\u0E38\u0E13\u0E32\u0E23\u0E2D\u0E2D\u0E35\u0E01 ${waitSeconds} \u0E27\u0E34\u0E19\u0E32\u0E17\u0E35 \u0E01\u0E48\u0E2D\u0E19\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A OTP \u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07`, {
+        retryAfter: waitSeconds
+      });
+    }
+    const code = import_crypto2.default.randomInt(1e5, 999999).toString();
+    const codeHash = this.hashCode(code);
+    const ttlMinutes = env_default.OTP_TTL_MINUTES || 5;
+    const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1e3);
+    const resendAllowedAt = new Date(now.getTime() + 60 * 1e3);
+    this.store.set(key, {
+      email: normalizedEmail,
+      codeHash,
+      purpose,
+      attempts: 0,
+      expiresAt,
+      resendAllowedAt
+    });
+    this.cleanExpired();
+    await MailService.sendOtpEmail(normalizedEmail, code, purpose);
+    return {
+      success: true,
+      message: `\u0E2A\u0E48\u0E07\u0E23\u0E2B\u0E31\u0E2A OTP \u0E44\u0E1B\u0E22\u0E31\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25 ${normalizedEmail} \u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27 (\u0E23\u0E2B\u0E31\u0E2A\u0E21\u0E35\u0E2D\u0E32\u0E22\u0E38 ${ttlMinutes} \u0E19\u0E32\u0E17\u0E35)`,
+      expiresInSeconds: ttlMinutes * 60,
+      resendCooldownSeconds: 60
+    };
+  }
+  /**
+   * Verifies the submitted OTP code.
+   */
+  static async verifyOtp(email, code, purpose = "REGISTRATION") {
+    const normalizedEmail = email.toLowerCase().trim();
+    const key = this.getStoreKey(normalizedEmail, purpose);
+    const record = this.store.get(key);
+    const now = /* @__PURE__ */ new Date();
+    if (!record) {
+      throw new BadRequestError("\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E02\u0E49\u0E2D\u0E21\u0E39\u0E25\u0E23\u0E2B\u0E31\u0E2A OTP \u0E2B\u0E23\u0E37\u0E2D\u0E23\u0E2B\u0E31\u0E2A\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E14\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07");
+    }
+    if (now > record.expiresAt) {
+      this.store.delete(key);
+      throw new BadRequestError("\u0E23\u0E2B\u0E31\u0E2A OTP \u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E41\u0E25\u0E49\u0E27 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E14\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07");
+    }
+    if (record.attempts >= 5) {
+      this.store.delete(key);
+      throw new BadRequestError("\u0E04\u0E38\u0E13\u0E01\u0E23\u0E2D\u0E01\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E34\u0E14\u0E40\u0E01\u0E34\u0E19 5 \u0E04\u0E23\u0E31\u0E49\u0E07 \u0E23\u0E2B\u0E31\u0E2A\u0E16\u0E39\u0E01\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E14\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07");
+    }
+    const inputHash = this.hashCode(code.trim());
+    const isMatch = import_crypto2.default.timingSafeEqual(
+      Buffer.from(inputHash, "utf8"),
+      Buffer.from(record.codeHash, "utf8")
+    );
+    if (!isMatch) {
+      record.attempts += 1;
+      const remaining = 5 - record.attempts;
+      throw new BadRequestError(`\u0E23\u0E2B\u0E31\u0E2A OTP \u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07 (\u0E40\u0E2B\u0E25\u0E37\u0E2D\u0E42\u0E2D\u0E01\u0E32\u0E2A\u0E01\u0E23\u0E2D\u0E01\u0E2D\u0E35\u0E01 ${remaining} \u0E04\u0E23\u0E31\u0E49\u0E07)`);
+    }
+    record.verifiedAt = now;
+    const tokenPayload = `${normalizedEmail}:${purpose}:${now.getTime()}`;
+    const signature = import_crypto2.default.createHmac("sha256", env_default.SESSION_COOKIE_SECRET).update(tokenPayload).digest("hex");
+    const verificationToken = Buffer.from(`${tokenPayload}:${signature}`).toString("base64url");
+    return {
+      success: true,
+      message: "\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E23\u0E2B\u0E31\u0E2A OTP \u0E17\u0E32\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E2A\u0E33\u0E40\u0E23\u0E47\u0E08",
+      verificationToken
+    };
+  }
+  /**
+   * Checks whether a verification token is authentic and not expired (valid for 15 minutes).
+   */
+  static validateVerificationToken(email, token, purpose = "REGISTRATION") {
+    try {
+      const decoded = Buffer.from(token, "base64url").toString("utf8");
+      const parts = decoded.split(":");
+      if (parts.length !== 4) return false;
+      const [tokenEmail, tokenPurpose, timestampStr, signature] = parts;
+      if (tokenEmail !== email.toLowerCase().trim()) return false;
+      if (tokenPurpose !== purpose) return false;
+      const timestamp = parseInt(timestampStr, 10);
+      if (isNaN(timestamp) || Date.now() - timestamp > 15 * 60 * 1e3) {
+        return false;
+      }
+      const expectedSignature = import_crypto2.default.createHmac("sha256", env_default.SESSION_COOKIE_SECRET).update(`${tokenEmail}:${tokenPurpose}:${timestampStr}`).digest("hex");
+      return import_crypto2.default.timingSafeEqual(
+        Buffer.from(signature, "utf8"),
+        Buffer.from(expectedSignature, "utf8")
+      );
+    } catch {
+      return false;
+    }
+  }
+  static cleanExpired() {
+    const now = /* @__PURE__ */ new Date();
+    for (const [key, record] of this.store.entries()) {
+      if (now > record.expiresAt) {
+        this.store.delete(key);
+      }
+    }
+  }
+};
+
 // apps/api/src/services/auth.service.ts
 var AuthService = class {
+  /**
+   * Request an OTP sent to email for registration or verification
+   */
+  static async sendOtp(input) {
+    const normalizedEmail = input.email.toLowerCase().trim();
+    if (input.purpose === "REGISTRATION") {
+      const existing = await UserRepository.findByEmail(normalizedEmail);
+      if (existing) {
+        throw new ConflictError("\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E19\u0E35\u0E49\u0E25\u0E07\u0E17\u0E30\u0E40\u0E1A\u0E35\u0E22\u0E19\u0E44\u0E27\u0E49\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E41\u0E25\u0E49\u0E27 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E2B\u0E23\u0E37\u0E2D\u0E43\u0E0A\u0E49\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E2D\u0E37\u0E48\u0E19");
+      }
+    }
+    return OtpService.sendOtp(normalizedEmail, input.purpose);
+  }
+  /**
+   * Verify an OTP code submitted by the user
+   */
+  static async verifyOtp(input) {
+    return OtpService.verifyOtp(input.email, input.code, input.purpose);
+  }
   /**
    * Transforms raw User entity into secure AuthUserResponse (zero password or token leaks).
    */
@@ -744,6 +1035,17 @@ var AuthService = class {
     if (existing) {
       throw new ConflictError("An account with this email already exists", { field: "email" });
     }
+    let isEmailVerified = false;
+    if (input.verificationCode) {
+      await OtpService.verifyOtp(normalizedEmail, input.verificationCode, "REGISTRATION");
+      isEmailVerified = true;
+    } else if (input.verificationToken) {
+      const isValid = OtpService.validateVerificationToken(normalizedEmail, input.verificationToken, "REGISTRATION");
+      if (!isValid) {
+        throw new BadRequestError("\u0E23\u0E2B\u0E31\u0E2A\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E2B\u0E23\u0E37\u0E2D\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07");
+      }
+      isEmailVerified = true;
+    }
     const customerRole = await RoleRepository.getOrCreateDefaultCustomerRole();
     const passwordHash = await PasswordService.hash(input.password);
     const user = await UserRepository.createWithCustomer(
@@ -753,7 +1055,11 @@ var AuthService = class {
         firstName: input.firstName,
         lastName: input.lastName,
         phone: input.phone,
-        displayName: input.displayName
+        displayName: input.displayName,
+        customerType: input.customerType || "CUSTOMER",
+        companyName: input.companyName,
+        taxId: input.taxId,
+        emailVerifiedAt: isEmailVerified ? /* @__PURE__ */ new Date() : null
       },
       customerRole.id
     );
@@ -772,7 +1078,11 @@ var AuthService = class {
       action: "REGISTERED",
       resource: "User",
       resourceId: user.id,
-      after: { email: user.email, customerType: "CUSTOMER" },
+      after: {
+        email: user.email,
+        customerType: input.customerType || "CUSTOMER",
+        isEmailVerified
+      },
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent
     });
@@ -932,6 +1242,16 @@ var AuthController = class _AuthController {
       sameSite: env_default.NODE_ENV === "production" ? "strict" : "lax"
     });
   }
+  static async sendOtp(request, reply) {
+    const input = sendOtpSchema.parse(request.body);
+    const result = await AuthService.sendOtp(input);
+    return reply.status(200).send({ data: result });
+  }
+  static async verifyOtp(request, reply) {
+    const input = verifyOtpSchema.parse(request.body);
+    const result = await AuthService.verifyOtp(input);
+    return reply.status(200).send({ data: result });
+  }
   static async register(request, reply) {
     const input = registerSchema.parse(request.body);
     const metadata = _AuthController.extractMetadata(request);
@@ -995,7 +1315,7 @@ var AuthController = class _AuthController {
 // apps/api/src/middleware/auth.ts
 async function authenticate(request, _reply) {
   const adminKey = request.headers["x-admin-key"];
-  if (adminKey === "mobex_admin_bypass_2026" || request.headers.authorization === "Bearer mobex_admin_token") {
+  if (env_default.ADMIN_BYPASS_KEY && adminKey === env_default.ADMIN_BYPASS_KEY) {
     const adminUser = await UserRepository.findByEmail("admin@mobex.co.th").catch(() => null);
     if (adminUser) {
       request.user = AuthService.formatUserResponse(adminUser);
@@ -1015,7 +1335,7 @@ async function authenticate(request, _reply) {
     }
     request.session = {
       id: "admin-dev-session",
-      token: "mobex_admin_token",
+      token: "admin_bypass_session",
       expiresAt: new Date(Date.now() + 864e5 * 30)
     };
     return;
@@ -1046,7 +1366,7 @@ async function authenticate(request, _reply) {
 }
 async function authenticateOptional(request, _reply) {
   const adminKey = request.headers["x-admin-key"];
-  if (adminKey === "mobex_admin_bypass_2026" || request.headers.authorization === "Bearer mobex_admin_token") {
+  if (env_default.ADMIN_BYPASS_KEY && adminKey === env_default.ADMIN_BYPASS_KEY) {
     const adminUser = await UserRepository.findByEmail("admin@mobex.co.th").catch(() => null);
     if (adminUser) {
       request.user = AuthService.formatUserResponse(adminUser);
@@ -1066,7 +1386,7 @@ async function authenticateOptional(request, _reply) {
     }
     request.session = {
       id: "admin-dev-session",
-      token: "mobex_admin_token",
+      token: "admin_bypass_session",
       expiresAt: new Date(Date.now() + 864e5 * 30)
     };
     return;
@@ -1134,6 +1454,26 @@ async function authRoutes(app) {
     max: env_default.AUTH_RATE_LIMIT_MAX,
     timeWindow: env_default.AUTH_RATE_LIMIT_TIME_WINDOW
   };
+  app.post("/otp/send", {
+    config: {
+      rateLimit: authRateLimitConfig
+    },
+    schema: {
+      description: "Generate and send a 6-digit email OTP for registration or verification",
+      tags: ["Authentication"]
+    },
+    handler: AuthController.sendOtp
+  });
+  app.post("/otp/verify", {
+    config: {
+      rateLimit: authRateLimitConfig
+    },
+    schema: {
+      description: "Verify 6-digit email OTP code and receive verification proof",
+      tags: ["Authentication"]
+    },
+    handler: AuthController.verifyOtp
+  });
   app.post("/register", {
     config: {
       rateLimit: authRateLimitConfig
@@ -5429,14 +5769,14 @@ var mergeCartSchema = import_zod10.z.object({
 });
 
 // apps/api/src/controllers/cart.controller.ts
-var import_crypto2 = require("crypto");
+var import_crypto3 = require("crypto");
 var CartController = class _CartController {
   static extractCartIdentity(request) {
     const userId = request.user?.id;
     let sessionToken = request.headers["x-session-token"] || request.cookies?.cart_session_token || void 0;
     let isNewSession = false;
     if (!userId && !sessionToken) {
-      sessionToken = (0, import_crypto2.randomUUID)();
+      sessionToken = (0, import_crypto3.randomUUID)();
       isNewSession = true;
     }
     return { userId, sessionToken, isNewSession };
@@ -5572,7 +5912,7 @@ async function cartRoutes(app) {
 }
 
 // apps/api/src/services/order.service.ts
-var import_crypto3 = __toESM(require("crypto"));
+var import_crypto4 = __toESM(require("crypto"));
 
 // apps/api/src/repositories/order.repository.ts
 var import_client14 = require("@prisma/client");
@@ -7891,7 +8231,7 @@ var OrderService = class {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-    const randomHex = import_crypto3.default.randomBytes(3).toString("hex").toUpperCase();
+    const randomHex = import_crypto4.default.randomBytes(3).toString("hex").toUpperCase();
     return `ORD-${year}${month}${day}-${randomHex}`;
   }
   /**
@@ -9051,7 +9391,7 @@ async function orderRoutes(app) {
 }
 
 // apps/api/src/services/payment.service.ts
-var import_crypto7 = __toESM(require("crypto"));
+var import_crypto8 = __toESM(require("crypto"));
 
 // apps/api/src/repositories/payment.repository.ts
 var import_client24 = require("@prisma/client");
@@ -9617,7 +9957,7 @@ var PaymentRepository = class {
 };
 
 // apps/api/src/services/payment/providers/promptpay.provider.ts
-var import_crypto4 = __toESM(require("crypto"));
+var import_crypto5 = __toESM(require("crypto"));
 function calculateCRC16(data) {
   let crc = 65535;
   for (let i = 0; i < data.length; i++) {
@@ -9661,7 +10001,7 @@ var PromptPayProvider = class {
     return `${rawPayload}${crc}`;
   }
   async createPayment(params) {
-    const providerReference = `PP-${Date.now()}-${import_crypto4.default.randomBytes(4).toString("hex").toUpperCase()}`;
+    const providerReference = `PP-${Date.now()}-${import_crypto5.default.randomBytes(4).toString("hex").toUpperCase()}`;
     const qrPayload = this.generatePromptPayPayload(params.amount, params.internalReference);
     return {
       provider: this.name,
@@ -9718,8 +10058,8 @@ var PromptPayProvider = class {
         };
       }
     }
-    const expectedSignature = import_crypto4.default.createHmac("sha256", this.webhookSecret).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
-    const signatureValid = signature.length === expectedSignature.length && import_crypto4.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const expectedSignature = import_crypto5.default.createHmac("sha256", this.webhookSecret).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
+    const signatureValid = signature.length === expectedSignature.length && import_crypto5.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
     if (!signatureValid) {
       return {
         isValid: false,
@@ -9755,7 +10095,7 @@ var PromptPayProvider = class {
     };
   }
   async refundPayment(params) {
-    const refundReference = `REF-${Date.now()}-${import_crypto4.default.randomBytes(3).toString("hex").toUpperCase()}`;
+    const refundReference = `REF-${Date.now()}-${import_crypto5.default.randomBytes(3).toString("hex").toUpperCase()}`;
     return {
       success: true,
       refundReference,
@@ -9774,7 +10114,7 @@ var PromptPayProvider = class {
 };
 
 // apps/api/src/services/payment/providers/bank-transfer.provider.ts
-var import_crypto5 = __toESM(require("crypto"));
+var import_crypto6 = __toESM(require("crypto"));
 var BankTransferProvider = class {
   name = "BANK_TRANSFER";
   bankAccounts = [
@@ -9798,7 +10138,7 @@ var BankTransferProvider = class {
     }
   ];
   async createPayment(params) {
-    const providerReference = `BT-${Date.now()}-${import_crypto5.default.randomBytes(4).toString("hex").toUpperCase()}`;
+    const providerReference = `BT-${Date.now()}-${import_crypto6.default.randomBytes(4).toString("hex").toUpperCase()}`;
     return {
       provider: this.name,
       method: "SLIP_UPLOAD",
@@ -9836,7 +10176,7 @@ var BankTransferProvider = class {
     };
   }
   async refundPayment(params) {
-    const refundReference = `REF-BT-${Date.now()}-${import_crypto5.default.randomBytes(3).toString("hex").toUpperCase()}`;
+    const refundReference = `REF-BT-${Date.now()}-${import_crypto6.default.randomBytes(3).toString("hex").toUpperCase()}`;
     return {
       success: true,
       refundReference,
@@ -9855,7 +10195,7 @@ var BankTransferProvider = class {
 };
 
 // apps/api/src/services/payment/providers/test.provider.ts
-var import_crypto6 = __toESM(require("crypto"));
+var import_crypto7 = __toESM(require("crypto"));
 var TestPaymentProvider = class _TestPaymentProvider {
   name = "TEST";
   static TEST_WEBHOOK_SECRET = "test-provider-hmac-secret-key-12345";
@@ -9865,11 +10205,11 @@ var TestPaymentProvider = class _TestPaymentProvider {
   static signPayload(payload, timestamp) {
     const ts = timestamp ? String(timestamp) : String(Math.floor(Date.now() / 1e3));
     const raw = typeof payload === "string" ? payload : JSON.stringify(payload);
-    const signature = import_crypto6.default.createHmac("sha256", _TestPaymentProvider.TEST_WEBHOOK_SECRET).update(`${ts}.${raw}`).digest("hex");
+    const signature = import_crypto7.default.createHmac("sha256", _TestPaymentProvider.TEST_WEBHOOK_SECRET).update(`${ts}.${raw}`).digest("hex");
     return { signature, timestamp: ts };
   }
   async createPayment(params) {
-    const providerReference = `TEST-TX-${Date.now()}-${import_crypto6.default.randomBytes(3).toString("hex").toUpperCase()}`;
+    const providerReference = `TEST-TX-${Date.now()}-${import_crypto7.default.randomBytes(3).toString("hex").toUpperCase()}`;
     return {
       provider: this.name,
       method: "TEST_ADAPTER",
@@ -9915,8 +10255,8 @@ var TestPaymentProvider = class _TestPaymentProvider {
         };
       }
     }
-    const expectedSignature = import_crypto6.default.createHmac("sha256", _TestPaymentProvider.TEST_WEBHOOK_SECRET).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
-    const signatureValid = signature.length === expectedSignature.length && import_crypto6.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const expectedSignature = import_crypto7.default.createHmac("sha256", _TestPaymentProvider.TEST_WEBHOOK_SECRET).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
+    const signatureValid = signature.length === expectedSignature.length && import_crypto7.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
     if (!signatureValid) {
       return {
         isValid: false,
@@ -9945,7 +10285,7 @@ var TestPaymentProvider = class _TestPaymentProvider {
     };
   }
   async refundPayment(params) {
-    const refundReference = `REF-TEST-${Date.now()}-${import_crypto6.default.randomBytes(3).toString("hex").toUpperCase()}`;
+    const refundReference = `REF-TEST-${Date.now()}-${import_crypto7.default.randomBytes(3).toString("hex").toUpperCase()}`;
     return {
       success: true,
       refundReference,
@@ -9997,7 +10337,7 @@ var PaymentService = class {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-    const randomHex = import_crypto7.default.randomBytes(4).toString("hex").toUpperCase();
+    const randomHex = import_crypto8.default.randomBytes(4).toString("hex").toUpperCase();
     return `PAY-${year}${month}${day}-${randomHex}`;
   }
   /**
@@ -10472,7 +10812,7 @@ async function paymentRoutes(fastify) {
 }
 
 // apps/api/src/services/shipping.service.ts
-var import_crypto11 = __toESM(require("crypto"));
+var import_crypto12 = __toESM(require("crypto"));
 
 // apps/api/src/repositories/shipping.repository.ts
 var import_client27 = require("@prisma/client");
@@ -10899,12 +11239,12 @@ var ShippingRepository = class {
 };
 
 // apps/api/src/services/shipping/providers/flash-express.provider.ts
-var import_crypto8 = __toESM(require("crypto"));
+var import_crypto9 = __toESM(require("crypto"));
 var FlashExpressProvider = class {
   name = "FLASH";
   webhookSecret = process.env.FLASH_EXPRESS_WEBHOOK_SECRET || "flash-express-hmac-sha256-secret-key";
   generateTrackingNumber() {
-    const randomHex = import_crypto8.default.randomBytes(2).toString("hex").slice(0, 4).toUpperCase();
+    const randomHex = import_crypto9.default.randomBytes(2).toString("hex").slice(0, 4).toUpperCase();
     return `TH${Date.now().toString().slice(-7)}${randomHex}F`;
   }
   async createShipment(params) {
@@ -10974,8 +11314,8 @@ var FlashExpressProvider = class {
         };
       }
     }
-    const expectedSignature = import_crypto8.default.createHmac("sha256", this.webhookSecret).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
-    const signatureValid = signature.length === expectedSignature.length && import_crypto8.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const expectedSignature = import_crypto9.default.createHmac("sha256", this.webhookSecret).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
+    const signatureValid = signature.length === expectedSignature.length && import_crypto9.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
     if (!signatureValid) {
       return {
         isValid: false,
@@ -11015,12 +11355,12 @@ var FlashExpressProvider = class {
 };
 
 // apps/api/src/services/shipping/providers/kerry-express.provider.ts
-var import_crypto9 = __toESM(require("crypto"));
+var import_crypto10 = __toESM(require("crypto"));
 var KerryExpressProvider = class {
   name = "KERRY";
   webhookSecret = process.env.KERRY_EXPRESS_WEBHOOK_SECRET || "kerry-express-hmac-sha256-secret-key";
   generateTrackingNumber() {
-    const randomHex = import_crypto9.default.randomBytes(2).toString("hex").toUpperCase();
+    const randomHex = import_crypto10.default.randomBytes(2).toString("hex").toUpperCase();
     return `KEX${Date.now().toString().slice(-6)}${randomHex}`;
   }
   async createShipment(params) {
@@ -11084,8 +11424,8 @@ var KerryExpressProvider = class {
         };
       }
     }
-    const expectedSignature = import_crypto9.default.createHmac("sha256", this.webhookSecret).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
-    const signatureValid = signature.length === expectedSignature.length && import_crypto9.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const expectedSignature = import_crypto10.default.createHmac("sha256", this.webhookSecret).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
+    const signatureValid = signature.length === expectedSignature.length && import_crypto10.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
     if (!signatureValid) {
       return {
         isValid: false,
@@ -11125,7 +11465,7 @@ var KerryExpressProvider = class {
 };
 
 // apps/api/src/services/shipping/providers/test.provider.ts
-var import_crypto10 = __toESM(require("crypto"));
+var import_crypto11 = __toESM(require("crypto"));
 var TestShippingProvider = class _TestShippingProvider {
   name = "TEST";
   static TEST_WEBHOOK_SECRET = "test-shipping-hmac-secret-key-12345";
@@ -11135,7 +11475,7 @@ var TestShippingProvider = class _TestShippingProvider {
   static signPayload(payload, timestamp) {
     const ts = timestamp ? String(timestamp) : String(Math.floor(Date.now() / 1e3));
     const raw = typeof payload === "string" ? payload : JSON.stringify(payload);
-    const signature = import_crypto10.default.createHmac("sha256", _TestShippingProvider.TEST_WEBHOOK_SECRET).update(`${ts}.${raw}`).digest("hex");
+    const signature = import_crypto11.default.createHmac("sha256", _TestShippingProvider.TEST_WEBHOOK_SECRET).update(`${ts}.${raw}`).digest("hex");
     return {
       "x-shipping-signature": signature,
       "x-signature": signature,
@@ -11149,8 +11489,8 @@ var TestShippingProvider = class _TestShippingProvider {
     const signature = headers["x-signature"] || headers["x-shipping-signature"] || "";
     const timestampHeader = headers["x-timestamp"] || "";
     const rawString = typeof rawBody === "string" ? rawBody : JSON.stringify(rawBody);
-    const expectedSignature = import_crypto10.default.createHmac("sha256", _TestShippingProvider.TEST_WEBHOOK_SECRET).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
-    return signature.length === expectedSignature.length && import_crypto10.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const expectedSignature = import_crypto11.default.createHmac("sha256", _TestShippingProvider.TEST_WEBHOOK_SECRET).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
+    return signature.length === expectedSignature.length && import_crypto11.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   }
   generateTrackingNumber() {
     return `TEST-TRK-${Date.now().toString().slice(-6)}`;
@@ -11214,8 +11554,8 @@ var TestShippingProvider = class _TestShippingProvider {
         };
       }
     }
-    const expectedSignature = import_crypto10.default.createHmac("sha256", _TestShippingProvider.TEST_WEBHOOK_SECRET).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
-    const signatureValid = signature.length === expectedSignature.length && import_crypto10.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+    const expectedSignature = import_crypto11.default.createHmac("sha256", _TestShippingProvider.TEST_WEBHOOK_SECRET).update(timestampHeader ? `${timestampHeader}.${rawString}` : rawString).digest("hex");
+    const signatureValid = signature.length === expectedSignature.length && import_crypto11.default.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
     if (!signatureValid) {
       return {
         isValid: false,
@@ -11285,7 +11625,7 @@ var ShippingService = class {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-    const randomHex = import_crypto11.default.randomBytes(3).toString("hex").toUpperCase();
+    const randomHex = import_crypto12.default.randomBytes(3).toString("hex").toUpperCase();
     return `SHP-${year}${month}${day}-${randomHex}`;
   }
   /**
@@ -12517,7 +12857,7 @@ async function warehouseRoutes(app) {
 }
 
 // apps/api/src/services/inventory.service.ts
-var import_crypto12 = __toESM(require("crypto"));
+var import_crypto13 = __toESM(require("crypto"));
 
 // apps/api/src/repositories/inventory.repository.ts
 var InventoryRepository = class {
@@ -13577,7 +13917,7 @@ var InventoryService = class {
         },
         tx
       );
-      const transferReferenceId = `TRF-${Date.now()}-${import_crypto12.default.randomBytes(3).toString("hex").toUpperCase()}`;
+      const transferReferenceId = `TRF-${Date.now()}-${import_crypto13.default.randomBytes(3).toString("hex").toUpperCase()}`;
       await InventoryRepository.createMovement(
         {
           warehouseId: input.sourceWarehouseId,
@@ -17595,7 +17935,7 @@ async function settingsRoutes(fastify) {
 async function buildApp() {
   const app = (0, import_fastify.default)({
     logger: loggerConfig,
-    genReqId: (req) => req.headers["x-request-id"] || import_crypto13.default.randomUUID(),
+    genReqId: (req) => req.headers["x-request-id"] || import_crypto14.default.randomUUID(),
     trustProxy: true,
     connectionTimeout: 3e4,
     keepAliveTimeout: 65e3,

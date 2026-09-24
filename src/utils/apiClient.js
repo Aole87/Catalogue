@@ -220,6 +220,14 @@ class ApiClient {
     }
   }
 
+  static async sendOtp(email, purpose = 'REGISTRATION') {
+    return this.post('/auth/otp/send', { email, purpose });
+  }
+
+  static async verifyOtp(email, code, purpose = 'REGISTRATION') {
+    return this.post('/auth/otp/verify', { email, code, purpose });
+  }
+
   static async register(data) {
     const res = await this.request('/auth/register', {
       method: 'POST',

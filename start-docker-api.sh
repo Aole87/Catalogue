@@ -29,6 +29,12 @@ docker run -d \
   -e HOST=0.0.0.0 \
   -e DATABASE_URL="${DATABASE_URL:-postgresql://autoparts_user:autoparts_secure_pass123@127.0.0.1:5432/car_parts_catalog?schema=public&connection_limit=25&pool_timeout=20&connect_timeout=10}" \
   -e CORS_ALLOWED_ORIGINS="https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173" \
+  -e ADMIN_BYPASS_KEY="${ADMIN_BYPASS_KEY:-mobex_admin_bypass_2026}" \
+  -e SMTP_HOST="${SMTP_HOST:-}" \
+  -e SMTP_PORT="${SMTP_PORT:-587}" \
+  -e SMTP_USER="${SMTP_USER:-}" \
+  -e SMTP_PASS="${SMTP_PASS:-}" \
+  -e SMTP_FROM="${SMTP_FROM:-MOBEX Auto Parts <noreply@autocentric.net>}" \
   car-parts-api:latest
 
 echo "-------------------------------------------------"

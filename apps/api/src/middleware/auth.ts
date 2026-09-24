@@ -24,7 +24,7 @@ declare module 'fastify' {
 export async function authenticate(request: FastifyRequest, _reply: FastifyReply) {
   // 0. Master development / Admin bypass for backoffice operations
   const adminKey = request.headers['x-admin-key'];
-  if (adminKey === 'mobex_admin_bypass_2026' || request.headers.authorization === 'Bearer mobex_admin_token') {
+  if (config.ADMIN_BYPASS_KEY && adminKey === config.ADMIN_BYPASS_KEY) {
     const adminUser = await UserRepository.findByEmail('admin@mobex.co.th').catch(() => null);
     if (adminUser) {
       request.user = AuthService.formatUserResponse(adminUser);
@@ -44,7 +44,7 @@ export async function authenticate(request: FastifyRequest, _reply: FastifyReply
     }
     request.session = {
       id: 'admin-dev-session',
-      token: 'mobex_admin_token',
+      token: 'admin_bypass_session',
       expiresAt: new Date(Date.now() + 86400000 * 30),
     };
     return;
@@ -92,7 +92,7 @@ export async function authenticate(request: FastifyRequest, _reply: FastifyReply
 export async function authenticateOptional(request: FastifyRequest, _reply: FastifyReply) {
   // 0. Master development / Admin bypass
   const adminKey = request.headers['x-admin-key'];
-  if (adminKey === 'mobex_admin_bypass_2026' || request.headers.authorization === 'Bearer mobex_admin_token') {
+  if (config.ADMIN_BYPASS_KEY && adminKey === config.ADMIN_BYPASS_KEY) {
     const adminUser = await UserRepository.findByEmail('admin@mobex.co.th').catch(() => null);
     if (adminUser) {
       request.user = AuthService.formatUserResponse(adminUser);
@@ -112,7 +112,7 @@ export async function authenticateOptional(request: FastifyRequest, _reply: Fast
     }
     request.session = {
       id: 'admin-dev-session',
-      token: 'mobex_admin_token',
+      token: 'admin_bypass_session',
       expiresAt: new Date(Date.now() + 86400000 * 30),
     };
     return;
