@@ -14,9 +14,8 @@ export const prisma =
         : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+// Ensure global singleton is always assigned in all environments
+globalForPrisma.prisma = prisma;
 
 export default prisma;
 export * from '@prisma/client';

@@ -345,9 +345,7 @@ var globalForPrisma = globalThis;
 var prisma = globalForPrisma.prisma ?? new import_client.PrismaClient({
   log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"]
 });
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+globalForPrisma.prisma = prisma;
 var client_default = prisma;
 
 // packages/database/src/index.ts
@@ -1553,6 +1551,37 @@ async function authRoutes(app) {
 }
 
 // apps/api/src/repositories/product.repository.ts
+var productListInclude = {
+  brand: {
+    select: { id: true, name: true, slug: true, logoUrl: true }
+  },
+  category: {
+    select: { id: true, name: true, slug: true, parentId: true }
+  },
+  prices: {
+    where: { isActive: true },
+    select: {
+      id: true,
+      tier: true,
+      price: true,
+      compareAtPrice: true,
+      costPrice: true,
+      currency: true,
+      isActive: true
+    }
+  },
+  images: {
+    orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
+    take: 2,
+    select: {
+      id: true,
+      url: true,
+      altText: true,
+      sortOrder: true,
+      isPrimary: true
+    }
+  }
+};
 var productDetailInclude = {
   brand: {
     select: { id: true, name: true, slug: true, logoUrl: true }
@@ -1697,14 +1726,16 @@ var ProductRepository = class {
     } else if (filters.sortBy === "createdAt") {
       orderBy = { createdAt: sortOrder };
     }
-    const items = await prisma.product.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy,
-      include: productDetailInclude
-    });
-    const total = await prisma.product.count({ where });
+    const [items, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy,
+        include: productListInclude
+      }),
+      prisma.product.count({ where })
+    ]);
     return {
       items,
       pagination: {
@@ -2717,8 +2748,25 @@ async function productRoutes(app) {
 }
 
 // apps/api/src/services/category.service.ts
+var cachedActiveTree = null;
+var cachedActiveTreeExpiry = 0;
+var cachedAllTree = null;
+var cachedAllTreeExpiry = 0;
 var CategoryService = class {
+  static invalidateCache() {
+    cachedActiveTree = null;
+    cachedActiveTreeExpiry = 0;
+    cachedAllTree = null;
+    cachedAllTreeExpiry = 0;
+  }
   static async getCategoryTree(onlyActive = true) {
+    const now = Date.now();
+    if (onlyActive && cachedActiveTree && now < cachedActiveTreeExpiry) {
+      return cachedActiveTree;
+    }
+    if (!onlyActive && cachedAllTree && now < cachedAllTreeExpiry) {
+      return cachedAllTree;
+    }
     const flatCategories = await CategoryRepository.findAll({ onlyActive });
     const categoryMap = /* @__PURE__ */ new Map();
     const rootCategories = [];
@@ -2743,6 +2791,13 @@ var CategoryService = class {
       } else {
         rootCategories.push(node);
       }
+    }
+    if (onlyActive) {
+      cachedActiveTree = rootCategories;
+      cachedActiveTreeExpiry = now + 6e4;
+    } else {
+      cachedAllTree = rootCategories;
+      cachedAllTreeExpiry = now + 6e4;
     }
     return rootCategories;
   }
@@ -2775,6 +2830,7 @@ var CategoryService = class {
       }
     }
     const category = await CategoryRepository.create(input);
+    this.invalidateCache();
     await AuditRepository.record({
       userId: metadata?.userId,
       action: "CATEGORY_CREATED",
@@ -2810,6 +2866,7 @@ var CategoryService = class {
       }
     }
     const updated = await CategoryRepository.update(id, input);
+    this.invalidateCache();
     await AuditRepository.record({
       userId: metadata?.userId,
       action: "CATEGORY_UPDATED",
@@ -2837,6 +2894,7 @@ var CategoryService = class {
       );
     }
     const deleted = await CategoryRepository.softDelete(id);
+    this.invalidateCache();
     await AuditRepository.record({
       userId: metadata?.userId,
       action: "CATEGORY_DELETED",
@@ -17792,8 +17850,14 @@ var defaultSettings = {
   }
 };
 var inMemorySettings = { ...defaultSettings };
+var settingsCache = null;
+var settingsCacheExpiry = 0;
 async function settingsRoutes(fastify) {
   fastify.get("/api/v1/settings", async (req, reply) => {
+    const now = Date.now();
+    if (settingsCache && now < settingsCacheExpiry) {
+      return reply.send({ success: true, settings: settingsCache });
+    }
     try {
       const records = await prisma.systemSetting.findMany();
       if (records && records.length > 0) {
@@ -17801,10 +17865,14 @@ async function settingsRoutes(fastify) {
         records.forEach((r) => {
           result[r.key.toLowerCase()] = r.value;
         });
+        settingsCache = result;
+        settingsCacheExpiry = now + 6e4;
         return reply.send({ success: true, settings: result });
       }
     } catch (e) {
     }
+    settingsCache = inMemorySettings;
+    settingsCacheExpiry = now + 3e4;
     return reply.send({ success: true, settings: inMemorySettings });
   });
   fastify.put("/api/v1/settings", { bodyLimit: 50 * 1024 * 1024 }, async (req, reply) => {
@@ -17892,6 +17960,8 @@ async function settingsRoutes(fastify) {
       }
     } catch (e) {
     }
+    settingsCache = null;
+    settingsCacheExpiry = 0;
     return reply.send({ success: true, settings: inMemorySettings, message: "Settings updated successfully" });
   });
   fastify.get("/api/v1/admin/dashboard-stats", async (req, reply) => {
@@ -17937,10 +18007,10 @@ async function buildApp() {
     logger: loggerConfig,
     genReqId: (req) => req.headers["x-request-id"] || import_crypto14.default.randomUUID(),
     trustProxy: true,
-    connectionTimeout: 3e4,
-    keepAliveTimeout: 65e3,
-    bodyLimit: 50 * 1024 * 1024
-    // 50MB to support base64 images and large settings payloads
+    connectionTimeout: 2e4,
+    keepAliveTimeout: 3e4,
+    bodyLimit: 15 * 1024 * 1024
+    // 15MB max payload (reduces memory consumption)
   });
   app.setErrorHandler(errorHandler);
   app.addHook("onSend", async (request, reply) => {

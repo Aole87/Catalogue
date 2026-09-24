@@ -128,10 +128,17 @@ const defaultSettings = {
 };
 
 let inMemorySettings = { ...defaultSettings };
+let settingsCache: any = null;
+let settingsCacheExpiry = 0;
 
 export async function settingsRoutes(fastify: FastifyInstance) {
-  // GET /api/v1/settings - Get system configurations
+  // GET /api/v1/settings - Get system configurations with 60s in-memory caching
   fastify.get('/api/v1/settings', async (req, reply) => {
+    const now = Date.now();
+    if (settingsCache && now < settingsCacheExpiry) {
+      return reply.send({ success: true, settings: settingsCache });
+    }
+
     try {
       const records = await prisma.systemSetting.findMany();
       if (records && records.length > 0) {
@@ -139,10 +146,14 @@ export async function settingsRoutes(fastify: FastifyInstance) {
         records.forEach((r) => {
           result[r.key.toLowerCase()] = r.value;
         });
+        settingsCache = result;
+        settingsCacheExpiry = now + 60000; // Cache 60 seconds
         return reply.send({ success: true, settings: result });
       }
     } catch (e) {}
 
+    settingsCache = inMemorySettings;
+    settingsCacheExpiry = now + 30000;
     return reply.send({ success: true, settings: inMemorySettings });
   });
 
@@ -232,6 +243,9 @@ export async function settingsRoutes(fastify: FastifyInstance) {
         });
       }
     } catch (e) {}
+
+    settingsCache = null;
+    settingsCacheExpiry = 0;
 
     return reply.send({ success: true, settings: inMemorySettings, message: 'Settings updated successfully' });
   });

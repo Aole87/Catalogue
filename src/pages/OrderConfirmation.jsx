@@ -75,16 +75,28 @@ export default function OrderConfirmation({ orderNumber, initialOrder, onNavigat
     fetchOrderDetails();
   }, [orderNumber]);
 
-  // Live polling for payment settlement when PENDING
+  // Live polling for payment settlement when PENDING (throttled to avoid CPU/network waste)
   useEffect(() => {
     const isPending =
       order?.status === 'PENDING_PAYMENT' &&
       (!payment || payment.status === 'PENDING');
 
+    let pollAttempts = 0;
+    const maxPollAttempts = 20; // Stop after 20 attempts (~2 minutes)
+
     if (isPending) {
       pollIntervalRef.current = setInterval(() => {
+        // Skip fetch if tab is hidden in background
+        if (typeof document !== 'undefined' && document.hidden) return;
+
+        pollAttempts++;
+        if (pollAttempts >= maxPollAttempts) {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          return;
+        }
+
         fetchOrderDetails();
-      }, 5000);
+      }, 6000);
     }
 
     return () => {

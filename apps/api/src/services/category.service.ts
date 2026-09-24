@@ -19,8 +19,29 @@ export interface CategoryTreeNode {
   children: CategoryTreeNode[];
 }
 
+// In-memory cache for category hierarchy
+let cachedActiveTree: CategoryTreeNode[] | null = null;
+let cachedActiveTreeExpiry = 0;
+let cachedAllTree: CategoryTreeNode[] | null = null;
+let cachedAllTreeExpiry = 0;
+
 export class CategoryService {
+  static invalidateCache() {
+    cachedActiveTree = null;
+    cachedActiveTreeExpiry = 0;
+    cachedAllTree = null;
+    cachedAllTreeExpiry = 0;
+  }
+
   static async getCategoryTree(onlyActive = true): Promise<CategoryTreeNode[]> {
+    const now = Date.now();
+    if (onlyActive && cachedActiveTree && now < cachedActiveTreeExpiry) {
+      return cachedActiveTree;
+    }
+    if (!onlyActive && cachedAllTree && now < cachedAllTreeExpiry) {
+      return cachedAllTree;
+    }
+
     const flatCategories = await CategoryRepository.findAll({ onlyActive });
 
     const categoryMap = new Map<string, CategoryTreeNode>();
@@ -50,6 +71,14 @@ export class CategoryService {
       } else {
         rootCategories.push(node);
       }
+    }
+
+    if (onlyActive) {
+      cachedActiveTree = rootCategories;
+      cachedActiveTreeExpiry = now + 60000;
+    } else {
+      cachedAllTree = rootCategories;
+      cachedAllTreeExpiry = now + 60000;
     }
 
     return rootCategories;
@@ -94,6 +123,7 @@ export class CategoryService {
     }
 
     const category = await CategoryRepository.create(input);
+    this.invalidateCache();
 
     // 3. Record Audit Trail
     await AuditRepository.record({
@@ -145,6 +175,7 @@ export class CategoryService {
     }
 
     const updated = await CategoryRepository.update(id, input);
+    this.invalidateCache();
 
     // 3. Record Audit Trail
     await AuditRepository.record({
@@ -184,6 +215,7 @@ export class CategoryService {
     }
 
     const deleted = await CategoryRepository.softDelete(id);
+    this.invalidateCache();
 
     // 3. Record Audit Trail
     await AuditRepository.record({

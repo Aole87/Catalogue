@@ -88,6 +88,38 @@ export interface UpdateProductData {
   crossReferences?: CreateProductCrossReferenceInput[];
 }
 
+export const productListInclude = {
+  brand: {
+    select: { id: true, name: true, slug: true, logoUrl: true },
+  },
+  category: {
+    select: { id: true, name: true, slug: true, parentId: true },
+  },
+  prices: {
+    where: { isActive: true },
+    select: {
+      id: true,
+      tier: true,
+      price: true,
+      compareAtPrice: true,
+      costPrice: true,
+      currency: true,
+      isActive: true,
+    },
+  },
+  images: {
+    orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
+    take: 2,
+    select: {
+      id: true,
+      url: true,
+      altText: true,
+      sortOrder: true,
+      isPrimary: true,
+    },
+  },
+};
+
 export const productDetailInclude = {
   brand: {
     select: { id: true, name: true, slug: true, logoUrl: true },
@@ -251,15 +283,16 @@ export class ProductRepository {
       orderBy = { createdAt: sortOrder };
     }
 
-    const items = await prisma.product.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy,
-      include: productDetailInclude,
-    });
-
-    const total = await prisma.product.count({ where });
+    const [items, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy,
+        include: productListInclude,
+      }),
+      prisma.product.count({ where }),
+    ]);
 
     return {
       items,
