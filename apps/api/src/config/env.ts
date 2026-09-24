@@ -14,7 +14,7 @@ const envSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().default(24 * 7), // 7 days
   WEB_ORIGIN: z.string().default('https://market.autocentric.net'),
   CORS_ALLOWED_ORIGINS: z.string().default('https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174'),
-  RATE_LIMIT_MAX: z.coerce.number().default(100),
+  RATE_LIMIT_MAX: z.coerce.number().default(1000),
   RATE_LIMIT_TIME_WINDOW: z.string().default('1 minute'),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10), // Brute force protection on auth routes
   AUTH_RATE_LIMIT_TIME_WINDOW: z.string().default('1 minute'),

@@ -45,10 +45,15 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${authToken}`;
     }
 
+    const timeoutMs = options.timeout || 15000;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
     const config = {
       ...options,
       headers,
       credentials: 'include', // Includes HttpOnly session cookie
+      signal: options.signal || (controller ? controller.signal : undefined),
     };
 
     if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
@@ -59,14 +64,40 @@ class ApiClient {
     const isWrite = method !== 'GET' && method !== 'HEAD';
 
     let response;
-    try {
-      response = await fetch(url, config);
-    } catch (networkErr) {
-      if (isWrite) {
-        throw new Error(`ไม่สามารถบันทึกข้อมูลได้: เชื่อมต่อ API Server ไม่สำเร็จ (${networkErr.message}) กรุณาตรวจสอบว่า API Server พอร์ต 3000 กำลังทำงาน`);
+    let attempt = 0;
+    const maxAttempts = isWrite ? 1 : 2;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      try {
+        response = await fetch(url, config);
+        if (timeoutId) clearTimeout(timeoutId);
+
+        // If transient 502/503/504 on first GET attempt, retry once after 250ms
+        if (!isWrite && attempt < maxAttempts && (response.status === 502 || response.status === 503 || response.status === 504)) {
+          await new Promise((r) => setTimeout(r, 250));
+          continue;
+        }
+        break;
+      } catch (networkErr) {
+        if (timeoutId) clearTimeout(timeoutId);
+
+        const isTimeout = networkErr.name === 'TimeoutError' || networkErr.name === 'AbortError';
+        if (isTimeout) {
+          throw new Error(`การเชื่อมต่อกับเซิร์ฟเวอร์หมดเวลา (Timeout ${timeoutMs / 1000}s) กรุณาลองใหม่อีกครั้ง`);
+        }
+
+        if (!isWrite && attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 250));
+          continue;
+        }
+
+        if (isWrite) {
+          throw new Error(`ไม่สามารถบันทึกข้อมูลได้: เชื่อมต่อ API Server ไม่สำเร็จ (${networkErr.message}) กรุณาตรวจสอบว่า API Server กำลังทำงาน`);
+        }
+        console.warn(`[ApiClient] Network unreachable for ${endpoint}, using local offline store:`, networkErr.message);
+        return OfflineDataStore.handle(endpoint, options);
       }
-      console.warn(`[ApiClient] Network unreachable for ${endpoint}, using local offline store:`, networkErr.message);
-      return OfflineDataStore.handle(endpoint, options);
     }
 
     // Save session token if returned in header
@@ -80,10 +111,10 @@ class ApiClient {
       return null;
     }
 
-    // When backend returns 502 Bad Gateway / 503 Service Unavailable / 504 on static/Plesk host:
+    // When backend returns 502 Bad Gateway / 503 Service Unavailable / 504
     if (response.status === 502 || response.status === 503 || response.status === 504) {
       if (isWrite) {
-        throw new Error(`ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลจริงได้ (API Server พอร์ต 3000 ไม่พร้อมใช้งาน - HTTP ${response.status}) กรุณาตรวจสอบสถานะ service บน Server`);
+        throw new Error(`ไม่สามารถบันทึกข้อมูลลงฐานข้อมูลจริงได้ (API Server HTTP ${response.status}) กรุณาลองใหม่อีกครั้ง`);
       }
       console.warn(`[ApiClient] Server returned HTTP ${response.status} for ${endpoint}, fallback to local store`);
       return OfflineDataStore.handle(endpoint, options);
@@ -110,13 +141,11 @@ class ApiClient {
     }
 
     if (typeof window !== 'undefined' && response.ok) {
-      if (endpoint.includes('/categories')) {
-        try { localStorage.removeItem('mobex_db_categories'); } catch (e) {}
-      } else if (endpoint.includes('/brands')) {
-        try { localStorage.removeItem('mobex_db_brands'); } catch (e) {}
-      } else if (endpoint.includes('/vehicles/makes')) {
-        try { localStorage.removeItem('mobex_db_makes'); } catch (e) {}
-      }
+      try {
+        if (endpoint.includes('/categories')) localStorage.removeItem('mobex_db_categories');
+        if (endpoint.includes('/brands')) localStorage.removeItem('mobex_db_brands');
+        if (endpoint.includes('/vehicles/makes')) localStorage.removeItem('mobex_db_makes');
+      } catch (e) {}
     }
 
     return json;

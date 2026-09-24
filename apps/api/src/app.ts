@@ -37,6 +37,8 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: loggerConfig,
     genReqId: (req) => (req.headers['x-request-id'] as string) || crypto.randomUUID(),
     trustProxy: true,
+    connectionTimeout: 30000,
+    keepAliveTimeout: 65000,
     bodyLimit: 50 * 1024 * 1024, // 50MB to support base64 images and large settings payloads
   });
 

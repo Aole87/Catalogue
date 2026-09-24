@@ -51,7 +51,7 @@ var envSchema = import_zod.z.object({
   // 7 days
   WEB_ORIGIN: import_zod.z.string().default("https://market.autocentric.net"),
   CORS_ALLOWED_ORIGINS: import_zod.z.string().default("https://market.autocentric.net,http://market.autocentric.net,http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174"),
-  RATE_LIMIT_MAX: import_zod.z.coerce.number().default(100),
+  RATE_LIMIT_MAX: import_zod.z.coerce.number().default(1e3),
   RATE_LIMIT_TIME_WINDOW: import_zod.z.string().default("1 minute"),
   AUTH_RATE_LIMIT_MAX: import_zod.z.coerce.number().default(10),
   // Brute force protection on auth routes
@@ -17226,13 +17226,11 @@ async function adminCampaignRoutes(app) {
 }
 
 // apps/api/src/routes/article.routes.ts
-var import_client37 = require("@prisma/client");
-var prisma2 = new import_client37.PrismaClient();
 var inMemoryArticles = [];
 async function articleRoutes(fastify) {
   fastify.get("/api/v1/articles", async (req, reply) => {
     try {
-      const articles = await prisma2.article.findMany({
+      const articles = await prisma.article.findMany({
         orderBy: { createdAt: "desc" }
       });
       if (articles && articles.length > 0) {
@@ -17245,7 +17243,7 @@ async function articleRoutes(fastify) {
   fastify.get("/api/v1/articles/:id", async (req, reply) => {
     const { id } = req.params;
     try {
-      const article = await prisma2.article.findUnique({ where: { id } });
+      const article = await prisma.article.findUnique({ where: { id } });
       if (article) return reply.send({ success: true, article });
     } catch (e) {
     }
@@ -17271,7 +17269,7 @@ async function articleRoutes(fastify) {
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     try {
-      const created = await prisma2.article.create({
+      const created = await prisma.article.create({
         data: {
           titleTh: newArticle.titleTh,
           titleEn: newArticle.titleEn,
@@ -17294,7 +17292,7 @@ async function articleRoutes(fastify) {
     const { id } = req.params;
     const body = req.body;
     try {
-      const updated = await prisma2.article.update({
+      const updated = await prisma.article.update({
         where: { id },
         data: {
           titleTh: body.titleTh,
@@ -17319,7 +17317,7 @@ async function articleRoutes(fastify) {
   fastify.delete("/api/v1/articles/:id", async (req, reply) => {
     const { id } = req.params;
     try {
-      await prisma2.article.delete({ where: { id } });
+      await prisma.article.delete({ where: { id } });
     } catch (e) {
       inMemoryArticles = inMemoryArticles.filter((a) => a.id !== id);
     }
@@ -17328,8 +17326,6 @@ async function articleRoutes(fastify) {
 }
 
 // apps/api/src/routes/settings.routes.ts
-var import_client38 = require("@prisma/client");
-var prisma3 = new import_client38.PrismaClient();
 var defaultSettings = {
   payment: {
     promptpay: { enabled: true, accountNo: "081-234-5678", accountName: "MOBEX AUTO PARTS CO., LTD." },
@@ -17459,7 +17455,7 @@ var inMemorySettings = { ...defaultSettings };
 async function settingsRoutes(fastify) {
   fastify.get("/api/v1/settings", async (req, reply) => {
     try {
-      const records = await prisma3.systemSetting.findMany();
+      const records = await prisma.systemSetting.findMany();
       if (records && records.length > 0) {
         const result = { ...defaultSettings };
         records.forEach((r) => {
@@ -17485,70 +17481,70 @@ async function settingsRoutes(fastify) {
     if (body.policies) inMemorySettings.policies = { ...inMemorySettings.policies, ...body.policies };
     try {
       if (body.payment) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "PAYMENT" },
           update: { value: inMemorySettings.payment },
           create: { key: "PAYMENT", value: inMemorySettings.payment, category: "PAYMENT" }
         });
       }
       if (body.shipping) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "SHIPPING" },
           update: { value: inMemorySettings.shipping },
           create: { key: "SHIPPING", value: inMemorySettings.shipping, category: "SHIPPING" }
         });
       }
       if (body.general) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "GENERAL" },
           update: { value: inMemorySettings.general },
           create: { key: "GENERAL", value: inMemorySettings.general, category: "GENERAL" }
         });
       }
       if (body.branding) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "BRANDING" },
           update: { value: inMemorySettings.branding },
           create: { key: "BRANDING", value: inMemorySettings.branding, category: "GENERAL" }
         });
       }
       if (body.typography) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "TYPOGRAPHY" },
           update: { value: inMemorySettings.typography },
           create: { key: "TYPOGRAPHY", value: inMemorySettings.typography, category: "GENERAL" }
         });
       }
       if (body.banners) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "BANNERS" },
           update: { value: inMemorySettings.banners },
           create: { key: "BANNERS", value: inMemorySettings.banners, category: "GENERAL" }
         });
       }
       if (body.menus) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "MENUS" },
           update: { value: inMemorySettings.menus },
           create: { key: "MENUS", value: inMemorySettings.menus, category: "GENERAL" }
         });
       }
       if (body.navigation) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "NAVIGATION" },
           update: { value: inMemorySettings.navigation },
           create: { key: "NAVIGATION", value: inMemorySettings.navigation, category: "GENERAL" }
         });
       }
       if (body.storeInfo) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "STOREINFO" },
           update: { value: inMemorySettings.storeInfo },
           create: { key: "STOREINFO", value: inMemorySettings.storeInfo, category: "GENERAL" }
         });
       }
       if (body.policies) {
-        await prisma3.systemSetting.upsert({
+        await prisma.systemSetting.upsert({
           where: { key: "POLICIES" },
           update: { value: inMemorySettings.policies },
           create: { key: "POLICIES", value: inMemorySettings.policies, category: "GENERAL" }
@@ -17561,12 +17557,12 @@ async function settingsRoutes(fastify) {
   fastify.get("/api/v1/admin/dashboard-stats", async (req, reply) => {
     try {
       const [users, products, categories, brands, orders, warehouses] = await Promise.all([
-        prisma3.user.count(),
-        prisma3.product.count({ where: { isActive: true } }),
-        prisma3.category.count(),
-        prisma3.brand.count(),
-        prisma3.order.count(),
-        prisma3.warehouse.count()
+        prisma.user.count(),
+        prisma.product.count({ where: { isActive: true } }),
+        prisma.category.count(),
+        prisma.brand.count(),
+        prisma.order.count(),
+        prisma.warehouse.count()
       ]);
       return reply.send({
         success: true,
@@ -17601,6 +17597,8 @@ async function buildApp() {
     logger: loggerConfig,
     genReqId: (req) => req.headers["x-request-id"] || import_crypto13.default.randomUUID(),
     trustProxy: true,
+    connectionTimeout: 3e4,
+    keepAliveTimeout: 65e3,
     bodyLimit: 50 * 1024 * 1024
     // 50MB to support base64 images and large settings payloads
   });

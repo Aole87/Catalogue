@@ -1,7 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@car-parts/database';
 
 // Clean production article store — articles managed via PostgreSQL prisma.article
 const initialArticles: any[] = [];
