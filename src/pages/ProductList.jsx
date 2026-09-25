@@ -278,44 +278,21 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
                </div>
             </div>
 
-            {/* Subcategory Tabs & Sort Control */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3">
-               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                  <button
-                    onClick={() => {
-                      setSelectedCategoryId(null);
-                      setPage(1);
-                    }}
-                    className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-bold transition-all cursor-pointer ${
-                      !selectedCategoryId
-                        ? 'bg-[#2563eb] text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                    }`}
-                  >
-                    สินค้าทั้งหมด ({totalCount})
-                  </button>
-                  {categories.map((cat) => {
-                    const isCatActive = selectedCategoryId === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => {
-                          setSelectedCategoryId(isCatActive ? null : cat.id);
-                          setPage(1);
-                        }}
-                        className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-bold transition-all cursor-pointer ${
-                          isCatActive
-                            ? 'bg-[#2563eb] text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    );
-                  })}
+            {/* Header & Sort Control */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+               <div className="text-xs font-bold text-slate-500">
+                  {activeCategory ? (
+                    <span className="flex items-center gap-1.5">
+                      <span>หมวดหมู่:</span>
+                      <span className="text-[#2563eb] font-extrabold">{activeCategory.name}</span>
+                      <span className="text-slate-400">({totalCount} รายการ)</span>
+                    </span>
+                  ) : (
+                    <span>แสดงสินค้าทั้งหมด <strong className="text-slate-800">({totalCount} รายการ)</strong></span>
+                  )}
                </div>
                
-               <div className="flex items-center gap-2 shrink-0">
+               <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <span className="text-[13px] text-slate-500 font-bold">เรียงตาม:</span>
                   <select
                     value={`${sortBy}:${sortOrder}`}
@@ -334,12 +311,18 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
             </div>
 
             {/* Active Filters */}
-            {(selectedBrandId || debouncedSearch || selectedCarMake || selectedCarModel || selectedCarYear) && (
+            {(selectedCategoryId || selectedBrandId || debouncedSearch || selectedCarMake || selectedCarModel || selectedCarYear) && (
               <div className="flex flex-wrap items-center gap-2 pb-2">
+                {activeCategory && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-[#2563eb] border border-blue-100">
+                    <span>หมวดหมู่: {activeCategory.name}</span>
+                    <button onClick={() => setSelectedCategoryId(null)} className="hover:text-rose-500 cursor-pointer"><X className="w-3 h-3" /></button>
+                  </span>
+                )}
                 {activeBrand && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-[#2563eb] border border-blue-100">
                     <span>แบรนด์: {activeBrand.name}</span>
-                    <button onClick={() => setSelectedBrandId(null)} className="hover:text-rose-500"><X className="w-3 h-3" /></button>
+                    <button onClick={() => setSelectedBrandId(null)} className="hover:text-rose-500 cursor-pointer"><X className="w-3 h-3" /></button>
                   </span>
                 )}
                 {selectedCarMake && (
