@@ -21,7 +21,9 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
   const [search, setSearch] = useState(initialFilters.search || '');
   const [debouncedSearch, setDebouncedSearch] = useState(initialFilters.search || '');
   const [selectedCategoryId, setSelectedCategoryId] = useState(initialFilters.categoryId || null);
-  const [selectedBrandId, setSelectedBrandId] = useState(initialFilters.brandId || null);
+  const [selectedBrandIds, setSelectedBrandIds] = useState(
+    initialFilters.brandIds || (initialFilters.brandId ? [initialFilters.brandId] : [])
+  );
   const [selectedCarMake, setSelectedCarMake] = useState(null);
   const [selectedCarModel, setSelectedCarModel] = useState(null);
   const [selectedCarYear, setSelectedCarYear] = useState(null);
@@ -92,12 +94,20 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
 
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (selectedCategoryId) params.categoryId = selectedCategoryId;
-      if (selectedBrandId) params.brandId = selectedBrandId;
+      if (selectedBrandIds.length > 0) params.brandId = selectedBrandIds.join(',');
       if (selectedVehicle?.variantId) params.vehicleVariantId = selectedVehicle.variantId;
 
       const res = await ApiClient.getProducts(params);
 
       let list = res.data || [];
+
+      // Multi-brand filter fail-safe
+      if (selectedBrandIds.length > 0) {
+        list = list.filter((p) => {
+          const bId = p.brandId || (p.brand && p.brand.id);
+          return bId && selectedBrandIds.includes(bId);
+        });
+      }
 
       // Vehicle Fitment Filtering (Make, Model, Year)
       if (selectedCarMake) {
@@ -140,7 +150,7 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, sortBy, sortOrder, debouncedSearch, selectedCategoryId, selectedBrandId, selectedVehicle, selectedCarMake, selectedCarModel, selectedCarYear]);
+  }, [page, pageSize, sortBy, sortOrder, debouncedSearch, selectedCategoryId, selectedBrandIds, selectedVehicle, selectedCarMake, selectedCarModel, selectedCarYear]);
 
   useEffect(() => {
     fetchProducts();
@@ -159,11 +169,23 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
     setPage(1);
   };
 
+  const handleToggleBrand = (brand) => {
+    if (!brand || !brand.id) return;
+    setSelectedBrandIds((prev) => {
+      if (prev.includes(brand.id)) {
+        return prev.filter((id) => id !== brand.id);
+      } else {
+        return [...prev, brand.id];
+      }
+    });
+    setPage(1);
+  };
+
   const handleResetFilters = () => {
     setSearch('');
     setDebouncedSearch('');
     setSelectedCategoryId(null);
-    setSelectedBrandId(null);
+    setSelectedBrandIds([]);
     setSelectedCarMake(null);
     setSelectedCarModel(null);
     setSelectedCarYear(null);
@@ -177,7 +199,7 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
   };
 
   const activeCategory = categories.find((c) => c.id === selectedCategoryId);
-  const activeBrand = brands.find((b) => b.id === selectedBrandId);
+  const activeBrands = brands.filter((b) => selectedBrandIds.includes(b.id));
 
   return (
     <div className="min-h-screen bg-[#ffffff] text-slate-900 flex flex-col font-sans selection:bg-[#215ada] selection:text-white">
@@ -218,11 +240,8 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
                 setSelectedCategoryId(cat ? cat.id : null);
                 setPage(1);
               }}
-              selectedBrandId={selectedBrandId}
-              onSelectBrand={(brand) => {
-                setSelectedBrandId(brand ? brand.id : null);
-                setPage(1);
-              }}
+              selectedBrandIds={selectedBrandIds}
+              onToggleBrand={handleToggleBrand}
               selectedCarMake={selectedCarMake}
               onSelectCarMake={(make) => {
                 setSelectedCarMake(make);
@@ -311,7 +330,7 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
             </div>
 
             {/* Active Filters */}
-            {(selectedCategoryId || selectedBrandId || debouncedSearch || selectedCarMake || selectedCarModel || selectedCarYear) && (
+            {(selectedCategoryId || selectedBrandIds.length > 0 || debouncedSearch || selectedCarMake || selectedCarModel || selectedCarYear) && (
               <div className="flex flex-wrap items-center gap-2 pb-2">
                 {activeCategory && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-[#2563eb] border border-blue-100">
@@ -319,12 +338,12 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
                     <button onClick={() => setSelectedCategoryId(null)} className="hover:text-rose-500 cursor-pointer"><X className="w-3 h-3" /></button>
                   </span>
                 )}
-                {activeBrand && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-[#2563eb] border border-blue-100">
-                    <span>แบรนด์: {activeBrand.name}</span>
-                    <button onClick={() => setSelectedBrandId(null)} className="hover:text-rose-500 cursor-pointer"><X className="w-3 h-3" /></button>
+                {activeBrands.map((b) => (
+                  <span key={b.id} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-[#2563eb] border border-blue-100">
+                    <span>แบรนด์: {b.name}</span>
+                    <button onClick={() => handleToggleBrand(b)} className="hover:text-rose-500 cursor-pointer"><X className="w-3 h-3" /></button>
                   </span>
-                )}
+                ))}
                 {selectedCarMake && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-[11px] font-bold text-slate-800 border border-slate-200">
                     <Car className="w-3 h-3 text-[#0c3175]" />
@@ -426,11 +445,8 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
           setSelectedCategoryId(cat ? cat.id : null);
           setPage(1);
         }}
-        selectedBrandId={selectedBrandId}
-        onSelectBrand={(brand) => {
-          setSelectedBrandId(brand ? brand.id : null);
-          setPage(1);
-        }}
+        selectedBrandIds={selectedBrandIds}
+        onToggleBrand={handleToggleBrand}
         selectedCarMake={selectedCarMake}
         onSelectCarMake={(make) => {
           setSelectedCarMake(make);
@@ -459,7 +475,7 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
 
       {/* Global Vehicle Selector Modal */}
       <VehicleSelectorModal onSelectComplete={(v) => {
-        setSelectedBrandId(null);
+        setSelectedBrandIds([]);
         setPage(1);
       }} />
 

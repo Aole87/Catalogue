@@ -85,9 +85,13 @@ export class ProductService {
       }
     }
 
-    // Brand resolution: support ID or slug
+    // Brand resolution: support single ID, comma-separated IDs, or slug
     if (query.brandId) {
-      filters.brandId = query.brandId;
+      if (query.brandId.includes(',')) {
+        filters.brandIds = query.brandId.split(',').map((s) => s.trim()).filter(Boolean);
+      } else {
+        filters.brandId = query.brandId;
+      }
     } else if (query.brand) {
       const br = await BrandRepository.findBySlug(query.brand);
       if (br) {
@@ -122,7 +126,11 @@ export class ProductService {
       filters.categoryId = query.categoryId;
     }
     if (query.brandId) {
-      filters.brandId = query.brandId;
+      if (query.brandId.includes(',')) {
+        filters.brandIds = query.brandId.split(',').map((s) => s.trim()).filter(Boolean);
+      } else {
+        filters.brandId = query.brandId;
+      }
     }
 
     const result = await ProductRepository.findMany(filters);

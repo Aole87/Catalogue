@@ -6,6 +6,7 @@ export interface ProductQueryFilters {
   categoryId?: string;
   categoryIds?: string[];
   brandId?: string;
+  brandIds?: string[];
   vehicleVariantId?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -193,7 +194,9 @@ export class ProductRepository {
       where.categoryId = filters.categoryId;
     }
 
-    if (filters.brandId) {
+    if (filters.brandIds && filters.brandIds.length > 0) {
+      where.brandId = { in: filters.brandIds };
+    } else if (filters.brandId) {
       where.brandId = filters.brandId;
     }
 

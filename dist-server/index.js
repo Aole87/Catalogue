@@ -1654,7 +1654,9 @@ var ProductRepository = class {
     } else if (filters.categoryId) {
       where.categoryId = filters.categoryId;
     }
-    if (filters.brandId) {
+    if (filters.brandIds && filters.brandIds.length > 0) {
+      where.brandId = { in: filters.brandIds };
+    } else if (filters.brandId) {
       where.brandId = filters.brandId;
     }
     if (filters.vehicleVariantId) {
@@ -2307,7 +2309,11 @@ var ProductService = class {
       }
     }
     if (query.brandId) {
-      filters.brandId = query.brandId;
+      if (query.brandId.includes(",")) {
+        filters.brandIds = query.brandId.split(",").map((s) => s.trim()).filter(Boolean);
+      } else {
+        filters.brandId = query.brandId;
+      }
     } else if (query.brand) {
       const br = await BrandRepository.findBySlug(query.brand);
       if (br) {
@@ -2338,7 +2344,11 @@ var ProductService = class {
       filters.categoryId = query.categoryId;
     }
     if (query.brandId) {
-      filters.brandId = query.brandId;
+      if (query.brandId.includes(",")) {
+        filters.brandIds = query.brandId.split(",").map((s) => s.trim()).filter(Boolean);
+      } else {
+        filters.brandId = query.brandId;
+      }
     }
     const result = await ProductRepository.findMany(filters);
     return {
@@ -2594,10 +2604,11 @@ var updateProductPricesSchema = import_zod4.z.object({
 var productQuerySchema = import_zod4.z.object({
   page: import_zod4.z.coerce.number().int().min(1).default(1).optional(),
   pageSize: import_zod4.z.coerce.number().int().min(1).default(20).transform((val) => Math.min(100, Math.max(1, val))).optional(),
-  categoryId: import_zod4.z.string().uuid().optional(),
+  categoryId: import_zod4.z.string().optional(),
   category: import_zod4.z.string().optional(),
   // slug or UUID
-  brandId: import_zod4.z.string().uuid().optional(),
+  brandId: import_zod4.z.string().optional(),
+  // UUID or comma-separated UUIDs
   brand: import_zod4.z.string().optional(),
   // slug or UUID
   vehicleVariantId: import_zod4.z.string().uuid().optional(),

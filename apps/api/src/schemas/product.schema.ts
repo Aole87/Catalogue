@@ -114,9 +114,9 @@ export const productQuerySchema = z.object({
     .default(20)
     .transform((val) => Math.min(100, Math.max(1, val)))
     .optional(),
-  categoryId: z.string().uuid().optional(),
+  categoryId: z.string().optional(),
   category: z.string().optional(), // slug or UUID
-  brandId: z.string().uuid().optional(),
+  brandId: z.string().optional(), // UUID or comma-separated UUIDs
   brand: z.string().optional(), // slug or UUID
   vehicleVariantId: z.string().uuid().optional(),
   minPrice: z.coerce.number().min(0).optional(),

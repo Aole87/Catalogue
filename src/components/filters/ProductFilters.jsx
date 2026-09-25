@@ -77,7 +77,9 @@ export const ProductFilters = ({
   selectedCategoryId,
   onSelectCategory,
   selectedBrandId,
+  selectedBrandIds = [],
   onSelectBrand,
+  onToggleBrand,
   selectedCarMake,
   onSelectCarMake,
   selectedCarModel,
@@ -98,6 +100,10 @@ export const ProductFilters = ({
   const [models, setModels] = useState([]);
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingMakes, setLoadingMakes] = useState(false);
+
+  const activeBrandIds = Array.isArray(selectedBrandIds) && selectedBrandIds.length > 0
+    ? selectedBrandIds
+    : selectedBrandId ? [selectedBrandId] : [];
 
   // 1. Fetch Parts Brands
   useEffect(() => {
@@ -360,20 +366,26 @@ export const ProductFilters = ({
 
         <div className="mb-5 px-2">
           <div className="space-y-2">
-            {brands.slice(0, 8).map((brand) => {
-              const isSelected = selectedBrandId === brand.id;
+            {brands.map((brand) => {
+              const isSelected = activeBrandIds.includes(brand.id);
               return (
                 <div
                   key={brand.id}
-                  onClick={() => onSelectBrand?.(brand)}
-                  className="flex items-center gap-3 cursor-pointer group"
+                  onClick={() => {
+                    if (onToggleBrand) {
+                      onToggleBrand(brand);
+                    } else if (onSelectBrand) {
+                      onSelectBrand(isSelected ? null : brand);
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer group select-none py-1 transition-colors"
                 >
                   {isSelected ? (
-                    <CheckSquare className="w-4 h-4 text-[#2563eb]" />
+                    <CheckSquare className="w-4 h-4 text-[#2563eb] shrink-0" />
                   ) : (
-                    <Square className="w-4 h-4 text-slate-300 group-hover:text-slate-400 transition-colors" />
+                    <Square className="w-4 h-4 text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
                   )}
-                  <span className={`text-[13px] font-medium ${isSelected ? 'text-[#2563eb] font-bold' : 'text-slate-600 group-hover:text-slate-900'}`}>
+                  <span className={`text-[13px] font-medium transition-colors ${isSelected ? 'text-[#2563eb] font-bold' : 'text-slate-600 group-hover:text-slate-900'}`}>
                     {brand.name}
                   </span>
                 </div>
