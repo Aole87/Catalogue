@@ -9,12 +9,17 @@ export const productPriceInputSchema = z.object({
   currency: z.string().default('THB').optional(),
 });
 
-export const productImageInputSchema = z.object({
+export const productImageInputSchema = z.preprocess((val) => {
+  if (typeof val === 'string') {
+    return { url: val, sortOrder: 0, isPrimary: false };
+  }
+  return val;
+}, z.object({
   url: z.string().min(1, 'Image URL must be valid'),
   altText: z.string().max(255).nullable().optional(),
   sortOrder: z.number().int().min(0).default(0).optional(),
   isPrimary: z.boolean().default(false).optional(),
-});
+}));
 
 export const productAttributeInputSchema = z.object({
   attributeId: z.string().uuid('Attribute ID must be a valid UUID'),
@@ -28,17 +33,25 @@ export const productCrossReferenceInputSchema = z.object({
   notes: z.string().max(255).nullable().optional(),
 });
 
+export const sanitizeProductSlug = z.preprocess((val) => {
+  if (typeof val === 'string') {
+    const trimmed = val.trim().toLowerCase();
+    if (!trimmed) return undefined;
+    let s = trimmed.replace(/\s+/g, '-');
+    s = s.replace(/[^a-z0-9\u0E00-\u0E7F\-_]/g, '');
+    s = s.replace(/-+/g, '-').replace(/^-|-$/g, '');
+    return s || undefined;
+  }
+  return val;
+}, z.string().max(150).optional());
+
 export const createProductSchema = z.object({
   sku: z
     .string()
     .min(1, 'SKU is required')
     .max(100)
     .regex(/^[A-Za-z0-9_\-\.\/]+$/, 'SKU contains invalid characters'),
-  slug: z
-    .string()
-    .min(1, 'Slug is required')
-    .max(150)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens'),
+  slug: sanitizeProductSlug,
   name: z.string().min(1, 'Product name is required').max(255),
   shortDescription: z.string().max(500).nullable().optional(),
   description: z.string().nullable().optional(),
@@ -65,12 +78,7 @@ export const updateProductSchema = z.object({
     .max(100)
     .regex(/^[A-Za-z0-9_\-\.\/]+$/, 'SKU contains invalid characters')
     .optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(150)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens')
-    .optional(),
+  slug: sanitizeProductSlug,
   name: z.string().min(1).max(255).optional(),
   shortDescription: z.string().max(500).nullable().optional(),
   description: z.string().nullable().optional(),

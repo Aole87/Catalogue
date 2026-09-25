@@ -149,6 +149,24 @@ export class ProductService {
     return this.formatProductForResponse(product, userTier);
   }
 
+  static generateProductSlug(name: string, sku: string): string {
+    let cleanName = (name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0E00-\u0E7F\s-]/g, '')
+      .trim()
+      .replace(/[\s_-]+/g, '-');
+    let cleanSku = (sku || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-');
+    let baseSlug = cleanName ? `${cleanName}-${cleanSku}` : cleanSku;
+    baseSlug = baseSlug.replace(/^-+|-+$/g, '');
+    if (!baseSlug) {
+      baseSlug = `prod-${Date.now()}`;
+    }
+    return baseSlug.slice(0, 140);
+  }
+
   static async createProduct(
     input: CreateProductInput,
     metadata?: { userId?: string; ipAddress?: string; userAgent?: string; requestId?: string }
@@ -159,10 +177,20 @@ export class ProductService {
       throw new ConflictException(`Product with SKU '${input.sku}' already exists`);
     }
 
-    // 2. Verify Slug uniqueness
-    const existingSlug = await ProductRepository.findBySlug(input.slug);
-    if (existingSlug && !existingSlug.deletedAt) {
-      throw new ConflictException(`Product slug '${input.slug}' is already in use`);
+    // 2. Auto-generate slug if omitted and resolve collisions
+    let slug = input.slug?.trim()?.toLowerCase();
+    if (!slug) {
+      slug = this.generateProductSlug(input.name, input.sku);
+    }
+
+    let candidateSlug = slug;
+    let counter = 1;
+    while (true) {
+      const existingSlug = await ProductRepository.findBySlug(candidateSlug);
+      if (!existingSlug || existingSlug.deletedAt) {
+        break;
+      }
+      candidateSlug = `${slug}-${counter++}`;
     }
 
     // 3. Verify Category and Brand existence
@@ -177,7 +205,10 @@ export class ProductService {
     }
 
     // 4. Create Product with transaction
-    const product = await ProductRepository.create(input);
+    const product = await ProductRepository.create({
+      ...input,
+      slug: candidateSlug,
+    });
 
     // 5. Record Audit Trail
     await AuditRepository.record({
@@ -217,11 +248,18 @@ export class ProductService {
     }
 
     // 2. Verify Slug collision if changed
-    if (input.slug && input.slug !== existing.slug) {
-      const duplicateSlug = await ProductRepository.findBySlug(input.slug);
-      if (duplicateSlug && duplicateSlug.id !== id && !duplicateSlug.deletedAt) {
-        throw new ConflictException(`Product slug '${input.slug}' is already in use`);
+    if (input.slug !== undefined) {
+      let candidateSlug = input.slug?.trim()?.toLowerCase();
+      if (!candidateSlug) {
+        candidateSlug = this.generateProductSlug(input.name || existing.name, input.sku || existing.sku);
       }
+      if (candidateSlug !== existing.slug) {
+        const duplicateSlug = await ProductRepository.findBySlug(candidateSlug);
+        if (duplicateSlug && duplicateSlug.id !== id && !duplicateSlug.deletedAt) {
+          candidateSlug = `${candidateSlug}-${Date.now().toString().slice(-4)}`;
+        }
+      }
+      input.slug = candidateSlug;
     }
 
     // 3. Verify Category / Brand if updated

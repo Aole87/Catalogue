@@ -2360,14 +2360,33 @@ var ProductService = class {
     }
     return this.formatProductForResponse(product, userTier);
   }
+  static generateProductSlug(name, sku) {
+    let cleanName = (name || "").toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F\s-]/g, "").trim().replace(/[\s_-]+/g, "-");
+    let cleanSku = (sku || "").toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+    let baseSlug = cleanName ? `${cleanName}-${cleanSku}` : cleanSku;
+    baseSlug = baseSlug.replace(/^-+|-+$/g, "");
+    if (!baseSlug) {
+      baseSlug = `prod-${Date.now()}`;
+    }
+    return baseSlug.slice(0, 140);
+  }
   static async createProduct(input, metadata) {
     const existingSku = await ProductRepository.findBySku(input.sku);
     if (existingSku && !existingSku.deletedAt) {
       throw new ConflictError(`Product with SKU '${input.sku}' already exists`);
     }
-    const existingSlug = await ProductRepository.findBySlug(input.slug);
-    if (existingSlug && !existingSlug.deletedAt) {
-      throw new ConflictError(`Product slug '${input.slug}' is already in use`);
+    let slug = input.slug?.trim()?.toLowerCase();
+    if (!slug) {
+      slug = this.generateProductSlug(input.name, input.sku);
+    }
+    let candidateSlug = slug;
+    let counter = 1;
+    while (true) {
+      const existingSlug = await ProductRepository.findBySlug(candidateSlug);
+      if (!existingSlug || existingSlug.deletedAt) {
+        break;
+      }
+      candidateSlug = `${slug}-${counter++}`;
     }
     const category = await CategoryRepository.findById(input.categoryId);
     if (!category || category.deletedAt) {
@@ -2377,7 +2396,10 @@ var ProductService = class {
     if (!brand || brand.deletedAt) {
       throw new BadRequestError(`Brand with ID ${input.brandId} does not exist`);
     }
-    const product = await ProductRepository.create(input);
+    const product = await ProductRepository.create({
+      ...input,
+      slug: candidateSlug
+    });
     await AuditRepository.record({
       userId: metadata?.userId,
       action: "PRODUCT_CREATED",
@@ -2405,11 +2427,18 @@ var ProductService = class {
         throw new ConflictError(`Product SKU '${input.sku}' is already in use`);
       }
     }
-    if (input.slug && input.slug !== existing.slug) {
-      const duplicateSlug = await ProductRepository.findBySlug(input.slug);
-      if (duplicateSlug && duplicateSlug.id !== id && !duplicateSlug.deletedAt) {
-        throw new ConflictError(`Product slug '${input.slug}' is already in use`);
+    if (input.slug !== void 0) {
+      let candidateSlug = input.slug?.trim()?.toLowerCase();
+      if (!candidateSlug) {
+        candidateSlug = this.generateProductSlug(input.name || existing.name, input.sku || existing.sku);
       }
+      if (candidateSlug !== existing.slug) {
+        const duplicateSlug = await ProductRepository.findBySlug(candidateSlug);
+        if (duplicateSlug && duplicateSlug.id !== id && !duplicateSlug.deletedAt) {
+          candidateSlug = `${candidateSlug}-${Date.now().toString().slice(-4)}`;
+        }
+      }
+      input.slug = candidateSlug;
     }
     if (input.categoryId && input.categoryId !== existing.categoryId) {
       const category = await CategoryRepository.findById(input.categoryId);
@@ -2485,12 +2514,17 @@ var productPriceInputSchema = import_zod4.z.object({
   costPrice: import_zod4.z.coerce.number().min(0).nullable().optional(),
   currency: import_zod4.z.string().default("THB").optional()
 });
-var productImageInputSchema = import_zod4.z.object({
+var productImageInputSchema = import_zod4.z.preprocess((val) => {
+  if (typeof val === "string") {
+    return { url: val, sortOrder: 0, isPrimary: false };
+  }
+  return val;
+}, import_zod4.z.object({
   url: import_zod4.z.string().min(1, "Image URL must be valid"),
   altText: import_zod4.z.string().max(255).nullable().optional(),
   sortOrder: import_zod4.z.number().int().min(0).default(0).optional(),
   isPrimary: import_zod4.z.boolean().default(false).optional()
-});
+}));
 var productAttributeInputSchema = import_zod4.z.object({
   attributeId: import_zod4.z.string().uuid("Attribute ID must be a valid UUID"),
   value: import_zod4.z.string().min(1, "Attribute value is required").max(255)
@@ -2501,9 +2535,20 @@ var productCrossReferenceInputSchema = import_zod4.z.object({
   brandId: import_zod4.z.string().uuid("Brand ID must be a valid UUID").nullable().optional(),
   notes: import_zod4.z.string().max(255).nullable().optional()
 });
+var sanitizeProductSlug = import_zod4.z.preprocess((val) => {
+  if (typeof val === "string") {
+    const trimmed = val.trim().toLowerCase();
+    if (!trimmed) return void 0;
+    let s = trimmed.replace(/\s+/g, "-");
+    s = s.replace(/[^a-z0-9\u0E00-\u0E7F\-_]/g, "");
+    s = s.replace(/-+/g, "-").replace(/^-|-$/g, "");
+    return s || void 0;
+  }
+  return val;
+}, import_zod4.z.string().max(150).optional());
 var createProductSchema = import_zod4.z.object({
   sku: import_zod4.z.string().min(1, "SKU is required").max(100).regex(/^[A-Za-z0-9_\-\.\/]+$/, "SKU contains invalid characters"),
-  slug: import_zod4.z.string().min(1, "Slug is required").max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens"),
+  slug: sanitizeProductSlug,
   name: import_zod4.z.string().min(1, "Product name is required").max(255),
   shortDescription: import_zod4.z.string().max(500).nullable().optional(),
   description: import_zod4.z.string().nullable().optional(),
@@ -2524,7 +2569,7 @@ var createProductSchema = import_zod4.z.object({
 });
 var updateProductSchema = import_zod4.z.object({
   sku: import_zod4.z.string().min(1).max(100).regex(/^[A-Za-z0-9_\-\.\/]+$/, "SKU contains invalid characters").optional(),
-  slug: import_zod4.z.string().min(1).max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens").optional(),
+  slug: sanitizeProductSlug,
   name: import_zod4.z.string().min(1).max(255).optional(),
   shortDescription: import_zod4.z.string().max(500).nullable().optional(),
   description: import_zod4.z.string().nullable().optional(),

@@ -12,6 +12,21 @@ import {
   serializeBilingualProductDescription
 } from '../../utils/productUtils';
 
+const generateSlug = (name, sku) => {
+  let cleanName = (name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0E00-\u0E7F\s-]/g, '')
+    .trim()
+    .replace(/[\s_-]+/g, '-');
+  let cleanSku = (sku || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-');
+  let combined = cleanName ? `${cleanName}-${cleanSku}` : cleanSku;
+  combined = combined.replace(/^-+|-+$/g, '');
+  return combined || `prod-${Date.now()}`;
+};
+
 export default function ProductCatalogManager() {
   const [view, setView] = useState('list'); // 'list' | 'form'
   const [products, setProducts] = useState([]);
@@ -133,6 +148,7 @@ export default function ProductCatalogManager() {
       name: '',
       sku: '', // รหัสสินค้า (Product Code)
       slug: '',
+      slugManual: false,
       categoryId: categories[0]?.id || '',
       brandId: brands[0]?.id || '',
       barcode: '',
@@ -184,6 +200,7 @@ export default function ProductCatalogManager() {
       name: p.name || '',
       sku: p.sku || p.code || '',
       slug: p.slug || '',
+      slugManual: true,
       categoryId: p.category?.id || p.categoryId || '',
       brandId: p.brand?.id || p.brandId || '',
       barcode: p.barcode || '',
@@ -330,8 +347,46 @@ export default function ProductCatalogManager() {
         en: formData.descEn || {},
       });
 
+      // Prepare clean slug
+      const calculatedSlug = (formData.slug?.trim() || generateSlug(formData.name, formData.sku)).toLowerCase();
+
+      // Format price tiers for backend database
+      const prices = [
+        {
+          tier: 'GENERAL',
+          price: Number(formData.price || 0),
+          compareAtPrice: formData.compareAtPrice ? Number(formData.compareAtPrice) : null,
+          currency: 'THB',
+        },
+      ];
+      if (formData.garagePrice && Number(formData.garagePrice) > 0) {
+        prices.push({
+          tier: 'GARAGE',
+          price: Number(formData.garagePrice),
+          currency: 'THB',
+        });
+      }
+      if (formData.shopPrice && Number(formData.shopPrice) > 0) {
+        prices.push({
+          tier: 'SHOP',
+          price: Number(formData.shopPrice),
+          currency: 'THB',
+        });
+      }
+
+      // Format images
+      const formattedImages = (imageFiles || [])
+        .map((img, idx) => {
+          if (typeof img === 'string') {
+            return { url: img, isPrimary: idx === 0, sortOrder: idx };
+          }
+          return { url: img.url || '', isPrimary: img.isPrimary ?? idx === 0, sortOrder: img.sortOrder ?? idx };
+        })
+        .filter((img) => Boolean(img.url));
+
       const payload = {
         ...formData,
+        slug: calculatedSlug,
         description: structuredDescription,
         shortDescription: formData.descTh?.shortDescription || formData.descEn?.shortDescription || formData.shortDescription || '',
         warrantyText: formData.descTh?.other || formData.descEn?.other || formData.warrantyText,
@@ -339,7 +394,8 @@ export default function ProductCatalogManager() {
         compareAtPrice: Number(formData.compareAtPrice || 0),
         shippingFee: Number(formData.shippingFee || 0),
         stockQuantity: Number(formData.stockQuantity || 0),
-        images: imageFiles,
+        prices,
+        images: formattedImages,
         variants: hasVariants ? formData.variants : [],
       };
 
@@ -721,7 +777,14 @@ export default function ProductCatalogManager() {
                 required
                 className="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-semibold outline-none focus:border-[#0c3175]"
                 value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                onChange={e => {
+                  const newName = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    name: newName,
+                    slug: prev.slugManual ? prev.slug : generateSlug(newName, prev.sku)
+                  }));
+                }}
                 placeholder="เช่น น้ำมันเครื่องสังเคราะห์แท้ MOTUL 8100 X-cess 5W-30"
               />
             </div>
@@ -732,13 +795,20 @@ export default function ProductCatalogManager() {
                 required
                 className="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-mono font-bold outline-none focus:border-[#0c3175]"
                 value={formData.sku}
-                onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                onChange={e => {
+                  const newSku = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    sku: newSku,
+                    slug: prev.slugManual ? prev.slug : generateSlug(prev.name, newSku)
+                  }));
+                }}
                 placeholder="เช่น PROD-MOT-8100 หรือ MOT-8100"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 uppercase mb-1">หมวดหมู่สินค้า *</label>
               <select
@@ -771,6 +841,19 @@ export default function ProductCatalogManager() {
                 value={formData.barcode}
                 onChange={e => setFormData({ ...formData, barcode: e.target.value })}
                 placeholder="8851234567890"
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-600 uppercase">Slug (URL สินค้า)</label>
+                <span className="text-[10px] text-slate-400">สร้างอัตโนมัติ</span>
+              </div>
+              <input
+                type="text"
+                className="w-full border border-slate-200 p-2.5 rounded-xl text-xs font-mono outline-none focus:border-[#0c3175]"
+                value={formData.slug || ''}
+                onChange={e => setFormData({ ...formData, slug: e.target.value, slugManual: true })}
+                placeholder="สร้างอัตโนมัติจากชื่อและรหัส"
               />
             </div>
           </div>
