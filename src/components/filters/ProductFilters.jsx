@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Filter, X, ChevronRight, ChevronDown, CheckSquare, Square, Settings, Wrench, Battery, Truck, Droplets, Car, Calendar, Sliders, RotateCcw } from 'lucide-react';
+import { Filter, X, ChevronRight, ChevronDown, CheckSquare, Square, Settings, Wrench, Battery, Truck, Droplets, Car, Calendar, Sliders, RotateCcw, Package } from 'lucide-react';
 import ApiClient from '../../utils/apiClient';
 
 const DEFAULT_MAKES = [
@@ -311,6 +311,22 @@ export const ProductFilters = ({
           หมวดหมู่สินค้า
         </h3>
         <div className="space-y-1">
+          {/* All Categories Option */}
+          <button
+            onClick={() => onSelectCategory?.(null)}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${
+              !selectedCategoryId
+                ? 'bg-[#e0e7ff] text-[#2563eb]'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Package size={18} className={!selectedCategoryId ? 'text-[#2563eb]' : 'text-slate-400'} />
+              <span>สินค้าทั้งหมด (All Products)</span>
+            </div>
+            <ChevronRight className={`w-4 h-4 ${!selectedCategoryId ? 'text-[#2563eb]' : 'text-slate-300'}`} />
+          </button>
+
           {categories.map((cat, index) => {
             const isSelected = selectedCategoryId === cat.id;
             return (

@@ -280,11 +280,39 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
 
             {/* Subcategory Tabs & Sort Control */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3">
-               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  <button className="whitespace-nowrap px-4 py-1.5 rounded-full bg-[#2563eb] text-white text-[13px] font-bold shadow-sm">สินค้าทั้งหมด ({totalCount})</button>
-                  <button className="whitespace-nowrap px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-800 text-[13px] font-bold transition-colors">ผ้าเบรก</button>
-                  <button className="whitespace-nowrap px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-800 text-[13px] font-bold transition-colors">จานเบรก</button>
-                  <button className="whitespace-nowrap px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-800 text-[13px] font-bold transition-colors">น้ำมันเบรก</button>
+               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                  <button
+                    onClick={() => {
+                      setSelectedCategoryId(null);
+                      setPage(1);
+                    }}
+                    className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-bold transition-all cursor-pointer ${
+                      !selectedCategoryId
+                        ? 'bg-[#2563eb] text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                    }`}
+                  >
+                    สินค้าทั้งหมด ({totalCount})
+                  </button>
+                  {categories.map((cat) => {
+                    const isCatActive = selectedCategoryId === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setSelectedCategoryId(isCatActive ? null : cat.id);
+                          setPage(1);
+                        }}
+                        className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[13px] font-bold transition-all cursor-pointer ${
+                          isCatActive
+                            ? 'bg-[#2563eb] text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
                </div>
                
                <div className="flex items-center gap-2 shrink-0">

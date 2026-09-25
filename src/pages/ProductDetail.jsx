@@ -257,6 +257,11 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
 
   const availableTabs = [
     {
+      id: 'all',
+      label: lang === 'en' ? 'All Details' : 'ทั้งหมด (All)',
+      icon: Layers
+    },
+    {
       id: 'general',
       label: lang === 'en' ? 'General Details' : 'รายละเอียดทั่วไป',
       icon: FileText
@@ -273,9 +278,9 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
     },
   ];
 
-  const currentActiveTab = ['general', 'specific', 'other'].includes(activeTab)
+  const currentActiveTab = ['all', 'general', 'specific', 'other'].includes(activeTab)
     ? activeTab
-    : 'general';
+    : 'all';
 
 
   const handleAddToCart = () => {
@@ -719,7 +724,7 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           </div>
 
           {/* 1. รายละเอียดทั่วไป */}
-          {currentActiveTab === 'general' && (
+          {(currentActiveTab === 'all' || currentActiveTab === 'general') && (
             <div className="pt-6 space-y-6">
               <div className="flex items-center gap-2 text-sm font-black text-[#0c3175]">
                 <FileText className="w-5 h-5 text-[#0c3175]" />
@@ -728,13 +733,15 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
                 </h3>
               </div>
 
-              <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-[#f8fafc] p-5 rounded-2xl border border-slate-200/70">
-                {desc.general || desc.shortDescription || product.shortDescription || shortDescriptionText || (
-                  lang === 'en'
-                    ? 'Genuine OEM standard auto spare part, certified durability and direct fit for your vehicle.'
-                    : 'ชิ้นส่วนอะไหล่แท้มาตรฐาน OEM ผ่านการทดสอบคุณภาพระดับสากล ทนทาน ตรงรุ่น พร้อมติดตั้ง'
-                )}
-              </div>
+              {desc.general || desc.shortDescription || product.shortDescription || shortDescriptionText ? (
+                <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-[#f8fafc] p-5 rounded-2xl border border-slate-200/70">
+                  {desc.general || desc.shortDescription || product.shortDescription || shortDescriptionText}
+                </div>
+              ) : (
+                <div className="text-slate-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 italic">
+                  {lang === 'en' ? 'No additional information specified.' : 'ยังไม่มีข้อมูลระบุเพิ่มเติม'}
+                </div>
+              )}
 
               {/* Key Overview Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
@@ -742,13 +749,13 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
                   <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
                     {lang === 'en' ? 'Manufacturer' : 'แบรนด์ผู้ผลิต'}
                   </span>
-                  <span className="text-sm font-extrabold text-[#0c3175]">{product.brand?.name || (lang === 'en' ? 'International Standard' : 'มาตรฐานระดับสากล')}</span>
+                  <span className="text-sm font-extrabold text-[#0c3175]">{product.brand?.name || '-'}</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
                   <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
                     {lang === 'en' ? 'Category' : 'หมวดหมู่สินค้า'}
                   </span>
-                  <span className="text-sm font-extrabold text-[#0c3175]">{product.category?.name || (lang === 'en' ? 'Auto Parts' : 'อะไหล่ยนต์')}</span>
+                  <span className="text-sm font-extrabold text-[#0c3175]">{product.category?.name || '-'}</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
                   <span className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
@@ -770,8 +777,8 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           )}
 
           {/* 2. หัวข้อเฉพาะ */}
-          {currentActiveTab === 'specific' && (
-            <div className="pt-6 space-y-6">
+          {(currentActiveTab === 'all' || currentActiveTab === 'specific') && (
+            <div className={`space-y-6 ${currentActiveTab === 'all' ? 'pt-8 border-t border-slate-200/80' : 'pt-6'}`}>
               <div className="flex items-center gap-2 text-sm font-black text-slate-800">
                 <Sliders className="w-5 h-5 text-slate-600" />
                 <h3 className="text-base font-black">
@@ -785,7 +792,7 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
                 </div>
               ) : (
                 <div className="text-slate-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 italic">
-                  {lang === 'en' ? 'No specific specifications provided.' : 'ยังไม่มีข้อมูลระบุเพิ่มเติม'}
+                  {lang === 'en' ? 'No additional information specified.' : 'ยังไม่มีข้อมูลระบุเพิ่มเติม'}
                 </div>
               )}
 
@@ -793,7 +800,7 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
               {product.compatibleVehicles && product.compatibleVehicles.length > 0 ? (
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
-                    <Car className="w-4 h-4 text-emerald-600" />
+                    <Car className="w-4 h-4 text-slate-600" />
                     <span>{lang === 'en' ? '100% Guaranteed Compatible Vehicles' : 'รายการรุ่นรถยนต์ที่รองรับ 100% (Compatible Vehicles)'}</span>
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -813,8 +820,8 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           )}
 
           {/* 3. อื่นๆ */}
-          {currentActiveTab === 'other' && (
-            <div className="pt-6 space-y-6">
+          {(currentActiveTab === 'all' || currentActiveTab === 'other') && (
+            <div className={`space-y-6 ${currentActiveTab === 'all' ? 'pt-8 border-t border-slate-200/80' : 'pt-6'}`}>
               <div className="flex items-center gap-2 text-sm font-black text-amber-800">
                 <Info className="w-5 h-5 text-amber-600" />
                 <h3 className="text-base font-black">
@@ -822,13 +829,15 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
                 </h3>
               </div>
 
-              <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-amber-50/40 p-5 rounded-2xl border border-amber-100/80">
-                {desc.other || (
-                  lang === 'en'
-                    ? 'Please check vehicle specifications and part number compatibility before ordering. Professional installation recommended.'
-                    : 'กรุณาตรวจสอบข้อมูลรุ่นรถยนต์และรหัสสินค้าให้ตรงกันก่อนสั่งซื้อ แนะนำให้ติดตั้งโดยช่างผู้ชำนาญการหรืออู่ซ่อมรถมาตรฐาน'
-                )}
-              </div>
+              {desc.other || product.warrantyText ? (
+                <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-amber-50/40 p-5 rounded-2xl border border-amber-100/80">
+                  {desc.other || product.warrantyText}
+                </div>
+              ) : (
+                <div className="text-slate-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 italic">
+                  {lang === 'en' ? 'No additional information specified.' : 'ยังไม่มีข้อมูลระบุเพิ่มเติม'}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Warranty Card */}
