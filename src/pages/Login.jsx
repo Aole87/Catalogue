@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, ChevronRight, ArrowLeft, Shield, Wrench, UserCheck, CheckCircle, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ChevronRight, ArrowLeft, CheckCircle } from 'lucide-react';
 import ApiClient from '../utils/apiClient';
 
 const Login = ({ navigate, setUser }) => {
@@ -27,12 +27,6 @@ const Login = ({ navigate, setUser }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillDemoAccount = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setError('');
   };
 
   return (
@@ -149,44 +143,8 @@ const Login = ({ navigate, setUser }) => {
             </button>
           </form>
 
-          {/* Demo Login Shortcuts */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <div className="text-[11px] font-bold text-slate-500 mb-3 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>ทดลองเข้าสู่ระบบด่วน (Demo)</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => fillDemoAccount('customer@carparts.com', 'Customer123!')}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition-all group"
-              >
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 group-hover:text-blue-700">
-                  <UserCheck className="w-3.5 h-3.5" /> ทั่วไป
-                </div>
-              </button>
-
-              <button
-                onClick={() => fillDemoAccount('garage@carparts.com', 'Garage123!')}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 text-left transition-all group"
-              >
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 group-hover:text-amber-700">
-                  <Wrench className="w-3.5 h-3.5" /> อู่ซ่อมรถ
-                </div>
-              </button>
-
-              <button
-                onClick={() => fillDemoAccount('admin@carparts.com', 'Admin123!')}
-                className="p-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-left transition-all group"
-              >
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 group-hover:text-emerald-700">
-                  <Shield className="w-3.5 h-3.5" /> แอดมิน
-                </div>
-              </button>
-            </div>
-          </div>
-
           {/* Redirect Register */}
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center border-t border-slate-100 pt-6">
             <p className="text-sm font-medium text-slate-500">
               ยังไม่มีบัญชีสมาชิก?{' '}
               <button
