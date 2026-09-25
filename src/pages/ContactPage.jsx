@@ -27,7 +27,7 @@ export default function ContactPage({ navigate, user, setUser }) {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-[#0c3175] selection:text-white">
-      <Navbar navigate={navigate} user={user} setUser={setUser} />
+      <Navbar navigate={navigate} user={user} setUser={setUser} currentPage="contact" />
 
       {/* Breadcrumb Header */}
       <div className="bg-white border-b border-slate-200/80 py-3.5 px-4 sm:px-6 lg:px-8">

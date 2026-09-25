@@ -46,7 +46,7 @@ export default function ArticlesPage({ navigate, user, setUser }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Navbar navigate={navigate} user={user} setUser={setUser} />
+      <Navbar navigate={navigate} user={user} setUser={setUser} currentPage="articles" />
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {/* Breadcrumb & Navigation */}

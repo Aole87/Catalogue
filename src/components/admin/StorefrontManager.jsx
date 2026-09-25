@@ -22,7 +22,8 @@ import {
   Clock,
   MapPin,
   FileText,
-  ShieldCheck
+  ShieldCheck,
+  Star
 } from 'lucide-react';
 
 export default function StorefrontManager() {
@@ -30,6 +31,14 @@ export default function StorefrontManager() {
   const [loading, setLoading] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const { settings, refreshSettings, updateSettings } = useSettings();
+  const [recommendedProductIds, setRecommendedProductIds] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+
+  React.useEffect(() => {
+    ApiClient.getProducts({ pageSize: 100 })
+      .then(res => setAllProducts(res?.data || []))
+      .catch(() => {});
+  }, []);
 
   // CMS State (Bilingual)
   const [branding, setBranding] = useState({
@@ -132,6 +141,9 @@ export default function StorefrontManager() {
           if (s.navigation) setNavigationConfig(prev => ({ ...prev, ...s.navigation }));
           if (s.storeInfo) setStoreInfo(prev => ({ ...prev, ...s.storeInfo }));
           if (s.policies) setPolicies(prev => ({ ...prev, ...s.policies }));
+          if (s.recommendedProductIds && Array.isArray(s.recommendedProductIds)) {
+            setRecommendedProductIds(s.recommendedProductIds);
+          }
         }
       } catch (e) {
         console.error('Failed to load settings in StorefrontManager', e);
@@ -154,6 +166,7 @@ export default function StorefrontManager() {
         navigation: navigationConfig,
         storeInfo,
         policies,
+        recommendedProductIds,
       };
       if (updateSettings) {
         await updateSettings(payload);
@@ -264,6 +277,7 @@ export default function StorefrontManager() {
           { id: 'storeInfo', label: '🏢 ข้อมูลร้านค้า & ติดต่อ', icon: Building2 },
           { id: 'policies', label: '📜 นโยบายร้านค้า & PDPA', icon: FileText },
           { id: 'typography', label: '📝 หัวข้อหมวดสินค้า', icon: Type },
+          { id: 'recommended', label: '⭐ สินค้าแนะนำ', icon: Star },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -904,6 +918,83 @@ export default function StorefrontManager() {
                 <input type="text" value={headings.bestSellersTitleEn} onChange={(e) => setHeadings({ ...headings, bestSellersTitleEn: e.target.value })} className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 font-bold" />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Recommended Products Management Tab */}
+      {activeSubTab === 'recommended' && (
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                <span>กำหนดและจัดการสินค้าแนะนำ (Featured & Recommended Products)</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                สินค้าที่ถูกเลือกจะมีป้าย <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[9px]">⭐ แนะนำ</span> ขึ้นที่การ์ดสินค้า และแสดงเมื่อลูกค้าคลิกที่เมนู "สินค้าแนะนำ" บนแถบนำทาง
+              </p>
+            </div>
+            <div className="text-xs font-bold text-slate-600 bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-200">
+              เลือกแล้ว: <span className="text-amber-800 font-black">{recommendedProductIds.length}</span> รายการ
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {allProducts.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+                กำลังโหลดรายการสินค้าในระบบ...
+              </div>
+            ) : (
+              allProducts.map((p) => {
+                const isSelected = recommendedProductIds.includes(p.id);
+                const imgUrl = p.primaryImage || p.images?.[0]?.url || (typeof p.images?.[0] === 'string' ? p.images[0] : null);
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      const next = isSelected
+                        ? recommendedProductIds.filter(id => id !== p.id)
+                        : [...recommendedProductIds, p.id];
+                      setRecommendedProductIds(next);
+                    }}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-50/40 shadow-xs ring-2 ring-amber-300/40'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                        {imgUrl ? (
+                          <img src={imgUrl} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] text-slate-400">No Pic</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate">{p.name}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">SKU: {p.sku || '-'}</div>
+                        <div className="text-[10px] text-[#0c3175] font-bold">{p.brand?.name || ''}</div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {isSelected ? (
+                        <span className="px-2.5 py-1 rounded-full bg-amber-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-2xs">
+                          <Star className="w-3 h-3 fill-white" />
+                          <span>แนะนำ</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-400 font-bold text-[10px] border border-slate-200">
+                          + เลือก
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

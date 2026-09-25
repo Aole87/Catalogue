@@ -5,7 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useSettings } from '../../context/SettingsContext';
 import ApiClient from '../../utils/apiClient';
 
-export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
+export const Navbar = ({ navigate, user, setUser, onSearchSubmit, currentPage }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -14,6 +14,48 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
   const { openCart, items } = useCart();
   const { lang, toggleLanguage, t } = useLanguage();
   const { settings } = useSettings();
+
+  const [activeRoute, setActiveRoute] = useState(() => {
+    if (currentPage) return currentPage;
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#\/?/, '') : '';
+    return hash || 'home';
+  });
+
+  useEffect(() => {
+    if (currentPage) {
+      setActiveRoute(currentPage);
+    } else {
+      const updateFromHash = () => {
+        const hash = (typeof window !== 'undefined' ? window.location.hash.replace(/^#\/?/, '') : '') || 'home';
+        setActiveRoute(hash);
+      };
+      updateFromHash();
+      window.addEventListener('hashchange', updateFromHash);
+      return () => window.removeEventListener('hashchange', updateFromHash);
+    }
+  }, [currentPage]);
+
+  const isMenuSelected = (menu, idx) => {
+    const url = (menu.url || '').replace(/^#\/?/, '');
+    const label = menu.labelTh || menu.labelEn || '';
+
+    if (activeRoute === 'home' || !activeRoute) {
+      return url === 'home' || url === '' || url === '/' || (!url && idx === 0);
+    }
+    if (activeRoute === 'recommended') {
+      return url === 'recommended' || label.includes('แนะนำ');
+    }
+    if (activeRoute === 'product-list') {
+      return (url === 'product-list' || url === 'products' || url === 'categories') && !label.includes('แนะนำ');
+    }
+    if (activeRoute === 'articles') {
+      return url === 'articles' || url === 'news';
+    }
+    if (activeRoute === 'contact') {
+      return url === 'contact' || url === 'about';
+    }
+    return url === activeRoute;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -76,14 +118,34 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
     navigate?.('home');
   };
 
-  const handleMenuClick = (url) => {
+  const handleMenuClick = (menuItem) => {
     setMobileMenuOpen(false);
-    if (!url) {
-      navigate?.('product-list');
+    const url = typeof menuItem === 'string' ? menuItem : menuItem?.url;
+    const label = typeof menuItem === 'object' ? (menuItem.labelTh || menuItem.labelEn || '') : '';
+
+    if (url === 'recommended' || url === 'featured' || label.includes('แนะนำ')) {
+      setActiveRoute('recommended');
+      navigate?.('product-list', { filters: { recommended: true } });
+      window.location.hash = 'recommended';
       return;
     }
-    const cleanUrl = url.replace(/^#/, '').replace(/^\//, '');
-    navigate?.(cleanUrl || 'home');
+
+    if (url === 'product-list' || url === 'products' || url === 'catalog' || label.includes('หมวดหมู่')) {
+      setActiveRoute('product-list');
+      navigate?.('product-list', { filters: {} });
+      window.location.hash = 'product-list';
+      return;
+    }
+
+    const cleanUrl = (url || '').replace(/^#/, '').replace(/^\//, '');
+    setActiveRoute(cleanUrl || 'home');
+    if (!cleanUrl || cleanUrl === 'home') {
+      navigate?.('home');
+      window.location.hash = '';
+    } else {
+      navigate?.(cleanUrl);
+      window.location.hash = cleanUrl;
+    }
   };
 
   const isAdminUser = user?.roles?.some((r) =>
@@ -339,15 +401,15 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
                    return Boolean(label && label.trim().length > 0 && m.url && m.url.trim().length > 0);
                  }).map((menu, idx) => {
                   const label = lang === 'en' ? (menu.labelEn || menu.labelTh) : (menu.labelTh || menu.labelEn);
-                  const isHome = menu.url === 'home' || menu.url === '/' || idx === 0;
+                  const isSelected = isMenuSelected(menu, idx);
                   return (
                     <button
                       key={menu.id || idx}
-                      onClick={() => handleMenuClick(menu.url)}
-                      className={`px-4 py-1.5 rounded-full transition-colors tracking-wide ${
-                        isHome
-                          ? 'border-[1.5px] border-[#3b82f6] bg-[#081e4b] text-white shadow-[0_0_12px_rgba(59,130,246,0.6)]'
-                          : 'hover:text-blue-200 text-slate-200'
+                      onClick={() => handleMenuClick(menu)}
+                      className={`px-4 py-1.5 rounded-full transition-all tracking-wide cursor-pointer ${
+                        isSelected
+                          ? 'border-[1.5px] border-[#3b82f6] bg-[#081e4b] text-white shadow-[0_0_12px_rgba(59,130,246,0.6)] font-bold'
+                          : 'hover:text-blue-200 text-slate-200 hover:bg-white/5'
                       }`}
                     >
                       {label}
@@ -477,14 +539,19 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit }) => {
                 return Boolean(label && label.trim().length > 0 && m.url && m.url.trim().length > 0);
               }).map((menu, idx) => {
                 const label = lang === 'en' ? (menu.labelEn || menu.labelTh) : (menu.labelTh || menu.labelEn);
+                const isSelected = isMenuSelected(menu, idx);
                 return (
                   <button
                     key={menu.id || idx}
-                    onClick={() => handleMenuClick(menu.url)}
-                    className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/10 text-slate-200 text-xs font-semibold transition-colors text-left"
+                    onClick={() => handleMenuClick(menu)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-colors text-left ${
+                      isSelected
+                        ? 'bg-blue-600/30 text-white font-bold border border-blue-500/50'
+                        : 'hover:bg-white/10 text-slate-200 font-semibold'
+                    }`}
                   >
                     <span>{label}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                    <ChevronRight className={`w-3.5 h-3.5 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
                   </button>
                 );
               })}

@@ -4,15 +4,29 @@ import { useVehicle } from '../../context/VehicleContext';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 
+import { useSettings } from '../../context/SettingsContext';
+
 export const ProductCard = ({ product, user, onClick, onRequireLogin }) => {
   const { selectedVehicle } = useVehicle();
   const { addToCart } = useCart();
   const { t, lang } = useLanguage();
+  const { settings } = useSettings();
   const [imageError, setImageError] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [addedAnimation, setAddedAnimation] = useState(false);
 
   if (!product) return null;
+
+  // Determine if product is recommended or has a badge
+  const isRecommended = Boolean(
+    product.isRecommended === true ||
+    product.recommended === true ||
+    product.isFeatured === true ||
+    product.badge === 'แนะนำ' ||
+    (settings?.recommendedProductIds && Array.isArray(settings.recommendedProductIds) && settings.recommendedProductIds.includes(product.id))
+  );
+
+  const badgeText = product.badge || (isRecommended ? 'แนะนำ' : null);
 
   // Extract primary image
   const imageUrl = !imageError && (
@@ -48,11 +62,18 @@ export const ProductCard = ({ product, user, onClick, onRequireLogin }) => {
       className="group bg-white rounded-2xl border border-slate-200 hover:border-[#f97316]/50 flex flex-col justify-between transition-all duration-300 hover:shadow-lg cursor-pointer relative overflow-hidden h-full"
     >
       {/* Top Badges */}
-      <div className="absolute top-3 left-3 z-10 flex gap-2">
-        <div className={`px-2.5 py-0.5 rounded-full text-white text-[9px] font-black tracking-wider shadow-sm ${product.badgeColor || 'bg-[#f97316]'}`}>
-          {product.badge || 'ขายดี'}
+      {badgeText && (
+        <div className="absolute top-3 left-3 z-10 flex gap-2">
+          <div className={`px-2.5 py-0.5 rounded-full text-white text-[9px] font-black tracking-wider shadow-sm flex items-center gap-1 ${
+            badgeText === 'แนะนำ' || isRecommended
+              ? 'bg-gradient-to-r from-amber-500 to-[#ea580c]'
+              : (product.badgeColor || 'bg-[#2563eb]')
+          }`}>
+            {(badgeText === 'แนะนำ' || isRecommended) && <span className="text-[10px]">⭐</span>}
+            <span>{badgeText}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Wishlist Button */}
       <button

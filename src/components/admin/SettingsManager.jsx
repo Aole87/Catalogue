@@ -187,7 +187,6 @@ export default function SettingsManager({ setActiveTab }) {
           { id: 'shipping', label: '🚛 ค่าจัดส่ง & Shipping Rules', icon: Truck },
           { id: 'access', label: '🔒 การจำกัดสิทธิ์ & ราคาเฉพาะสมาชิก', icon: Shield },
           { id: 'menu', label: '📢 ข้อความประกาศ Ticker', icon: Menu },
-          { id: 'websiteRedirect', label: '🏢 ข้อมูลร้านค้า & นโยบาย (ย้ายไป การจัดการเว็บไซต์)', icon: Building2 },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -519,32 +518,6 @@ export default function SettingsManager({ setActiveTab }) {
               />
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 5. Relocation Notice for Store Info & Policies */}
-      {activeSubTab === "websiteRedirect" && (
-        <div className="bg-white p-10 rounded-3xl border border-slate-200/90 shadow-sm text-center space-y-6">
-          <div className="w-20 h-20 bg-blue-50 text-[#0c3175] rounded-3xl flex items-center justify-center mx-auto shadow-inner border border-blue-100">
-            <Building2 className="w-10 h-10" />
-          </div>
-          <div className="max-w-xl mx-auto space-y-2">
-            <h3 className="text-xl font-black text-slate-900">
-              ข้อมูลร้านค้า & นโยบายร้านค้า ได้ย้ายไปที่ "การจัดการเว็บไซต์" เรียบร้อยแล้ว
-            </h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              ตามโครงสร้างระบบใหม่ ท่านสามารถจัดการข้อมูลนิติบุคคล, เลขประจำตัวผู้เสียภาษี, ที่อยู่ติดต่อสำนักงาน/คลังสินค้า, เบอร์โทรศัพท์, โซเชียลมีเดีย รวมถึงนโยบายการรับประกัน การคืนสินค้า และ PDPA ได้อย่างครบวงจรที่แท็บ <strong>"การจัดการเว็บไซต์ & ข้อมูลร้านค้า"</strong>
-            </p>
-          </div>
-          {setActiveTab && (
-            <button
-              onClick={() => setActiveTab("storefront")}
-              className="px-6 py-3 rounded-full bg-[#0c3175] hover:bg-[#07214f] text-white text-xs font-bold shadow-md transition-all inline-flex items-center gap-2 cursor-pointer"
-            >
-              <span>ไปยังเมนู การจัดการเว็บไซต์ & ข้อมูลร้านค้า</span>
-              <ExternalLink className="w-4 h-4" />
-            </button>
-          )}
         </div>
       )}
     </div>

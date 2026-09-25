@@ -12,10 +12,17 @@ import ProductFilters from '../components/filters/ProductFilters';
 import ProductGrid from '../components/product/ProductGrid';
 import QuickViewModal from '../components/product/QuickViewModal';
 import { useVehicle } from '../context/VehicleContext';
+import { useSettings } from '../context/SettingsContext';
 import ApiClient from '../utils/apiClient';
 
 export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) => {
   const { selectedVehicle, isVehicleSelected, openSelectorModal } = useVehicle();
+  const { settings } = useSettings();
+
+  // Recommended Products Filter State
+  const [onlyRecommended, setOnlyRecommended] = useState(
+    Boolean(initialFilters.recommended) || (typeof window !== 'undefined' && window.location.hash.includes('recommended'))
+  );
 
   // Filter States
   const [search, setSearch] = useState(initialFilters.search || '');
@@ -109,6 +116,21 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
         });
       }
 
+      // Recommended Products Filtering
+      const recIds = settings?.recommendedProductIds || [];
+      if (onlyRecommended) {
+        if (recIds.length > 0) {
+          list = list.filter(p => recIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ');
+        }
+        list = list.map(p => ({
+          ...p,
+          isRecommended: true,
+          badge: p.badge || 'แนะนำ',
+        }));
+      } else if (recIds.length > 0) {
+        list = list.map(p => recIds.includes(p.id) ? { ...p, isRecommended: true, badge: p.badge || 'แนะนำ' } : p);
+      }
+
       // Vehicle Fitment Filtering (Make, Model, Year)
       if (selectedCarMake) {
         const makeStr = (selectedCarMake.name || selectedCarMake.slug || '').toLowerCase();
@@ -150,7 +172,13 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, sortBy, sortOrder, debouncedSearch, selectedCategoryId, selectedBrandIds, selectedVehicle, selectedCarMake, selectedCarModel, selectedCarYear]);
+  }, [page, pageSize, sortBy, sortOrder, debouncedSearch, selectedCategoryId, selectedBrandIds, selectedVehicle, selectedCarMake, selectedCarModel, selectedCarYear, onlyRecommended, settings?.recommendedProductIds]);
+
+  useEffect(() => {
+    if (initialFilters.recommended !== undefined) {
+      setOnlyRecommended(Boolean(initialFilters.recommended));
+    }
+  }, [initialFilters.recommended]);
 
   useEffect(() => {
     fetchProducts();
@@ -189,9 +217,13 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
     setSelectedCarMake(null);
     setSelectedCarModel(null);
     setSelectedCarYear(null);
+    setOnlyRecommended(false);
     setSortBy('createdAt');
     setSortOrder('desc');
     setPage(1);
+    if (window.location.hash.includes('recommended')) {
+      window.location.hash = 'product-list';
+    }
   };
 
   const handleProductClick = (product) => {
@@ -208,6 +240,7 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
         navigate={navigate}
         user={user}
         setUser={setUser}
+        currentPage={onlyRecommended ? 'recommended' : 'product-list'}
         onSearchSubmit={(val) => {
           setSearch(val);
           setPage(1);
@@ -277,8 +310,14 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
                
                {/* Banner Content */}
                <div className="relative z-10 flex flex-col">
-                  <h1 className="text-2xl sm:text-[32px] font-black text-white leading-none mb-1">{activeCategory?.name || 'อะไหล่รถยนต์'}</h1>
-                  <p className="text-xs sm:text-[14px] text-white/90 font-medium mb-3 sm:mb-4">หยุดมั่นใจ ปลอดภัยทุกเส้นทาง คุณภาพมาตรฐานระดับโลก</p>
+                  <h1 className="text-2xl sm:text-[32px] font-black text-white leading-none mb-1">
+                    {onlyRecommended ? '⭐ สินค้าแนะนำ (Recommended Products)' : (activeCategory?.name || 'อะไหล่รถยนต์')}
+                  </h1>
+                  <p className="text-xs sm:text-[14px] text-white/90 font-medium mb-3 sm:mb-4">
+                    {onlyRecommended
+                      ? 'รวมสุดยอดอะไหล่คุณภาพสูง คัดสรรพิเศษ การันตีของแท้ 100%'
+                      : 'หยุดมั่นใจ ปลอดภัยทุกเส้นทาง คุณภาพมาตรฐานระดับโลก'}
+                  </p>
                   
                   <div className="flex flex-wrap items-center gap-3 sm:gap-6">
                      <div className="flex items-center gap-1.5 text-white/90 text-[10px] sm:text-[11px] font-bold">
@@ -330,8 +369,22 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
             </div>
 
             {/* Active Filters */}
-            {(selectedCategoryId || selectedBrandIds.length > 0 || debouncedSearch || selectedCarMake || selectedCarModel || selectedCarYear) && (
+            {(onlyRecommended || selectedCategoryId || selectedBrandIds.length > 0 || debouncedSearch || selectedCarMake || selectedCarModel || selectedCarYear) && (
               <div className="flex flex-wrap items-center gap-2 pb-2">
+                {onlyRecommended && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-[11px] font-bold text-amber-800 border border-amber-200 shadow-2xs">
+                    <span>⭐ สินค้าแนะนำ</span>
+                    <button
+                      onClick={() => {
+                        setOnlyRecommended(false);
+                        window.location.hash = 'product-list';
+                      }}
+                      className="hover:text-rose-500 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
                 {activeCategory && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[11px] font-bold text-[#2563eb] border border-blue-100">
                     <span>หมวดหมู่: {activeCategory.name}</span>

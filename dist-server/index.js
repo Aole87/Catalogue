@@ -17908,7 +17908,8 @@ var defaultSettings = {
 1. Placing an order on this website constitutes acceptance of all terms and service conditions.
 2. Access to special member tiered pricing (Garage/Shop/Fleet) requires verified business authentication.
 3. Prices, promotions, and product specifications are subject to updates according to manufacturer guidelines.`
-  }
+  },
+  recommendedProductIds: []
 };
 var inMemorySettings = { ...defaultSettings };
 var settingsCache = null;
@@ -17925,6 +17926,7 @@ async function settingsRoutes(fastify) {
         const result = { ...defaultSettings };
         records.forEach((r) => {
           result[r.key.toLowerCase()] = r.value;
+          if (r.key === "RECOMMENDED_PRODUCTS") result.recommendedProductIds = r.value;
         });
         settingsCache = result;
         settingsCacheExpiry = now + 6e4;
@@ -17948,7 +17950,15 @@ async function settingsRoutes(fastify) {
     if (body.navigation) inMemorySettings.navigation = { ...inMemorySettings.navigation, ...body.navigation };
     if (body.storeInfo) inMemorySettings.storeInfo = { ...inMemorySettings.storeInfo, ...body.storeInfo };
     if (body.policies) inMemorySettings.policies = { ...inMemorySettings.policies, ...body.policies };
+    if (body.recommendedProductIds) inMemorySettings.recommendedProductIds = body.recommendedProductIds;
     try {
+      if (body.recommendedProductIds) {
+        await prisma.systemSetting.upsert({
+          where: { key: "RECOMMENDED_PRODUCTS" },
+          update: { value: inMemorySettings.recommendedProductIds },
+          create: { key: "RECOMMENDED_PRODUCTS", value: inMemorySettings.recommendedProductIds, category: "GENERAL" }
+        });
+      }
       if (body.payment) {
         await prisma.systemSetting.upsert({
           where: { key: "PAYMENT" },

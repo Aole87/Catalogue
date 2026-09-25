@@ -78,7 +78,7 @@ export const Home = ({ navigate, user, setUser }) => {
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-slate-900 flex flex-col font-sans">
-      <Navbar navigate={navigate} user={user} setUser={setUser} />
+      <Navbar navigate={navigate} user={user} setUser={setUser} currentPage="home" />
 
       <main className="flex-1 w-full max-w-[1300px] mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 space-y-5 sm:space-y-6">
         

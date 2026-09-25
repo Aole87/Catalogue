@@ -3,9 +3,10 @@ import {
   Package, Search, Filter, Plus, Edit2, Trash2, ArrowLeft, Save,
   CheckCircle2, AlertCircle, Image, Upload, X, Tag, Layers, Car,
   DollarSign, Truck, Sliders, ChevronLeft, ChevronRight, Eye, RefreshCw,
-  FileText, Info, Globe
+  FileText, Info, Globe, Star
 } from 'lucide-react';
 import ApiClient from '../../utils/apiClient';
+import { useSettings } from '../../context/SettingsContext';
 import {
   parseProductDescription,
   parseBilingualProductDescription,
@@ -28,6 +29,15 @@ const generateSlug = (name, sku) => {
 };
 
 export default function ProductCatalogManager() {
+  const { settings, updateSettings } = useSettings();
+  const [recommendedIds, setRecommendedIds] = useState([]);
+
+  useEffect(() => {
+    if (settings?.recommendedProductIds && Array.isArray(settings.recommendedProductIds)) {
+      setRecommendedIds(settings.recommendedProductIds);
+    }
+  }, [settings?.recommendedProductIds]);
+
   const [view, setView] = useState('list'); // 'list' | 'form'
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -75,8 +85,30 @@ export default function ProductCatalogManager() {
     carYear: '',
     images: [],
     variants: [],
+    isRecommended: false,
+    badge: '',
     isActive: true,
   });
+
+  const handleToggleRecommended = async (productId) => {
+    try {
+      const isCurrently = recommendedIds.includes(productId);
+      const nextIds = isCurrently
+        ? recommendedIds.filter(id => id !== productId)
+        : [...recommendedIds, productId];
+
+      setRecommendedIds(nextIds);
+      if (updateSettings) {
+        await updateSettings({ recommendedProductIds: nextIds });
+      } else {
+        await ApiClient.updateSettings({ recommendedProductIds: nextIds });
+      }
+      setSuccess(isCurrently ? 'ยกเลิกการตั้งเป็นสินค้าแนะนำแล้ว' : '⭐ ตั้งเป็นสินค้าแนะนำเรียบร้อยแล้ว!');
+      setTimeout(() => setSuccess(''), 2500);
+    } catch (e) {
+      console.error('Failed to update recommended status', e);
+    }
+  };
 
   const [imageFiles, setImageFiles] = useState([]);
   const fileInputRef = useRef(null);
@@ -224,6 +256,8 @@ export default function ProductCatalogManager() {
       carYear: p.carYear || '',
       images: p.images || [],
       variants: varList,
+      isRecommended: recommendedIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ',
+      badge: p.badge || (recommendedIds.includes(p.id) ? 'แนะนำ' : ''),
       isActive: p.isActive !== false,
     });
     setImageFiles(p.images || []);
@@ -423,6 +457,20 @@ export default function ProductCatalogManager() {
         brand: selectedBr ? { id: selectedBr.id, name: selectedBr.name } : { name: 'แบรนด์' },
       };
 
+      // Sync recommended state
+      const willBeRec = Boolean(formData.isRecommended || formData.badge === 'แนะนำ');
+      const pid = savedProductItem.id;
+      const wasRec = recommendedIds.includes(pid);
+      if (willBeRec && !wasRec) {
+        const nextIds = [...recommendedIds, pid];
+        setRecommendedIds(nextIds);
+        updateSettings?.({ recommendedProductIds: nextIds });
+      } else if (!willBeRec && wasRec) {
+        const nextIds = recommendedIds.filter(id => id !== pid);
+        setRecommendedIds(nextIds);
+        updateSettings?.({ recommendedProductIds: nextIds });
+      }
+
       setProducts(prev => {
         if (editId) {
           return prev.map(p => p.id === editId ? savedProductItem : p);
@@ -572,6 +620,7 @@ export default function ProductCatalogManager() {
                   <th className="p-3.5">ชื่อสินค้า & รหัส SKU</th>
                   <th className="p-3.5">หมวดหมู่</th>
                   <th className="p-3.5">แบรนด์</th>
+                  <th className="p-3.5 text-center">⭐ สินค้าแนะนำ</th>
                   <th className="p-3.5">ระบบหลาย SKU / ขนาด</th>
                   <th className="p-3.5 text-right">ราคาจำหน่าย</th>
                   <th className="p-3.5 text-center">ค่าจัดส่งเฉพาะ</th>
@@ -582,13 +631,13 @@ export default function ProductCatalogManager() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       กำลังโหลดข้อมูลสินค้า...
                     </td>
                   </tr>
                 ) : paginatedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       <Package className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                       ไม่พบสินค้าตรงตามเงื่อนไข
                     </td>
@@ -619,6 +668,21 @@ export default function ProductCatalogManager() {
                         </td>
                         <td className="p-3.5 font-bold text-slate-700">
                           {p.brand?.name || '-'}
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRecommended(p.id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer shadow-2xs ${
+                              recommendedIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ'
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
+                                : 'bg-slate-100 text-slate-400 border border-slate-200 hover:text-slate-700 hover:bg-slate-200'
+                            }`}
+                            title={recommendedIds.includes(p.id) ? "คลิกเพื่อยกเลิกสินค้าแนะนำ" : "คลิกเพื่อตั้งเป็นสินค้าแนะนำ"}
+                          >
+                            <Star className={`w-3.5 h-3.5 ${recommendedIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ' ? 'fill-amber-500 text-amber-500' : 'text-slate-400'}`} />
+                            <span>{recommendedIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ' ? 'แนะนำ' : 'ทั่วไป'}</span>
+                          </button>
                         </td>
                         <td className="p-3.5">
                           {variantCount > 0 ? (
@@ -805,6 +869,68 @@ export default function ProductCatalogManager() {
                 }}
                 placeholder="เช่น PROD-MOT-8100 หรือ MOT-8100"
               />
+            </div>
+          </div>
+
+          {/* Recommended Product & Badge Settings */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg font-black shrink-0 shadow-xs">
+                ⭐
+              </div>
+              <div>
+                <div className="text-xs font-black text-amber-950 uppercase flex items-center gap-1.5">
+                  <span>ตั้งเป็นสินค้าแนะนำ (Featured & Recommended Product)</span>
+                  {formData.isRecommended && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black">
+                      เปิดใช้งานอยู่
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-amber-800 mt-0.5">
+                  สินค้าที่เลือกจะแสดงป้าย "⭐ แนะนำ" ที่การ์ดสินค้า และแสดงในแถบเมนู "สินค้าแนะนำ" ที่หน้าร้าน
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 self-end sm:self-auto">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-slate-600">ป้ายสินค้า:</label>
+                <select
+                  value={formData.badge || (formData.isRecommended ? 'แนะนำ' : '')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData({
+                      ...formData,
+                      badge: val,
+                      isRecommended: val === 'แนะนำ' || formData.isRecommended
+                    });
+                  }}
+                  className="border border-amber-300 bg-white rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 outline-none"
+                >
+                  <option value="">ไม่มีป้าย</option>
+                  <option value="แนะนำ">⭐ แนะนำ</option>
+                  <option value="ขายดี">🔥 ขายดี</option>
+                  <option value="สินค้าใหม่">✨ สินค้าใหม่</option>
+                </select>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.isRecommended || formData.badge === 'แนะนำ')}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormData({
+                      ...formData,
+                      isRecommended: checked,
+                      badge: checked ? (formData.badge || 'แนะนำ') : ''
+                    });
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
             </div>
           </div>
 

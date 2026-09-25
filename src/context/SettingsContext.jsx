@@ -224,7 +224,8 @@ ADNEX Auto Parts respects your privacy rights in accordance with the Thailand Pe
 
 4. Limitation of Liability:
 - ADNEX is not liable for damages resulting from improper third-party installation or mismatched vehicle fitment outside official specifications.`
-  }
+  },
+  recommendedProductIds: []
 };
 
 const SettingsContext = createContext({
