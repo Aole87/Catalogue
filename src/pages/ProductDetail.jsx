@@ -772,51 +772,22 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           {/* 2. หัวข้อเฉพาะ */}
           {currentActiveTab === 'specific' && (
             <div className="pt-6 space-y-6">
-              <div className="flex items-center gap-2 text-sm font-black text-emerald-800">
-                <Sliders className="w-5 h-5 text-emerald-600" />
+              <div className="flex items-center gap-2 text-sm font-black text-slate-800">
+                <Sliders className="w-5 h-5 text-slate-600" />
                 <h3 className="text-base font-black">
                   {lang === 'en' ? 'Specific Topics & Specifications' : 'หัวข้อเฉพาะ (Specific Topics / Specs)'}
                 </h3>
               </div>
 
-              <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-emerald-50/40 p-5 rounded-2xl border border-emerald-100/80">
-                {desc.specific || (
-                  lang === 'en'
-                    ? 'Manufactured to exact OEM fitment tolerances and specifications. Suitable for direct replacement.'
-                    : 'ผลิตตามมาตรฐานขนาดและข้อกำหนดเฉพาะของโรงงานผู้ผลิต เหมาะสำหรับการติดตั้งทดแทนของเดิมตรงรุ่น'
-                )}
-              </div>
-
-              {/* Technical Specs Attributes */}
-              <div className="border border-slate-200/80 rounded-2xl overflow-hidden">
-                <div className="bg-slate-100/70 px-4 py-3 font-bold text-xs text-slate-700 uppercase tracking-wider">
-                  {lang === 'en' ? 'Technical Specifications & Parameters' : 'ข้อมูลจำเพาะทางเทคนิคและคุณลักษณะเฉพาะ'}
+              {desc.specific ? (
+                <div className="text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+                  {desc.specific}
                 </div>
-                <div className="divide-y divide-slate-100 text-xs sm:text-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 hover:bg-slate-50/60">
-                    <span className="font-bold text-slate-500">{lang === 'en' ? 'Part Type' : 'ประเภทอะไหล่'}</span>
-                    <span className="sm:col-span-2 font-semibold text-slate-800">{product.category?.name || (lang === 'en' ? 'OEM Replacement Part' : 'อะไหล่แท้ / OEM Replacement')}</span>
-                  </div>
-                  {product.barcode && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 hover:bg-slate-50/60">
-                      <span className="font-bold text-slate-500">{lang === 'en' ? 'Barcode (EAN)' : 'บาร์โค้ด (Barcode / EAN)'}</span>
-                      <span className="sm:col-span-2 font-mono font-semibold text-slate-800">{product.barcode}</span>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 hover:bg-slate-50/60">
-                    <span className="font-bold text-slate-500">{lang === 'en' ? 'Reference Vehicle' : 'รุ่นรถยนต์อ้างอิง'}</span>
-                    <span className="sm:col-span-2 font-semibold text-[#0c3175]">
-                      {product.carBrand ? `${product.carBrand} ${product.carModel || ''} ${product.carYear ? `(${product.carYear})` : ''}` : (lang === 'en' ? 'Direct Fit OEM Specification' : 'มาตรฐานความเข้ากันได้ตรงรุ่น OEM')}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 hover:bg-slate-50/60">
-                    <span className="font-bold text-slate-500">{lang === 'en' ? 'Condition' : 'สภาพสินค้า'}</span>
-                    <span className="sm:col-span-2 font-semibold text-emerald-700">
-                      {lang === 'en' ? '100% Brand New (Original Packaging)' : 'สินค้าใหม่ 100% (บรรจุภัณฑ์มาตรฐานจากผู้ผลิต)'}
-                    </span>
-                  </div>
+              ) : (
+                <div className="text-slate-400 text-xs sm:text-sm leading-relaxed whitespace-pre-line bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 italic">
+                  {lang === 'en' ? 'No specific specifications provided.' : 'ยังไม่มีข้อมูลระบุเพิ่มเติม'}
                 </div>
-              </div>
+              )}
 
               {/* Compatible Vehicles */}
               {product.compatibleVehicles && product.compatibleVehicles.length > 0 ? (
