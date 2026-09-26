@@ -25,6 +25,11 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default('MOBEX Auto Parts <noreply@autocentric.net>'),
   OTP_TTL_MINUTES: z.coerce.number().default(5),
   ADMIN_BYPASS_KEY: z.string().default('mobex_admin_bypass_2026'),
+  FRONTEND_URL: z.string().default('https://market.autocentric.net'),
+  PROMPTPAY_BILLER_ID: z.string().default('0105558099881'),
+  PROMPTPAY_WEBHOOK_SECRET: z.string().default('promptpay-webhook-hmac-sha256-signing-secret'),
+  FLASH_EXPRESS_WEBHOOK_SECRET: z.string().default('flash-express-hmac-sha256-secret-key'),
+  KERRY_EXPRESS_WEBHOOK_SECRET: z.string().default('kerry-express-hmac-sha256-secret-key'),
   ENABLE_SWAGGER: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
 });
 

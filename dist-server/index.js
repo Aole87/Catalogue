@@ -63,6 +63,11 @@ var envSchema = import_zod.z.object({
   SMTP_FROM: import_zod.z.string().default("MOBEX Auto Parts <noreply@autocentric.net>"),
   OTP_TTL_MINUTES: import_zod.z.coerce.number().default(5),
   ADMIN_BYPASS_KEY: import_zod.z.string().default("mobex_admin_bypass_2026"),
+  FRONTEND_URL: import_zod.z.string().default("https://market.autocentric.net"),
+  PROMPTPAY_BILLER_ID: import_zod.z.string().default("0105558099881"),
+  PROMPTPAY_WEBHOOK_SECRET: import_zod.z.string().default("promptpay-webhook-hmac-sha256-signing-secret"),
+  FLASH_EXPRESS_WEBHOOK_SECRET: import_zod.z.string().default("flash-express-hmac-sha256-secret-key"),
+  KERRY_EXPRESS_WEBHOOK_SECRET: import_zod.z.string().default("kerry-express-hmac-sha256-secret-key"),
   ENABLE_SWAGGER: import_zod.z.preprocess((val) => val === "true" || val === true, import_zod.z.boolean()).default(false)
 });
 var config = envSchema.parse(process.env);
