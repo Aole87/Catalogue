@@ -23,8 +23,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import ReceiptModal from '../components/common/ReceiptModal';
+import { useSettings } from '../context/SettingsContext';
 
 export default function OrderConfirmation({ orderNumber, initialOrder, onNavigate }) {
+  const { settings } = useSettings();
   const [order, setOrder] = useState(initialOrder || null);
   const [payment, setPayment] = useState(initialOrder?.payments?.[0] || null);
   const [loading, setLoading] = useState(!initialOrder);
@@ -378,15 +380,15 @@ export default function OrderConfirmation({ orderNumber, initialOrder, onNavigat
                   <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 space-y-2 text-xs">
                     <div className="flex justify-between">
                       <span className="text-slate-500">ธนาคาร:</span>
-                      <span className="font-semibold text-slate-900">กสิกรไทย (KBANK)</span>
+                      <span className="font-semibold text-slate-900">{settings?.payment?.bankTransfer?.bankName || 'กสิกรไทย (KBANK)'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">ชื่อบัญชี:</span>
-                      <span className="font-semibold text-slate-900">บจก. โมเบ็กซ์ ออโต้พาร์ท</span>
+                      <span className="font-semibold text-slate-900">{settings?.payment?.bankTransfer?.accountName || settings?.payment?.promptpay?.accountName || 'บจก. โมเบ็กซ์ ออโต้พาร์ท'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">เลขที่บัญชี:</span>
-                      <span className="font-mono font-bold text-blue-600 text-sm">098-2-12345-6</span>
+                      <span className="font-mono font-bold text-blue-600 text-sm">{settings?.payment?.bankTransfer?.accountNo || '123-4-56789-0'}</span>
                     </div>
                   </div>
                 </div>

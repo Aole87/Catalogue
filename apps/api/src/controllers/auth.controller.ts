@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { registerSchema, loginSchema, changePasswordSchema, sendOtpSchema, verifyOtpSchema } from '../schemas/auth.schema';
+import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, sendOtpSchema, verifyOtpSchema } from '../schemas/auth.schema';
 import { AuthService } from '../services/auth.service';
 import config from '../config/env';
 
@@ -112,5 +112,13 @@ export class AuthController {
         message: 'Password has been updated successfully',
       },
     });
+  }
+
+  static async resetPassword(request: FastifyRequest, reply: FastifyReply) {
+    const input = resetPasswordSchema.parse(request.body);
+    const metadata = AuthController.extractMetadata(request);
+
+    const result = await AuthService.resetPassword(input, metadata);
+    return reply.status(200).send({ data: result });
   }
 }

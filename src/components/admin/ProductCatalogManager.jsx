@@ -146,9 +146,15 @@ export default function ProductCatalogManager() {
 
       const items = res?.data || res?.items || (Array.isArray(res) ? res : []);
       setProducts(items.map(r => ({
+        ...r,
         id: r.id,
         name: r.name,
         sku: r.sku || r.code || '',
+        description: r.description || '',
+        shortDescription: r.shortDescription || '',
+        warrantyText: r.warrantyText || '',
+        barcode: r.barcode || '',
+        slug: r.slug || '',
         category: r.category ? { id: r.category.id || r.categoryId, name: r.category.name } : { id: r.categoryId, name: '-' },
         brand: r.brand ? { id: r.brand.id || r.brandId, name: r.brand.name } : { id: r.brandId, name: '-' },
         price: r.price ?? (r.tierPricing?.general ?? r.price_general ?? 0),
@@ -213,20 +219,47 @@ export default function ProductCatalogManager() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle Switch to Edit Mode
-  const handleEdit = (p) => {
-    setEditId(p.id);
-    const varList = p.variants && p.variants.length > 0 ? p.variants : [];
-    setHasVariants(varList.length > 0);
+  // Helper to populate form fields from full product object
+  const populateProductIntoForm = (p) => {
+    let variants = Array.isArray(p.variants) ? p.variants : [];
+    let shippingFee = p.shippingFee !== undefined ? Number(p.shippingFee) : 0;
+    let compatibleVehicles = Array.isArray(p.compatibleVehicles) ? p.compatibleVehicles : [];
+
+    const bilingual = parseBilingualProductDescription(p.description, p.shortDescription);
+    if (!variants.length && bilingual.variants?.length) {
+      variants = bilingual.variants;
+    }
+    if (!shippingFee && bilingual.shippingFee !== undefined) {
+      shippingFee = Number(bilingual.shippingFee);
+    }
+    if (!compatibleVehicles.length && bilingual.compatibleVehicles?.length) {
+      compatibleVehicles = bilingual.compatibleVehicles;
+    }
+
+    setHasVariants(variants.length > 0);
     setDescLang('th');
 
-    const compVehicles = p.compatibleVehicles && p.compatibleVehicles.length > 0
-      ? p.compatibleVehicles
+    const compVehicles = compatibleVehicles.length > 0
+      ? compatibleVehicles
       : (p.carBrand || p.carModel)
       ? [{ id: `cv-${Date.now()}`, make: p.carBrand || '', model: p.carModel || '', startYear: p.carYear?.split('-')?.[0]?.trim() || '', endYear: p.carYear?.split('-')?.[1]?.trim() || '', note: '' }]
       : [{ id: `cv-${Date.now()}`, make: '', model: '', startYear: '', endYear: '', note: '' }];
 
-    const bilingual = parseBilingualProductDescription(p.description, p.shortDescription);
+    let genPrice = p.price ?? 0;
+    let compPrice = p.compareAtPrice ?? 0;
+    let garPrice = p.garagePrice ?? 0;
+    let shPrice = p.shopPrice ?? 0;
+    if (Array.isArray(p.prices) && p.prices.length > 0) {
+      const gp = p.prices.find(pr => pr.tier === 'GENERAL');
+      if (gp) {
+        genPrice = Number(gp.price || 0);
+        compPrice = Number(gp.compareAtPrice || 0);
+      }
+      const grp = p.prices.find(pr => pr.tier === 'GARAGE');
+      if (grp) garPrice = Number(grp.price || 0);
+      const shp = p.prices.find(pr => pr.tier === 'SHOP');
+      if (shp) shPrice = Number(shp.price || 0);
+    }
 
     setFormData({
       name: p.name || '',
@@ -244,25 +277,42 @@ export default function ProductCatalogManager() {
       otherDescription: bilingual.th.other || p.warrantyText || '',
       description: p.description || '',
       warrantyText: p.warrantyText || bilingual.th.other || bilingual.en.other || 'รับประกัน 6 เดือน หรือ 20,000 กม.',
-      shippingFee: p.shippingFee || 0,
-      price: p.price || 0,
-      compareAtPrice: p.compareAtPrice || 0,
-      garagePrice: p.garagePrice || 0,
-      shopPrice: p.shopPrice || 0,
+      shippingFee: shippingFee,
+      price: genPrice,
+      compareAtPrice: compPrice,
+      garagePrice: garPrice,
+      shopPrice: shPrice,
       stockQuantity: p.stockQuantity || 20,
       compatibleVehicles: compVehicles,
       carBrand: p.carBrand || '',
       carModel: p.carModel || '',
       carYear: p.carYear || '',
       images: p.images || [],
-      variants: varList,
+      variants: variants,
       isRecommended: recommendedIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ',
       badge: p.badge || (recommendedIds.includes(p.id) ? 'แนะนำ' : ''),
       isActive: p.isActive !== false,
+      isPublished: p.isPublished !== false,
     });
     setImageFiles(p.images || []);
+  };
+
+  // Handle Switch to Edit Mode (Populate immediately, then fetch full DB record)
+  const handleEdit = async (p) => {
+    setEditId(p.id);
+    populateProductIntoForm(p);
     setView('form');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const res = await ApiClient.getProductById(p.id);
+      const full = res?.data || res;
+      if (full && full.id === p.id) {
+        populateProductIntoForm(full);
+      }
+    } catch (err) {
+      console.warn('Could not fetch full product detail for edit:', err);
+    }
   };
 
   // Add Variant Row (Each variant has its own unique SKU and its own image)
@@ -379,6 +429,9 @@ export default function ProductCatalogManager() {
       const structuredDescription = serializeBilingualProductDescription({
         th: formData.descTh || {},
         en: formData.descEn || {},
+        variants: hasVariants ? (formData.variants || []) : [],
+        shippingFee: Number(formData.shippingFee || 0),
+        compatibleVehicles: formData.compatibleVehicles || [],
       });
 
       // Prepare clean slug
@@ -464,11 +517,19 @@ export default function ProductCatalogManager() {
       if (willBeRec && !wasRec) {
         const nextIds = [...recommendedIds, pid];
         setRecommendedIds(nextIds);
-        updateSettings?.({ recommendedProductIds: nextIds });
+        if (updateSettings) {
+          await updateSettings({ recommendedProductIds: nextIds });
+        } else {
+          await ApiClient.updateSettings({ recommendedProductIds: nextIds });
+        }
       } else if (!willBeRec && wasRec) {
         const nextIds = recommendedIds.filter(id => id !== pid);
         setRecommendedIds(nextIds);
-        updateSettings?.({ recommendedProductIds: nextIds });
+        if (updateSettings) {
+          await updateSettings({ recommendedProductIds: nextIds });
+        } else {
+          await ApiClient.updateSettings({ recommendedProductIds: nextIds });
+        }
       }
 
       setProducts(prev => {

@@ -94,6 +94,7 @@ export const ProductFilters = ({
   isOpen = false,
   onClose,
   isMobile = false,
+  hideCategories = false,
 }) => {
   const [brands, setBrands] = useState([]);
   const [makes, setMakes] = useState(DEFAULT_MAKES);
@@ -311,52 +312,56 @@ export const ProductFilters = ({
         </div>
       </div>
 
-      {/* 2. Categories Section */}
-      <div className="mb-6">
-        <h3 className="text-[14px] font-black text-[#0e1932] mb-3 px-2">
-          หมวดหมู่สินค้า
-        </h3>
-        <div className="space-y-1">
-          {/* All Categories Option */}
-          <button
-            onClick={() => onSelectCategory?.(null)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${
-              !selectedCategoryId
-                ? 'bg-[#e0e7ff] text-[#2563eb]'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Package size={18} className={!selectedCategoryId ? 'text-[#2563eb]' : 'text-slate-400'} />
-              <span>สินค้าทั้งหมด (All Products)</span>
-            </div>
-            <ChevronRight className={`w-4 h-4 ${!selectedCategoryId ? 'text-[#2563eb]' : 'text-slate-300'}`} />
-          </button>
-
-          {categories.map((cat, index) => {
-            const isSelected = selectedCategoryId === cat.id;
-            return (
+      {/* 2. Categories Section (Separated out on mobile if hideCategories is true) */}
+      {!hideCategories && (
+        <>
+          <div className="mb-6">
+            <h3 className="text-[14px] font-black text-[#0e1932] mb-3 px-2">
+              หมวดหมู่สินค้า
+            </h3>
+            <div className="space-y-1">
+              {/* All Categories Option */}
               <button
-                key={cat.id}
-                onClick={() => onSelectCategory?.(cat)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all ${
-                  isSelected
+                onClick={() => onSelectCategory?.(null)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${
+                  !selectedCategoryId
                     ? 'bg-[#e0e7ff] text-[#2563eb]'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                   {getCategoryIcon(index)}
-                   <span>{cat.name}</span>
+                  <Package size={18} className={!selectedCategoryId ? 'text-[#2563eb]' : 'text-slate-400'} />
+                  <span>สินค้าทั้งหมด (All Products)</span>
                 </div>
-                <ChevronRight className={`w-4 h-4 ${isSelected ? 'text-[#2563eb]' : 'text-slate-300'}`} />
+                <ChevronRight className={`w-4 h-4 ${!selectedCategoryId ? 'text-[#2563eb]' : 'text-slate-300'}`} />
               </button>
-            );
-          })}
-        </div>
-      </div>
 
-      <div className="w-full h-[1px] bg-slate-100 mb-6"></div>
+              {categories.map((cat, index) => {
+                const isSelected = selectedCategoryId === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => onSelectCategory?.(cat)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all ${
+                      isSelected
+                        ? 'bg-[#e0e7ff] text-[#2563eb]'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                       {getCategoryIcon(index)}
+                       <span>{cat.name}</span>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 ${isSelected ? 'text-[#2563eb]' : 'text-slate-300'}`} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="w-full h-[1px] bg-slate-100 mb-6"></div>
+        </>
+      )}
 
       {/* 3. Brands Section (Parts Manufacturers) */}
       <div>

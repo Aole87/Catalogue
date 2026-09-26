@@ -21,18 +21,20 @@ import ApiClient from './utils/apiClient';
 function AppContent() {
   const resolvePageFromHash = (hashStr) => {
     const raw = (hashStr || (typeof window !== 'undefined' ? window.location.hash : '') || '').replace(/^#\/?/, '');
-    if (raw === 'admin' || (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))) return 'admin';
-    if (raw === 'checkout') return 'checkout';
-    if (raw === 'orders' || raw === 'my-orders') return 'my-orders';
-    if (raw === 'articles' || raw === 'news') return 'articles';
-    if (raw === 'contact' || raw === 'about') return 'contact';
-    if (raw === 'article-detail' || raw.startsWith('article')) return 'article-detail';
-    if (raw === 'login') return 'login';
-    if (raw === 'register') return 'register';
-    if (raw === 'product-list' || raw === 'products' || raw === 'catalog' || raw === 'categories') return 'product-list';
-    if (raw === 'product-detail' || raw.startsWith('product')) return 'product-detail';
-    if (!raw || raw === 'home') return 'home';
-    return raw;
+    const cleanRaw = raw.split('?')[0];
+    if (cleanRaw === 'admin' || (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))) return 'admin';
+    if (cleanRaw === 'checkout') return 'checkout';
+    if (cleanRaw === 'orders' || cleanRaw === 'my-orders') return 'my-orders';
+    if (cleanRaw === 'articles' || cleanRaw === 'news') return 'articles';
+    if (cleanRaw === 'contact' || cleanRaw === 'about') return 'contact';
+    if (cleanRaw === 'article-detail' || cleanRaw.startsWith('article')) return 'article-detail';
+    if (cleanRaw === 'login' || cleanRaw === 'reset-password' || cleanRaw === 'forgot-password') return 'login';
+    if (cleanRaw === 'register') return 'register';
+    if (cleanRaw === 'recommended' || cleanRaw === 'featured') return 'product-list';
+    if (cleanRaw === 'product-list' || cleanRaw === 'products' || cleanRaw === 'catalog' || cleanRaw === 'categories') return 'product-list';
+    if (cleanRaw === 'product-detail' || cleanRaw.startsWith('product')) return 'product-detail';
+    if (!cleanRaw || cleanRaw === 'home') return 'home';
+    return cleanRaw;
   };
 
   const [page, setPage] = useState(() => resolvePageFromHash());
@@ -68,12 +70,24 @@ function AppContent() {
 
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(() => {
+    const raw = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
+    if (raw === 'recommended' || raw === 'featured') {
+      return { recommended: true };
+    }
+    return {};
+  });
   const [orderParams, setOrderParams] = useState({});
 
   // Sync page state with browser URL hash
   useEffect(() => {
     const handleHashChange = () => {
+      const raw = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '');
+      if (raw === 'recommended' || raw === 'featured') {
+        setFilters({ recommended: true });
+        setPage('product-list');
+        return;
+      }
       const targetPage = resolvePageFromHash();
       setPage(targetPage);
     };
@@ -107,6 +121,9 @@ function AppContent() {
     let resolved = target;
     if (target === 'products' || target === 'catalog' || target === 'categories') {
       resolved = 'product-list';
+    } else if (target === 'recommended' || target === 'featured') {
+      resolved = 'product-list';
+      params.filters = { ...(params.filters || {}), recommended: true };
     } else if (target === 'orders') {
       resolved = 'my-orders';
     } else if (target === 'news') {
@@ -132,6 +149,8 @@ function AppContent() {
       window.location.hash = 'admin';
     } else if (resolved === 'home') {
       window.location.hash = '';
+    } else if (target === 'recommended' || target === 'featured' || params?.filters?.recommended) {
+      window.location.hash = 'recommended';
     } else {
       window.location.hash = resolved;
     }

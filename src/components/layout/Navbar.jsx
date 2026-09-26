@@ -9,6 +9,8 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit, currentPage })
   const [searchTerm, setSearchTerm] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
   const { openCart, items } = useCart();
@@ -65,6 +67,18 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit, currentPage })
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch product categories for mobile navigation
+  useEffect(() => {
+    let mounted = true;
+    ApiClient.getCategories().then((res) => {
+      if (mounted) {
+        const list = res?.data || res?.categories || [];
+        setCategories(list);
+      }
+    }).catch(() => {});
+    return () => { mounted = false; };
   }, []);
 
   const navMenus = settings?.menus && Array.isArray(settings.menus) && settings.menus.length > 0
@@ -125,15 +139,13 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit, currentPage })
 
     if (url === 'recommended' || url === 'featured' || label.includes('แนะนำ')) {
       setActiveRoute('recommended');
-      navigate?.('product-list', { filters: { recommended: true } });
-      window.location.hash = 'recommended';
+      navigate?.('recommended');
       return;
     }
 
     if (url === 'product-list' || url === 'products' || url === 'catalog' || label.includes('หมวดหมู่')) {
       setActiveRoute('product-list');
       navigate?.('product-list', { filters: {} });
-      window.location.hash = 'product-list';
       return;
     }
 
@@ -141,10 +153,8 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit, currentPage })
     setActiveRoute(cleanUrl || 'home');
     if (!cleanUrl || cleanUrl === 'home') {
       navigate?.('home');
-      window.location.hash = '';
     } else {
       navigate?.(cleanUrl);
-      window.location.hash = cleanUrl;
     }
   };
 
@@ -520,17 +530,52 @@ export const Navbar = ({ navigate, user, setUser, onSearchSubmit, currentPage })
                 {lang === 'th' ? 'เมนูนำทาง' : 'Navigation'}
               </div>
 
-              {/* All Categories Button in Drawer */}
-              <button
-                onClick={() => { setMobileMenuOpen(false); navigate?.('product-list'); }}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#0c3175] text-white font-bold text-xs mb-2 shadow-xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Menu className="w-4 h-4 text-blue-300" />
-                  <span>{categoryButtonLabel}</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-blue-300" />
-              </button>
+              {/* Category Accordion / List in Drawer */}
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => setMobileCategoriesOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#0c3175] text-white font-bold text-xs shadow-xs transition-colors hover:bg-[#133e8d]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Menu className="w-4 h-4 text-blue-300" />
+                    <span>{categoryButtonLabel}</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-blue-300 transition-transform duration-200 ${mobileCategoriesOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {mobileCategoriesOpen && (
+                  <div className="mt-1.5 pl-2 pr-1 py-1.5 space-y-1 bg-[#091b38] rounded-xl border border-blue-900/40">
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        navigate?.('product-list', { filters: {} });
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold text-blue-300 hover:bg-white/10 text-left transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Package className="w-3.5 h-3.5 text-blue-400" />
+                        <span>{lang === 'th' ? 'ดูสินค้าทุกหมวดหมู่ (ทั้งหมด)' : 'All Categories'}</span>
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-blue-400/70" />
+                    </button>
+
+                    {categories.filter(c => !c.parentId).map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          navigate?.('product-list', { filters: { categoryId: cat.id }, categoryId: cat.id });
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-200 hover:text-white hover:bg-white/10 text-left transition-colors"
+                      >
+                        <span className="truncate">{cat.name}</span>
+                        <ChevronRight className="w-3 h-3 text-slate-500" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Dynamic Menus */}
               {navMenus.filter(m => {

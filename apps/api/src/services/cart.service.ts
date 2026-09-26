@@ -90,6 +90,24 @@ export class CartService {
           }
         }
 
+        let itemShippingFee = 0;
+        let variantName = null;
+        if (item.product?.description && typeof item.product.description === 'string' && item.product.description.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(item.product.description);
+            if (item.vehicleVariantId && Array.isArray(parsed.variants)) {
+              const matchedVar = parsed.variants.find((v: any) => v.id === item.vehicleVariantId || v.sku === item.sku);
+              if (matchedVar) {
+                if (matchedVar.shippingFee !== undefined) itemShippingFee = Number(matchedVar.shippingFee);
+                if (matchedVar.name) variantName = matchedVar.name;
+              }
+            }
+            if (!itemShippingFee && parsed.shippingFee !== undefined) {
+              itemShippingFee = Number(parsed.shippingFee);
+            }
+          } catch (_) {}
+        }
+
         return {
           id: item.id,
           cartId: item.cartId,
@@ -104,6 +122,8 @@ export class CartService {
           compareAtPrice: lineCalc.compareAtPrice,
           quantity: item.quantity,
           lineTotal: lineCalc.lineTotal,
+          shippingFee: itemShippingFee,
+          variantName: variantName || item.vehicleVariant?.name || null,
           vehicleVariantId: item.vehicleVariantId || null,
           vehicleVariant: item.vehicleVariant || null,
           fitmentStatus,

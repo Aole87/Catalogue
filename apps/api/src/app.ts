@@ -45,6 +45,21 @@ export async function buildApp(): Promise<FastifyInstance> {
   // 1. Centralized Error Handling
   app.setErrorHandler(errorHandler);
 
+  // Allow empty body on application/json requests (prevents FST_ERR_CTP_EMPTY_JSON_BODY on DELETE/GET)
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (!body || (typeof body === 'string' && body.trim() === '')) {
+      done(null, null);
+      return;
+    }
+    try {
+      const json = JSON.parse(body);
+      done(null, json);
+    } catch (err: any) {
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  });
+
   // 2. Request ID Response Header Hook
   app.addHook('onSend', async (request, reply) => {
     const reqId = (request.headers['x-request-id'] as string) || request.id;

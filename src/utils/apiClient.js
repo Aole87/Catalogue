@@ -24,7 +24,6 @@ class ApiClient {
   static async request(endpoint, options = {}) {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
     const headers = {
-      'Content-Type': 'application/json',
       Accept: 'application/json',
       ...options.headers,
     };
@@ -49,16 +48,27 @@ class ApiClient {
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
+    let body = options.body;
+    if (body && typeof body === 'object' && !(body instanceof FormData)) {
+      body = JSON.stringify(body);
+    }
+
+    // Only set Content-Type for requests with a body (prevents Fastify 400 error on DELETE/GET)
+    if (body != null && !(body instanceof FormData)) {
+      if (!headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+    } else {
+      delete headers['Content-Type'];
+    }
+
     const config = {
       ...options,
+      body,
       headers,
       credentials: 'include', // Includes HttpOnly session cookie
       signal: options.signal || (controller ? controller.signal : undefined),
     };
-
-    if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
-      config.body = JSON.stringify(config.body);
-    }
 
     const method = (options.method || 'GET').toUpperCase();
     const isWrite = method !== 'GET' && method !== 'HEAD';
@@ -120,14 +130,15 @@ class ApiClient {
       return OfflineDataStore.handle(endpoint, options);
     }
 
-    if (response.status === 404 && isWrite) {
-      throw new Error(`ไม่พบ API Endpoint สำหรับการแก้ไขข้อมูล (HTTP 404: ${endpoint})`);
-    }
-
     const json = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      let errorMsg = json.error?.message || json.message || `HTTP error ${response.status}`;
+      let errorMsg = json.error?.message || json.message;
+      if (!errorMsg && response.status === 404 && isWrite) {
+        errorMsg = `ไม่พบข้อมูลหรือ API Endpoint สำหรับการแก้ไขข้อมูล (HTTP 404: ${endpoint})`;
+      } else if (!errorMsg) {
+        errorMsg = `HTTP error ${response.status}`;
+      }
       if (Array.isArray(json.error?.details) && json.error.details.length > 0) {
         const detailsStr = json.error.details.map((d) => `${d.field}: ${d.message}`).join(', ');
         errorMsg = `${errorMsg} (${detailsStr})`;
@@ -226,6 +237,10 @@ class ApiClient {
 
   static async verifyOtp(email, code, purpose = 'REGISTRATION') {
     return this.post('/auth/otp/verify', { email, code, purpose });
+  }
+
+  static async resetPassword(data) {
+    return this.post('/auth/reset-password', data);
   }
 
   static async register(data) {

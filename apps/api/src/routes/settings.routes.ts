@@ -9,13 +9,15 @@ const defaultSettings = {
     slipVerification: { enabled: true, apiKey: 'slip_verify_live_key_998877' },
   },
   shipping: {
+    freeShippingEnabled: false,
+    freeShippingThreshold: 2000,
+    applyFreeShippingToCustomItems: false,
     methods: [
       { id: 'ship-1', code: 'FLASH', name: 'Flash Express', fee: 45, estimatedDays: '1-2 Days', active: true },
       { id: 'ship-2', code: 'KERRY', name: 'Kerry Express', fee: 60, estimatedDays: '1-2 Days', active: true },
       { id: 'ship-3', code: 'SCG', name: 'SCG Express (Cold/Heavy)', fee: 75, estimatedDays: '2-3 Days', active: true },
       { id: 'ship-4', code: 'STANDARD', name: 'Standard Delivery', fee: 35, estimatedDays: '2-4 Days', active: true },
     ],
-    freeShippingThreshold: 2000,
   },
   general: {
     siteName: 'Buy@Unimart Auto Parts',
@@ -126,6 +128,21 @@ const defaultSettings = {
 3. Prices, promotions, and product specifications are subject to updates according to manufacturer guidelines.`,
   },
   recommendedProductIds: [] as string[],
+  authPage: {
+    brandNameTh: 'AUTOPARTS',
+    brandNameHighlight: 'PRO',
+    titleTh: 'เข้าสู่ระบบสมาชิก',
+    titleEn: 'Member Login',
+    subtitleTh: 'เข้าสู่ระบบเพื่อรับสิทธิ์ราคาส่ง ตรวจสอบอะไหล่ตรงรุ่นด้วยเลขตัวถัง และดูประวัติการสั่งซื้อแบบ Real-time',
+    subtitleEn: 'Sign in to access wholesale pricing, check exact fitment by VIN, and track orders in real-time',
+    benefit1Th: 'ราคาส่งพิเศษสำหรับอู่ซ่อมรถและร้านค้า',
+    benefit1En: 'Special wholesale pricing for repair shops & garages',
+    benefit2Th: 'เช็ครหัส OEM และความตรงรุ่น 100%',
+    benefit2En: '100% exact fitment and OEM part code verification',
+    benefit3Th: 'ติดตามสถานะการจัดส่งพัสดุได้ตลอด 24 ชั่วโมง',
+    benefit3En: 'Track order & parcel shipping status 24/7',
+    copyrightText: '© 2026 AutoParts Pro Platform. All rights reserved.',
+  },
 };
 
 let inMemorySettings = { ...defaultSettings };
@@ -147,7 +164,9 @@ export async function settingsRoutes(fastify: FastifyInstance) {
         records.forEach((r) => {
           result[r.key.toLowerCase()] = r.value;
           if (r.key === 'RECOMMENDED_PRODUCTS') result.recommendedProductIds = r.value;
+          if (r.key === 'AUTHPAGE' || r.key === 'AUTH_PAGE') result.authPage = r.value;
         });
+        inMemorySettings = { ...inMemorySettings, ...result };
         settingsCache = result;
         settingsCacheExpiry = now + 60000; // Cache 60 seconds
         return reply.send({ success: true, settings: result });
@@ -172,10 +191,13 @@ export async function settingsRoutes(fastify: FastifyInstance) {
     if (body.navigation) inMemorySettings.navigation = { ...inMemorySettings.navigation, ...body.navigation };
     if (body.storeInfo) inMemorySettings.storeInfo = { ...inMemorySettings.storeInfo, ...body.storeInfo };
     if (body.policies) inMemorySettings.policies = { ...inMemorySettings.policies, ...body.policies };
-    if (body.recommendedProductIds) inMemorySettings.recommendedProductIds = body.recommendedProductIds;
+    if (body.authPage) inMemorySettings.authPage = { ...inMemorySettings.authPage, ...body.authPage };
+    if (body.recommendedProductIds !== undefined) {
+      inMemorySettings.recommendedProductIds = Array.isArray(body.recommendedProductIds) ? body.recommendedProductIds : [];
+    }
 
     try {
-      if (body.recommendedProductIds) {
+      if (body.recommendedProductIds !== undefined) {
         await prisma.systemSetting.upsert({
           where: { key: 'RECOMMENDED_PRODUCTS' },
           update: { value: inMemorySettings.recommendedProductIds },
@@ -250,6 +272,13 @@ export async function settingsRoutes(fastify: FastifyInstance) {
           where: { key: 'POLICIES' },
           update: { value: inMemorySettings.policies },
           create: { key: 'POLICIES', value: inMemorySettings.policies, category: 'GENERAL' },
+        });
+      }
+      if (body.authPage) {
+        await prisma.systemSetting.upsert({
+          where: { key: 'AUTHPAGE' },
+          update: { value: inMemorySettings.authPage },
+          create: { key: 'AUTHPAGE', value: inMemorySettings.authPage, category: 'GENERAL' },
         });
       }
     } catch (e) {}

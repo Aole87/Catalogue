@@ -26,7 +26,12 @@ export class MailService {
   /**
    * Sends a styled OTP verification email for registration or password reset.
    */
-  static async sendOtpEmail(to: string, code: string, purpose: 'REGISTRATION' | 'PASSWORD_RESET' | 'VERIFY_EMAIL' = 'REGISTRATION'): Promise<boolean> {
+  static async sendOtpEmail(
+    to: string,
+    code: string,
+    purpose: 'REGISTRATION' | 'PASSWORD_RESET' | 'VERIFY_EMAIL' = 'REGISTRATION',
+    resetUrl?: string
+  ): Promise<boolean> {
     const purposeTitle =
       purpose === 'REGISTRATION'
         ? 'ยืนยันการสมัครสมาชิก'
@@ -34,7 +39,27 @@ export class MailService {
         ? 'รีเซ็ตรหัสผ่าน'
         : 'ยืนยันอีเมลของคุณ';
 
-    const subject = `[MOBEX Auto Parts] รหัส OTP สำหรับ${purposeTitle}: ${code}`;
+    const subject = `[MOBEX Auto Parts] ${purposeTitle}: ${code}`;
+
+    const resetLinkHtml = resetUrl
+      ? `
+              <!-- Direct Reset Button -->
+              <div style="text-align: center; margin: 0 0 28px;">
+                <a href="${resetUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color: #ffffff; padding: 14px 28px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 15px; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);">
+                  🔑 คลิกที่นี่เพื่อตั้งรหัสผ่านใหม่ทันที
+                </a>
+                <p style="margin: 8px 0 0; color: #64748b; font-size: 11px;">
+                  (ไม่ต้องกรอกรหัส OTP สะดวกและปลอดภัย ลิงก์มีอายุ 15 นาที)
+                </p>
+              </div>
+
+              <div style="text-align: center; margin: 20px 0 16px;">
+                <span style="color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                  — หรือกรอกรหัส OTP ในหน้าต่างเว็บไซต์ —
+                </span>
+              </div>
+      `
+      : '';
 
     const html = `
 <!DOCTYPE html>
@@ -66,8 +91,10 @@ export class MailService {
                 ${purposeTitle}
               </h2>
               <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
-                คุณได้ทำรายการสำหรับบัญชี <strong>${to}</strong><br>กรุณานำรหัสยืนยัน OTP ด้านล่างนี้ไปกรอกในหน้าเว็บไซต์เพื่อทำรายการต่อ:
+                คุณได้ทำรายการสำหรับบัญชี <strong>${to}</strong><br>กรุณาเลือกวิธียืนยันตัวตนด้านล่างเพื่อดำเนินการต่อ:
               </p>
+
+              ${resetLinkHtml}
 
               <!-- OTP Box -->
               <div style="background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 24px;">
@@ -82,7 +109,7 @@ export class MailService {
               <!-- Security Advice -->
               <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 14px; margin-bottom: 24px;">
                 <p style="margin: 0; color: #b45309; font-size: 12px; line-height: 1.5;">
-                  🔒 <strong>คำเตือนความปลอดภัย:</strong> โปรดอย่าเปิดเผยรหัส OTP นี้แก่ผู้อื่น เจ้าหน้าที่ของ MOBEX จะไม่มีวันขอรหัส OTP จากท่าน
+                  🔒 <strong>คำเตือนความปลอดภัย:</strong> โปรดอย่าเปิดเผยรหัส OTP หรือส่งต่อลิงก์นี้แก่ผู้อื่น เจ้าหน้าที่ของ MOBEX จะไม่มีวันขอรหัสจากท่าน
                 </p>
               </div>
 
@@ -129,12 +156,19 @@ export class MailService {
       }
     }
 
-    // Fallback: Log directly to server stdout so developers/admins can read the OTP code
-    console.log(`\n=================================================`);
-    console.log(` 📧 [EMAIL OTP SIMULATOR] To: ${to}`);
-    console.log(` 🔑 OTP CODE: ${code}`);
-    console.log(` 🎯 PURPOSE: ${purpose} (Valid for ${config.OTP_TTL_MINUTES} mins)`);
-    console.log(`=================================================\n`);
+    // Fallback: In development/test, log to server stdout for easy local testing
+    if (config.NODE_ENV !== 'production') {
+      console.log(`\n=================================================`);
+      console.log(` 📧 [EMAIL NOTIFICATION SIMULATOR] To: ${to}`);
+      console.log(` 🔑 OTP CODE: ${code}`);
+      if (resetUrl) {
+        console.log(` 🔗 RESET LINK: ${resetUrl}`);
+      }
+      console.log(` 🎯 PURPOSE: ${purpose} (Valid for ${config.OTP_TTL_MINUTES} mins)`);
+      console.log(`=================================================\n`);
+    } else {
+      console.warn(`[MailService] Warning: SMTP not configured or failed for ${to} (${purpose})`);
+    }
     return true;
   }
 }

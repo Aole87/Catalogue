@@ -23,7 +23,9 @@ import {
   MapPin,
   FileText,
   ShieldCheck,
-  Star
+  Star,
+  Check,
+  Lock
 } from 'lucide-react';
 
 export default function StorefrontManager() {
@@ -114,6 +116,22 @@ export default function StorefrontManager() {
     termsOfServiceEn: '',
   });
 
+  const [authPage, setAuthPage] = useState({
+    brandNameTh: 'AUTOPARTS',
+    brandNameHighlight: 'PRO',
+    titleTh: 'เข้าสู่ระบบสมาชิก',
+    titleEn: 'Member Login',
+    subtitleTh: 'เข้าสู่ระบบเพื่อรับสิทธิ์ราคาส่ง ตรวจสอบอะไหล่ตรงรุ่นด้วยเลขตัวถัง และดูประวัติการสั่งซื้อแบบ Real-time',
+    subtitleEn: 'Sign in to access wholesale pricing, check exact fitment by VIN, and track orders in real-time',
+    benefit1Th: 'ราคาส่งพิเศษสำหรับอู่ซ่อมรถและร้านค้า',
+    benefit1En: 'Special wholesale pricing for repair shops & garages',
+    benefit2Th: 'เช็ครหัส OEM และความตรงรุ่น 100%',
+    benefit2En: '100% exact fitment and OEM part code verification',
+    benefit3Th: 'ติดตามสถานะการจัดส่งพัสดุได้ตลอด 24 ชั่วโมง',
+    benefit3En: 'Track order & parcel shipping status 24/7',
+    copyrightText: '© 2026 AutoParts Pro Platform. All rights reserved.',
+  });
+
   // Sync state from settings context or API
   React.useEffect(() => {
     if (settings) {
@@ -124,6 +142,7 @@ export default function StorefrontManager() {
       if (settings.navigation) setNavigationConfig(prev => ({ ...prev, ...settings.navigation }));
       if (settings.storeInfo) setStoreInfo(prev => ({ ...prev, ...settings.storeInfo }));
       if (settings.policies) setPolicies(prev => ({ ...prev, ...settings.policies }));
+      if (settings.authPage) setAuthPage(prev => ({ ...prev, ...settings.authPage }));
     }
   }, [settings]);
 
@@ -141,6 +160,7 @@ export default function StorefrontManager() {
           if (s.navigation) setNavigationConfig(prev => ({ ...prev, ...s.navigation }));
           if (s.storeInfo) setStoreInfo(prev => ({ ...prev, ...s.storeInfo }));
           if (s.policies) setPolicies(prev => ({ ...prev, ...s.policies }));
+          if (s.authPage) setAuthPage(prev => ({ ...prev, ...s.authPage }));
           if (s.recommendedProductIds && Array.isArray(s.recommendedProductIds)) {
             setRecommendedProductIds(s.recommendedProductIds);
           }
@@ -167,6 +187,7 @@ export default function StorefrontManager() {
         storeInfo,
         policies,
         recommendedProductIds,
+        authPage,
       };
       if (updateSettings) {
         await updateSettings(payload);
@@ -278,6 +299,7 @@ export default function StorefrontManager() {
           { id: 'policies', label: '📜 นโยบายร้านค้า & PDPA', icon: FileText },
           { id: 'typography', label: '📝 หัวข้อหมวดสินค้า', icon: Type },
           { id: 'recommended', label: '⭐ สินค้าแนะนำ', icon: Star },
+          { id: 'authPage', label: '🔐 หน้าเข้าสู่ระบบ (Login)', icon: Lock },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -935,8 +957,34 @@ export default function StorefrontManager() {
                 สินค้าที่ถูกเลือกจะมีป้าย <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[9px]">⭐ แนะนำ</span> ขึ้นที่การ์ดสินค้า และแสดงเมื่อลูกค้าคลิกที่เมนู "สินค้าแนะนำ" บนแถบนำทาง
               </p>
             </div>
-            <div className="text-xs font-bold text-slate-600 bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-200">
-              เลือกแล้ว: <span className="text-amber-800 font-black">{recommendedProductIds.length}</span> รายการ
+            <div className="flex items-center gap-3">
+              <div className="text-xs font-bold text-slate-600 bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-200">
+                เลือกแล้ว: <span className="text-amber-800 font-black">{recommendedProductIds.length}</span> รายการ
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    if (updateSettings) {
+                      await updateSettings({ recommendedProductIds });
+                    } else {
+                      await ApiClient.updateSettings({ recommendedProductIds });
+                    }
+                    setSavedSuccess(true);
+                    setTimeout(() => setSavedSuccess(false), 2500);
+                  } catch (e) {
+                    alert('บันทึกไม่สำเร็จ: ' + (e.message || ''));
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs rounded-full shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>บันทึกสินค้าแนะนำ</span>
+              </button>
             </div>
           </div>
 
@@ -952,11 +1000,20 @@ export default function StorefrontManager() {
                 return (
                   <div
                     key={p.id}
-                    onClick={() => {
+                    onClick={async () => {
                       const next = isSelected
                         ? recommendedProductIds.filter(id => id !== p.id)
                         : [...recommendedProductIds, p.id];
                       setRecommendedProductIds(next);
+                      try {
+                        if (updateSettings) {
+                          await updateSettings({ recommendedProductIds: next });
+                        } else {
+                          await ApiClient.updateSettings({ recommendedProductIds: next });
+                        }
+                      } catch (err) {
+                        console.error('Failed to sync recommended item', err);
+                      }
                     }}
                     className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                       isSelected
@@ -995,6 +1052,219 @@ export default function StorefrontManager() {
                 );
               })
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 8. Auth / Login Page CMS */}
+      {activeSubTab === 'authPage' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Edit Form */}
+          <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-5">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <Lock className="w-4 h-4 text-[#0c3175]" />
+                <span>ข้อความและจุดเด่นหน้าเข้าสู่ระบบ (Login Banner CMS)</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                ปรับแต่งข้อความแบรนด์ หัวข้อ คำอธิบาย และจุดเด่น 3 ข้อบนแบนเนอร์ด้านซ้ายของหน้าเข้าสู่ระบบ
+              </p>
+            </div>
+
+            {/* Brand Logo Text */}
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <label className="text-xs font-bold text-slate-800 block">1. ชื่อแบรนด์ / โลโก้ข้อความ</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block mb-1">ชื่อแบรนด์หลัก (สีขาว)</span>
+                  <input
+                    type="text"
+                    value={authPage.brandNameTh || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, brandNameTh: e.target.value })}
+                    placeholder="เช่น AUTOPARTS"
+                    className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175]"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block mb-1">คำเน้นท้าย (สีส้ม)</span>
+                  <input
+                    type="text"
+                    value={authPage.brandNameHighlight || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, brandNameHighlight: e.target.value })}
+                    placeholder="เช่น PRO"
+                    className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white outline-none focus:border-[#ea580c] text-[#ea580c]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Title & Subtitle */}
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <label className="text-xs font-bold text-slate-800 block">2. หัวข้อ & คำอธิบาย</label>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block mb-1">หัวข้อหลัก (ภาษาไทย)</span>
+                  <input
+                    type="text"
+                    value={authPage.titleTh || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, titleTh: e.target.value })}
+                    placeholder="เข้าสู่ระบบสมาชิก"
+                    className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175]"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block mb-1">หัวข้อหลัก (English)</span>
+                  <input
+                    type="text"
+                    value={authPage.titleEn || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, titleEn: e.target.value })}
+                    placeholder="Member Login"
+                    className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175]"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block mb-1">คำอธิบายย่อย (ภาษาไทย)</span>
+                  <textarea
+                    rows={2}
+                    value={authPage.subtitleTh || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, subtitleTh: e.target.value })}
+                    placeholder="เข้าสู่ระบบเพื่อรับสิทธิ์ราคาส่ง..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175]"
+                  />
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-500 font-medium block mb-1">คำอธิบายย่อย (English)</span>
+                  <textarea
+                    rows={2}
+                    value={authPage.subtitleEn || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, subtitleEn: e.target.value })}
+                    placeholder="Sign in to access wholesale pricing..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 3 Benefits */}
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <label className="text-xs font-bold text-slate-800 block">3. รายการจุดเด่น 3 ข้อ (เครื่องหมายถูกสีส้ม)</label>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-600 block mb-1">จุดเด่นที่ 1:</span>
+                  <input
+                    type="text"
+                    value={authPage.benefit1Th || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, benefit1Th: e.target.value })}
+                    placeholder="ราคาส่งพิเศษสำหรับอู่ซ่อมรถและร้านค้า"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175] mb-1"
+                  />
+                  <input
+                    type="text"
+                    value={authPage.benefit1En || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, benefit1En: e.target.value })}
+                    placeholder="Special wholesale pricing for repair shops & garages (English)"
+                    className="w-full px-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white text-slate-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-bold text-slate-600 block mb-1">จุดเด่นที่ 2:</span>
+                  <input
+                    type="text"
+                    value={authPage.benefit2Th || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, benefit2Th: e.target.value })}
+                    placeholder="เช็ครหัส OEM และความตรงรุ่น 100%"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175] mb-1"
+                  />
+                  <input
+                    type="text"
+                    value={authPage.benefit2En || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, benefit2En: e.target.value })}
+                    placeholder="100% exact fitment and OEM part code verification (English)"
+                    className="w-full px-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white text-slate-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-bold text-slate-600 block mb-1">จุดเด่นที่ 3:</span>
+                  <input
+                    type="text"
+                    value={authPage.benefit3Th || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, benefit3Th: e.target.value })}
+                    placeholder="ติดตามสถานะการจัดส่งพัสดุได้ตลอด 24 ชั่วโมง"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175] mb-1"
+                  />
+                  <input
+                    type="text"
+                    value={authPage.benefit3En || ''}
+                    onChange={(e) => setAuthPage({ ...authPage, benefit3En: e.target.value })}
+                    placeholder="Track order & parcel shipping status 24/7 (English)"
+                    className="w-full px-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white text-slate-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Copyright */}
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+              <label className="text-xs font-bold text-slate-800 block">4. ข้อความลิขสิทธิ์ด้านล่าง</label>
+              <input
+                type="text"
+                value={authPage.copyrightText || ''}
+                onChange={(e) => setAuthPage({ ...authPage, copyrightText: e.target.value })}
+                placeholder="© 2026 AutoParts Pro Platform. All rights reserved."
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-[#0c3175]"
+              />
+            </div>
+          </div>
+
+          {/* Live Preview */}
+          <div className="lg:col-span-5 space-y-3">
+            <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-[#0c3175]" />
+              <span>ตัวอย่างการแสดงผลจริงบนหน้าเข้าสู่ระบบ (Live Preview)</span>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#0c3175] to-[#051124] p-7 rounded-3xl text-white shadow-xl relative overflow-hidden border border-blue-900/50">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+              <div className="relative z-10 space-y-5">
+                <div>
+                  <span className="text-xl font-black text-white tracking-tight">
+                    {authPage.brandNameTh || 'AUTOPARTS'}
+                    <span className="text-[#ea580c]">{authPage.brandNameHighlight || 'PRO'}</span>
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-white tracking-tight leading-snug mb-2">
+                    {authPage.titleTh || 'เข้าสู่ระบบสมาชิก'}
+                  </h3>
+                  <p className="text-xs text-blue-200 leading-relaxed">
+                    {authPage.subtitleTh || 'เข้าสู่ระบบเพื่อรับสิทธิ์ราคาส่ง ตรวจสอบอะไหล่ตรงรุ่นด้วยเลขตัวถัง และดูประวัติการสั่งซื้อแบบ Real-time'}
+                  </p>
+                </div>
+
+                <div className="space-y-3 py-2">
+                  <div className="flex items-center gap-2.5 text-xs text-white/90 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-[#ea580c] shrink-0" />
+                    <span>{authPage.benefit1Th || 'ราคาส่งพิเศษสำหรับอู่ซ่อมรถและร้านค้า'}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-white/90 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-[#ea580c] shrink-0" />
+                    <span>{authPage.benefit2Th || 'เช็ครหัส OEM และความตรงรุ่น 100%'}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-white/90 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-[#ea580c] shrink-0" />
+                    <span>{authPage.benefit3Th || 'ติดตามสถานะการจัดส่งพัสดุได้ตลอด 24 ชั่วโมง'}</span>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-white/10 text-[10px] text-blue-300">
+                  {authPage.copyrightText || '© 2026 AutoParts Pro Platform. All rights reserved.'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

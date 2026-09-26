@@ -52,6 +52,18 @@ export const changePasswordSchema = z.object({
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+export const resetPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email('รูปแบบอีเมลไม่ถูกต้อง'),
+  code: z.string().trim().optional(),
+  verificationToken: z.string().trim().optional(),
+  newPassword: z
+    .string()
+    .min(8, 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 8 ตัวอักษร')
+    .max(100, 'รหัสผ่านต้องไม่เกิน 100 ตัวอักษร'),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 export interface AuthUserResponse {
   id: string;
   email: string;

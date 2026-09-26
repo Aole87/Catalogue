@@ -18,7 +18,10 @@ import {
   Ticket,
   Lock,
   UserCheck,
-  Check
+  Check,
+  Minus,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 const DEFAULT_SHIPPING_PROVIDERS = [
@@ -38,9 +41,34 @@ const THAI_PROVINCES = [
 ];
 
 export default function Checkout({ onNavigate, user }) {
-  const { cart, items, totals, clearCart, refreshCart } = useCart();
+  const { cart, items, totals, clearCart, refreshCart, updateQuantity, removeItem } = useCart();
   const { t, lang } = useLanguage();
   const { settings } = useSettings();
+
+  const isPromptPayActive = settings?.payment?.promptpay?.enabled === true;
+  const isBankTransferActive = settings?.payment?.bankTransfer?.enabled !== false;
+  const isStripeActive = Boolean(settings?.payment?.stripe?.enabled);
+
+  const availablePaymentMethods = [
+    isPromptPayActive && {
+      id: 'PROMPTPAY',
+      label: 'PromptPay QR',
+      sub: 'สแกน QR Code รับเงินทันที',
+      icon: QrCode,
+    },
+    isBankTransferActive && {
+      id: 'BANK_TRANSFER',
+      label: 'โอนผ่านธนาคาร',
+      sub: 'แนบสลิปโอนเงิน',
+      icon: Building2,
+    },
+    isStripeActive && {
+      id: 'CREDIT_CARD',
+      label: 'บัตรเครดิต/เดบิต',
+      sub: 'ชำระออนไลน์ปลอดภัย',
+      icon: CreditCard,
+    },
+  ].filter(Boolean);
 
   const availableShipping = (settings?.shipping?.methods || []).filter(m => m.active !== false).length > 0
     ? (settings?.shipping?.methods || []).filter(m => m.active !== false).map(m => ({
@@ -67,12 +95,23 @@ export default function Checkout({ onNavigate, user }) {
     province: 'กรุงเทพมหานคร',
     postalCode: '',
     customerNotes: '',
-    paymentMethod: 'PROMPTPAY',
+    paymentMethod: availablePaymentMethods[0]?.id || (isBankTransferActive ? 'BANK_TRANSFER' : isPromptPayActive ? 'PROMPTPAY' : ''),
     needInvoice: false,
     invoiceRecipientName: user?.companyName || (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''),
     invoiceTaxId: user?.taxId || '',
     invoiceAddress: '',
   });
+
+  // Ensure formData.paymentMethod synchronizes with currently enabled payment methods
+  useEffect(() => {
+    if (availablePaymentMethods.length > 0) {
+      if (!availablePaymentMethods.some(pm => pm.id === formData.paymentMethod)) {
+        setFormData(prev => ({ ...prev, paymentMethod: availablePaymentMethods[0].id }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, paymentMethod: '' }));
+    }
+  }, [availablePaymentMethods.length, isPromptPayActive, isBankTransferActive, isStripeActive]);
 
   // Coupon State
   const [couponCodeInput, setCouponCodeInput] = useState('');
@@ -125,8 +164,11 @@ export default function Checkout({ onNavigate, user }) {
 
   // Calculate pricing breakdown
   const subtotalNum = Number(totals?.subtotal || 0);
-  const freeThreshold = Number(settings?.shipping?.freeShippingThreshold ?? 2000);
-  const isFreeShipping = subtotalNum >= freeThreshold;
+
+  // Free shipping configuration from Settings
+  const freeShippingEnabled = Boolean(settings?.shipping?.freeShippingEnabled);
+  const freeThreshold = Number(settings?.shipping?.freeShippingThreshold || 0);
+  const applyFreeShippingToCustomItems = Boolean(settings?.shipping?.applyFreeShippingToCustomItems);
 
   // Product-specific / SKU variant-specific shipping calculation
   const productSpecificShipping = (items || []).reduce((acc, item) => {
@@ -134,8 +176,10 @@ export default function Checkout({ onNavigate, user }) {
     return acc + (fee * (item.quantity || 1));
   }, 0);
 
-  const baseShippingFee = Number(selectedShipping?.fee || 0);
-  const totalCalculatedShipping = baseShippingFee + productSpecificShipping;
+  const hasCustomShipping = productSpecificShipping > 0;
+  const isFreeShipping = freeShippingEnabled && freeThreshold > 0 && subtotalNum >= freeThreshold && (!hasCustomShipping || applyFreeShippingToCustomItems);
+  const baseShippingFee = hasCustomShipping ? 0 : Number(selectedShipping?.fee || 0);
+  const totalCalculatedShipping = hasCustomShipping ? productSpecificShipping : baseShippingFee;
   const shippingFeeNum = isFreeShipping ? 0 : totalCalculatedShipping;
   
   let couponDiscountEst = 0;
@@ -173,6 +217,10 @@ export default function Checkout({ onNavigate, user }) {
     e.preventDefault();
     if (items.length === 0) {
       setErrorMessage('ตะกร้าสินค้าว่างเปล่า กรุณาเลือกสินค้าก่อนทำการสั่งซื้อ');
+      return;
+    }
+    if (!formData.paymentMethod) {
+      setErrorMessage(lang === 'th' ? 'กรุณาเลือกวิธีการชำระเงิน หรือติดต่อผู้ดูแลระบบหากยังไม่มีช่องทางชำระเงินเปิดใช้งาน' : 'Please select a payment method or contact admin.');
       return;
     }
 
@@ -354,59 +402,88 @@ export default function Checkout({ onNavigate, user }) {
               </div>
             </div>
 
-            {/* Standalone Shipping Provider Selector (Requirement 7) */}
+            {/* Standalone Shipping Provider Selector or Product-Specific Rate (Requirement) */}
             <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs">
               <h2 className="text-base font-black text-[#0e1932] mb-1 flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Package className="w-5 h-5 text-[#ea580c]" />
-                  <span>2. {t('selectCarrier')}</span>
+                  <span>2. {hasCustomShipping ? (lang === 'th' ? 'ค่าจัดส่งสินค้าตามรายการ' : 'Product-Specific Shipping') : t('selectCarrier')}</span>
                 </span>
                 <span className="text-xs text-[#0c3175] font-bold">
-                  {lang === 'th' ? 'คำนวณแยกต่างหาก' : 'Calculated Separately'}
+                  {hasCustomShipping ? (lang === 'th' ? 'คิดตามอัตราของสินค้า' : 'Item Rate') : (lang === 'th' ? 'คำนวณแยกต่างหาก' : 'Calculated Separately')}
                 </span>
               </h2>
-              <p className="text-[11px] text-slate-500 mb-4">
-                {lang === 'th' ? 'เลือกผู้ให้บริการขนส่ง ค่าจัดส่งจะถูกคำนวณแยกและรวมกับราคาสินค้าสุทธิ' : 'Select carrier. Shipping fee is calculated separately and added to total.'}
-              </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {availableShipping.map((provider) => {
-                  const effectiveFee = isFreeShipping ? 0 : provider.fee;
-                  return (
-                    <div
-                      key={provider.id}
-                      onClick={() => setSelectedShipping(provider)}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
-                        selectedShipping.id === provider.id
-                          ? 'border-[#0c3175] bg-blue-50/50 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">{provider.logo}</span>
-                        <div>
-                          <div className="font-bold text-slate-900">{provider.name}</div>
-                          <div className="text-[11px] text-slate-500">
-                            {t('estimatedDelivery')}: {provider.estDays}
+              {hasCustomShipping ? (
+                <div className="mt-3 p-4 sm:p-5 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#0c3175] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-bold text-[#0c3175]">
+                        {lang === 'th' ? 'คิดค่าจัดส่งตามอัตราที่ระบุในรายการสินค้า (Fixed Product/SKU Shipping)' : 'Calculated by Item/SKU Shipping Rate'}
+                      </h4>
+                      <span className="text-sm font-black text-slate-900 font-mono">
+                        {isFreeShipping ? (
+                          <span className="text-emerald-600 font-black">฿0.00 (ส่งฟรี)</span>
+                        ) : (
+                          `฿${productSpecificShipping.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      {lang === 'th'
+                        ? 'สินค้านี้กำหนดอัตราค่าจัดส่งตามขนาดและน้ำหนักของแต่ละรายการ/รหัส SKU โดยตรง ไม่จำเป็นต้องเลือกบริษัทขนส่งเพิ่มเติม'
+                        : 'This order uses predefined shipping rates based on item sizes and weights. Carrier selection is not required.'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-slate-500 mb-4">
+                    {lang === 'th' ? 'เลือกผู้ให้บริการขนส่ง ค่าจัดส่งจะถูกคำนวณแยกและรวมกับราคาสินค้าสุทธิ' : 'Select carrier. Shipping fee is calculated separately and added to total.'}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {availableShipping.map((provider) => {
+                      return (
+                        <div
+                          key={provider.id}
+                          onClick={() => setSelectedShipping(provider)}
+                          className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                            selectedShipping.id === provider.id
+                              ? 'border-[#0c3175] bg-blue-50/50 shadow-xs'
+                              : 'border-slate-200 hover:border-slate-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">{provider.logo}</span>
+                            <div>
+                              <div className="font-bold text-slate-900">{provider.name}</div>
+                              <div className="text-[11px] text-slate-500">
+                                {t('estimatedDelivery')}: {provider.estDays}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {isFreeShipping ? (
+                              <div className="flex flex-col items-end">
+                                <span className="font-black text-sm text-emerald-600 font-mono">฿0.00</span>
+                                <span className="text-[9px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.2 rounded">ส่งฟรี</span>
+                              </div>
+                            ) : (
+                              <div className="font-black text-sm text-[#0c3175] font-mono">
+                                ฿{Number(provider.fee).toFixed(2)}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        {isFreeShipping ? (
-                          <div className="flex flex-col items-end">
-                            <span className="font-black text-sm text-emerald-600 font-mono">฿0.00</span>
-                            <span className="text-[9px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.2 rounded">ส่งฟรี</span>
-                          </div>
-                        ) : (
-                          <div className="font-black text-sm text-[#0c3175] font-mono">
-                            ฿{Number(provider.fee).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Payment Method Selector */}
@@ -416,33 +493,36 @@ export default function Checkout({ onNavigate, user }) {
                 <span>3. {lang === 'th' ? 'วิธีการชำระเงิน' : 'Payment Method'}</span>
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                {[
-                  { id: 'PROMPTPAY', label: 'PromptPay QR', sub: 'สแกน QR Code รับเงินทันที', icon: QrCode },
-                  { id: 'BANK_TRANSFER', label: 'โอนผ่านธนาคาร', sub: 'แนบสลิปโอนเงิน', icon: Building2 },
-                  { id: 'CREDIT_CARD', label: 'บัตรเครดิต/เดบิต', sub: 'ชำระออนไลน์ปลอดภัย', icon: CreditCard },
-                ].map((pm) => {
-                  const IconComp = pm.icon;
-                  return (
-                    <div
-                      key={pm.id}
-                      onClick={() => setFormData({ ...formData, paymentMethod: pm.id })}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                        formData.paymentMethod === pm.id
-                          ? 'border-[#0c3175] bg-blue-50/50 font-bold shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <IconComp className="w-6 h-6 text-[#0c3175] mb-2" />
-                      <div className="text-slate-900">{pm.label}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">{pm.sub}</div>
-                    </div>
-                  );
-                })}
-              </div>
+              {availablePaymentMethods.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{lang === 'th' ? 'ไม่มีช่องทางการชำระเงินที่เปิดใช้งานในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ' : 'No active payment methods currently available. Please contact admin.'}</span>
+                </div>
+              ) : (
+                <div className={`grid grid-cols-1 sm:grid-cols-${Math.min(availablePaymentMethods.length, 3)} gap-3 text-xs`}>
+                  {availablePaymentMethods.map((pm) => {
+                    const IconComp = pm.icon;
+                    return (
+                      <div
+                        key={pm.id}
+                        onClick={() => setFormData({ ...formData, paymentMethod: pm.id })}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                          formData.paymentMethod === pm.id
+                            ? 'border-[#0c3175] bg-blue-50/50 font-bold shadow-xs'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <IconComp className="w-6 h-6 text-[#0c3175] mb-2" />
+                        <div className="text-slate-900">{pm.label}</div>
+                        <div className="text-[10px] text-slate-500 font-normal">{pm.sub}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Dynamic Payment Details Hint */}
-              {formData.paymentMethod === 'PROMPTPAY' && settings?.payment?.promptpay && (
+              {formData.paymentMethod === 'PROMPTPAY' && isPromptPayActive && settings?.payment?.promptpay && (
                 <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200/80 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-3">
                     <QrCode className="w-8 h-8 text-[#0c3175]" />
@@ -461,7 +541,7 @@ export default function Checkout({ onNavigate, user }) {
                 </div>
               )}
 
-              {formData.paymentMethod === 'BANK_TRANSFER' && settings?.payment?.bankTransfer && (
+              {formData.paymentMethod === 'BANK_TRANSFER' && isBankTransferActive && settings?.payment?.bankTransfer && (
                 <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-3">
                     <Building2 className="w-8 h-8 text-emerald-700" />
@@ -476,6 +556,25 @@ export default function Checkout({ onNavigate, user }) {
                   </div>
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded-full">
                     แนบสลิปหลังสั่งซื้อ
+                  </span>
+                </div>
+              )}
+
+              {formData.paymentMethod === 'CREDIT_CARD' && isStripeActive && (
+                <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200/80 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="w-8 h-8 text-indigo-700" />
+                    <div>
+                      <div className="font-bold text-indigo-900">
+                        {lang === 'th' ? 'ชำระผ่านบัตรเครดิต / เดบิต (Stripe Gateway)' : 'Pay via Credit / Debit Card (Stripe)'}
+                      </div>
+                      <div className="text-[11px] text-indigo-700">
+                        {lang === 'th' ? 'ระบบความปลอดภัยมาตรฐานสากล PCI-DSS 3D Secure' : 'Protected by PCI-DSS 3D Secure standard'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded-full">
+                    ปลอดภัย 100%
                   </span>
                 </div>
               )}
@@ -558,34 +657,133 @@ export default function Checkout({ onNavigate, user }) {
               </h2>
 
               {/* Items List */}
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1 mb-4">
-                {items.map((item, idx) => {
-                  const itemFee = Number(item.shippingFee || item.product?.shippingFee || item.variant?.shippingFee || 0);
-                  return (
-                    <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-50">
-                      <div className="flex-1 pr-2 truncate">
-                        <div className="font-bold text-slate-800 truncate">{item.name || item.product?.name}</div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                          <span>{lang === 'th' ? 'จำนวน' : 'Qty'}: {item.quantity}</span>
-                          {item.variantName && (
-                            <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                              {item.variantName}
-                            </span>
+              {items.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 space-y-3">
+                  <Package className="w-10 h-10 mx-auto text-slate-300" />
+                  <p className="text-xs font-bold text-slate-600">
+                    {lang === 'th' ? 'ไม่มีสินค้าในคำสั่งซื้อ' : 'No items in order'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('product-list')}
+                    className="px-4 py-2 bg-[#0c3175] text-white text-xs font-bold rounded-xl hover:bg-blue-900 transition-colors shadow-sm cursor-pointer"
+                  >
+                    {lang === 'th' ? '← กลับไปเลือกซื้อสินค้า' : '← Browse Products'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-1 mb-4 divide-y divide-slate-100">
+                  {items.map((item, idx) => {
+                    const title = item.productName || item.name || item.product?.name || (lang === 'th' ? 'สินค้าอะไหล่รถยนต์' : 'Auto Part Item');
+                    const itemImg = item.primaryImage || item.imageUrl || item.image || item.product?.primaryImage || (Array.isArray(item.product?.images) ? item.product.images[0]?.url || item.product.images[0] : null);
+                    const itemFee = Number(item.shippingFee || item.product?.shippingFee || item.variant?.shippingFee || 0);
+                    const unitPriceNum = Number(item.unitPrice || item.price || item.product?.price || 0);
+                    const lineTotalNum = Number(item.lineTotal || (unitPriceNum * (item.quantity || 1)));
+                    const sku = item.sku || item.variantSku || item.product?.sku;
+                    const brand = item.brandName || item.brand?.name || item.product?.brand?.name;
+
+                    return (
+                      <div key={item.id || idx} className="pt-3 first:pt-0 flex gap-3 group items-start sm:items-center">
+                        {/* Product Thumbnail */}
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border border-slate-200/90 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 p-1.5 shadow-2xs">
+                          {itemImg ? (
+                            <img
+                              src={itemImg}
+                              alt={title}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Package className="w-6 h-6 text-slate-300" />
                           )}
-                          {itemFee > 0 && (
-                            <span className="text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded text-[10px]">
-                              {lang === 'th' ? `ค่าส่ง ฿${itemFee}/ชิ้น` : `Ship ฿${itemFee}/ea`}
-                            </span>
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-bold text-slate-900 leading-snug line-clamp-2" title={title}>
+                            {title}
+                          </h4>
+
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] text-slate-500">
+                            {brand && (
+                              <span className="text-[10px] font-bold text-[#0c3175] bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
+                                {brand}
+                              </span>
+                            )}
+                            {sku && (
+                              <span className="text-[10px] font-mono text-slate-400">
+                                SKU: {sku}
+                              </span>
+                            )}
+                            {item.variantName && (
+                              <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded text-[10px] font-bold">
+                                {item.variantName}
+                              </span>
+                            )}
+                            {itemFee > 0 && (
+                              <span className="text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded text-[10px] font-medium">
+                                {lang === 'th' ? `ค่าส่ง ฿${itemFee}/ชิ้น` : `Ship ฿${itemFee}/ea`}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quantity Stepper & Remove Button */}
+                          <div className="flex items-center gap-3 mt-2">
+                            <div className="inline-flex items-center border border-slate-200 rounded-lg p-0.5 bg-slate-50 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if ((item.quantity || 1) <= 1) {
+                                    removeItem(item.id);
+                                  } else {
+                                    updateQuantity(item.id, (item.quantity || 1) - 1);
+                                  }
+                                }}
+                                className="w-5 h-5 rounded-md hover:bg-white flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                                title={lang === 'th' ? 'ลดจำนวน' : 'Decrease'}
+                              >
+                                <Minus className="h-2.5 w-2.5" />
+                              </button>
+                              <span className="w-7 text-center text-xs font-bold text-slate-800 font-mono">
+                                {item.quantity || 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
+                                className="w-5 h-5 rounded-md hover:bg-white flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                                title={lang === 'th' ? 'เพิ่มจำนวน' : 'Increase'}
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.id)}
+                              className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                              title={lang === 'th' ? 'ยกเลิกรายการสินค้านี้' : 'Remove item'}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                              <span className="text-[10px] text-rose-600 font-bold">{lang === 'th' ? 'ลบรายการ' : 'Remove'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Item Price */}
+                        <div className="text-right shrink-0 pt-0.5">
+                          <div className="text-xs font-black text-slate-900 font-mono">
+                            ฿{lineTotalNum.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          {(item.quantity || 1) > 1 && (
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                              ฿{unitPriceNum.toLocaleString('th-TH', { minimumFractionDigits: 2 })}/{lang === 'th' ? 'ชิ้น' : 'ea'}
+                            </div>
                           )}
                         </div>
                       </div>
-                      <div className="font-black text-slate-900 font-mono shrink-0">
-                        ฿{Number(item.price || item.product?.price || 0 * item.quantity).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Coupon Section */}
               <div className="mb-4 pt-3 border-t border-slate-100">
@@ -630,21 +828,23 @@ export default function Checkout({ onNavigate, user }) {
                     <span className="flex items-center gap-1">
                       <span>{t('shippingFee')}</span>
                       <span className="text-[10px] bg-blue-100 text-[#0c3175] px-1.5 py-0.2 rounded font-bold">
-                        {selectedShipping.name}
+                        {hasCustomShipping ? (lang === 'th' ? 'ตามรายการสินค้า' : 'Item Rate') : selectedShipping.name}
                       </span>
                     </span>
                     <span className="font-mono font-bold text-[#0c3175]">
                       +฿{shippingFeeNum.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
-                  {productSpecificShipping > 0 && !isFreeShipping && (
-                    <div className="text-[10px] text-amber-700 mt-0.5 text-right">
-                      {lang === 'th' ? `(รวมค่าส่งสินค้าตามขนาด/น้ำหนัก ฿${productSpecificShipping.toLocaleString('th-TH', { minimumFractionDigits: 2 })})` : `(Includes item weight/size shipping ฿${productSpecificShipping.toLocaleString('th-TH', { minimumFractionDigits: 2 })})`}
+                  {hasCustomShipping && !isFreeShipping && (
+                    <div className="text-[10px] text-blue-700 mt-0.5 text-right font-medium">
+                      {lang === 'th' ? '✓ คิดตามอัตราที่ระบุในรายการสินค้า' : '✓ Predefined product shipping rate'}
                     </div>
                   )}
                   {isFreeShipping && (
                     <div className="text-[10px] text-emerald-600 mt-0.5 text-right font-semibold">
-                      {lang === 'th' ? '✓ จัดส่งฟรี (ยอดเกิน ฿2,000)' : '✓ Free shipping (over ฿2,000)'}
+                      {lang === 'th'
+                        ? `✓ จัดส่งฟรี (ยอดเกิน ฿${freeThreshold.toLocaleString('th-TH')})`
+                        : `✓ Free shipping (over ฿${freeThreshold.toLocaleString()})`}
                     </div>
                   )}
                 </div>
@@ -674,8 +874,8 @@ export default function Checkout({ onNavigate, user }) {
               {/* Submit Order Button */}
               <button
                 type="submit"
-                disabled={isSubmitting || items.length === 0}
-                className="w-full mt-6 py-3.5 rounded-full bg-[#ea580c] hover:bg-[#ea580c] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                disabled={isSubmitting || items.length === 0 || availablePaymentMethods.length === 0}
+                className="w-full mt-6 py-3.5 rounded-full bg-[#ea580c] hover:bg-[#ea580c] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

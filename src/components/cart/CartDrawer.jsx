@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCart } from '../../context/CartContext';
+import { useSettings } from '../../context/SettingsContext';
 import {
   ShoppingBag,
   X,
@@ -24,13 +25,24 @@ export function CartDrawer({ onNavigate }) {
     clearCart,
     loading,
   } = useCart();
+  const { settings } = useSettings();
 
   if (!isCartOpen) return null;
 
   const subtotalNum = Number(totals.subtotal || 0);
-  const freeShippingThreshold = 2000;
-  const progressPercent = Math.min(100, (subtotalNum / freeShippingThreshold) * 100);
-  const remainingForFreeShipping = Math.max(0, freeShippingThreshold - subtotalNum);
+  const freeShippingEnabled = Boolean(settings?.shipping?.freeShippingEnabled);
+  const freeShippingThreshold = Number(settings?.shipping?.freeShippingThreshold || 0);
+  const applyToCustomItems = Boolean(settings?.shipping?.applyFreeShippingToCustomItems);
+
+  const productSpecificShipping = (items || []).reduce((acc, item) => {
+    const fee = Number(item.shippingFee || item.product?.shippingFee || item.variant?.shippingFee || 0);
+    return acc + (fee * (item.quantity || 1));
+  }, 0);
+  const hasCustomShipping = productSpecificShipping > 0;
+
+  const isFreeEligible = freeShippingEnabled && freeShippingThreshold > 0 && subtotalNum >= freeShippingThreshold && (!hasCustomShipping || applyToCustomItems);
+  const progressPercent = freeShippingThreshold > 0 ? Math.min(100, (subtotalNum / freeShippingThreshold) * 100) : 0;
+  const remainingForFreeShipping = freeShippingThreshold > 0 ? Math.max(0, freeShippingThreshold - subtotalNum) : 0;
 
   const formatTHB = (val) => {
     return Number(val || 0).toLocaleString('th-TH', {
@@ -38,6 +50,9 @@ export function CartDrawer({ onNavigate }) {
       maximumFractionDigits: 2,
     });
   };
+
+  const estimatedShippingFee = isFreeEligible ? 0 : (productSpecificShipping > 0 ? productSpecificShipping : 45);
+  const estimatedGrandTotal = subtotalNum + estimatedShippingFee;
 
   const handleCheckoutClick = () => {
     closeCart();
@@ -85,23 +100,25 @@ export function CartDrawer({ onNavigate }) {
             </button>
           </div>
 
-          {/* Free Shipping Progress Meter */}
-          <div className="bg-[#f4f6fb] border-b border-slate-100 px-6 py-3">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
-              <span>
-                {remainingForFreeShipping > 0
-                  ? `Add ฿${formatTHB(remainingForFreeShipping)} more to get FREE DELIVERY! 🚚`
-                  : '🎉 You have unlocked FREE DELIVERY!'}
-              </span>
-              <span className="font-bold text-[#215ada]">{Math.round(progressPercent)}%</span>
+          {/* Free Shipping Progress Meter (Only if enabled and threshold > 0) */}
+          {freeShippingEnabled && freeShippingThreshold > 0 && (
+            <div className="bg-[#f4f6fb] border-b border-slate-100 px-6 py-3">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1.5">
+                <span>
+                  {remainingForFreeShipping > 0
+                    ? `Add ฿${formatTHB(remainingForFreeShipping)} more to get FREE DELIVERY! 🚚`
+                    : '🎉 You have unlocked FREE DELIVERY!'}
+                </span>
+                <span className="font-bold text-[#215ada]">{Math.round(progressPercent)}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${remainingForFreeShipping === 0 ? 'bg-emerald-500' : 'bg-[#215ada]'}`}
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
-            <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-500 ${remainingForFreeShipping === 0 ? 'bg-emerald-500' : 'bg-[#215ada]'}`}
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Item List */}
           <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-slate-100">
@@ -223,13 +240,13 @@ export function CartDrawer({ onNavigate }) {
                 </div>
                 <div className="flex justify-between">
                   <span>Estimated Shipping</span>
-                  <span className="font-semibold text-slate-900">
-                    {remainingForFreeShipping === 0 ? 'FREE' : '฿120.00'}
+                  <span className="font-semibold text-slate-900 font-mono">
+                    {isFreeEligible ? 'FREE' : `฿${formatTHB(estimatedShippingFee)}`}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-black text-[#0e1932] pt-2 border-t border-slate-100">
                   <span>Total</span>
-                  <span className="text-[#215ada] font-mono">฿{formatTHB(totals.total)}</span>
+                  <span className="text-[#215ada] font-mono">฿{formatTHB(estimatedGrandTotal)}</span>
                 </div>
               </div>
 

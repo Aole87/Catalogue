@@ -4,7 +4,7 @@ import { RoleRepository } from '../repositories/role.repository';
 import { AuditRepository } from '../repositories/audit.repository';
 import { PasswordService } from '../security/password';
 import { TokenService } from '../security/tokens';
-import { RegisterInput, LoginInput, ChangePasswordInput, AuthUserResponse, SendOtpInput, VerifyOtpInput } from '../schemas/auth.schema';
+import { RegisterInput, LoginInput, ChangePasswordInput, ResetPasswordInput, AuthUserResponse, SendOtpInput, VerifyOtpInput } from '../schemas/auth.schema';
 import { ConflictError, UnauthorizedError, NotFoundError, BadRequestError } from '../errors/app-error';
 import { OtpService } from './otp.service';
 import config from '../config/env';
@@ -26,6 +26,11 @@ export class AuthService {
       const existing = await UserRepository.findByEmail(normalizedEmail);
       if (existing) {
         throw new ConflictError('อีเมลนี้ลงทะเบียนไว้ในระบบแล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น');
+      }
+    } else if (input.purpose === 'PASSWORD_RESET') {
+      const existing = await UserRepository.findByEmail(normalizedEmail);
+      if (!existing) {
+        throw new NotFoundError('ไม่พบบัญชีผู้ใช้ที่ใช้อีเมลนี้ในระบบ กรุณาตรวจสอบความถูกต้องของอีเมล');
       }
     }
 
@@ -187,7 +192,7 @@ export class AuthService {
         userAgent: metadata.userAgent,
       });
 
-      throw new UnauthorizedError('Invalid username or password', 'AUTH_INVALID_CREDENTIALS');
+      throw new UnauthorizedError('Invalid email or password', 'AUTH_INVALID_CREDENTIALS');
     }
 
     // 2. Verify password with Argon2id
@@ -319,5 +324,52 @@ export class AuthService {
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent,
     });
+  }
+
+  /**
+   * Reset forgotten password using verified OTP code or token
+   */
+  static async resetPassword(input: ResetPasswordInput, metadata?: RequestMetadata) {
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const user = await UserRepository.findByEmail(normalizedEmail);
+    if (!user) {
+      throw new NotFoundError('ไม่พบบัญชีผู้ใช้ที่ใช้อีเมลนี้ในระบบ');
+    }
+
+    // Verify OTP code or token
+    if (input.verificationToken) {
+      const isValid = OtpService.validateVerificationToken(normalizedEmail, input.verificationToken, 'PASSWORD_RESET');
+      if (!isValid) {
+        throw new BadRequestError('โทเค็นยืนยันตัวตนหมดอายุหรือไม่ถูกต้อง กรุณากดขอรหัส OTP ใหม่อีกครั้ง');
+      }
+    } else if (input.code) {
+      await OtpService.verifyOtp(normalizedEmail, input.code, 'PASSWORD_RESET');
+    } else {
+      throw new BadRequestError('กรุณากรอกรหัส OTP ยืนยันตัวตนที่ได้รับทางอีเมล');
+    }
+
+    // Hash new password using Argon2id
+    const newPasswordHash = await PasswordService.hash(input.newPassword);
+    await UserRepository.updatePassword(user.id, newPasswordHash);
+
+    // Revoke all active sessions for security
+    await SessionRepository.revokeAllForUser(user.id);
+
+    // Record audit log
+    if (metadata) {
+      await AuditRepository.record({
+        userId: user.id,
+        action: 'PASSWORD_RESET_SUCCESS',
+        resource: 'User',
+        resourceId: user.id,
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent,
+      });
+    }
+
+    return {
+      success: true,
+      message: 'ตั้งรหัสผ่านใหม่เรียบร้อยแล้ว คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้ทันที',
+    };
   }
 }

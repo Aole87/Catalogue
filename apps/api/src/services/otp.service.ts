@@ -67,15 +67,46 @@ export class OtpService {
     // Clean up expired items periodically
     this.cleanExpired();
 
+    let resetUrl: string | undefined;
+    let verificationToken: string | undefined;
+
+    if (purpose === 'PASSWORD_RESET') {
+      verificationToken = this.generateVerificationToken(normalizedEmail, 'PASSWORD_RESET');
+      const origin = process.env.FRONTEND_URL || 'http://localhost:5173';
+      resetUrl = `${origin.replace(/\/+$/, '')}/#reset-password?email=${encodeURIComponent(normalizedEmail)}&token=${encodeURIComponent(verificationToken)}`;
+    }
+
     // Send email asynchronously
-    await MailService.sendOtpEmail(normalizedEmail, code, purpose);
+    await MailService.sendOtpEmail(normalizedEmail, code, purpose, resetUrl);
 
     return {
       success: true,
-      message: `ส่งรหัส OTP ไปยังอีเมล ${normalizedEmail} เรียบร้อยแล้ว (รหัสมีอายุ ${ttlMinutes} นาที)`,
+      message: purpose === 'PASSWORD_RESET'
+        ? `ส่งลิงก์และรหัสยืนยัน OTP ไปยังอีเมล ${normalizedEmail} เรียบร้อยแล้ว (มีอายุ 15 นาที)`
+        : `ส่งรหัส OTP ไปยังอีเมล ${normalizedEmail} เรียบร้อยแล้ว (รหัสมีอายุ ${ttlMinutes} นาที)`,
       expiresInSeconds: ttlMinutes * 60,
       resendCooldownSeconds: 60,
+      debugCode: config.NODE_ENV !== 'production' ? code : undefined,
+      resetUrl: config.NODE_ENV !== 'production' ? resetUrl : undefined,
+      verificationToken: config.NODE_ENV !== 'production' ? verificationToken : undefined,
     };
+  }
+
+  /**
+   * Generates a cryptographic HMAC-signed verification token valid for 15 minutes.
+   */
+  static generateVerificationToken(
+    email: string,
+    purpose: 'REGISTRATION' | 'PASSWORD_RESET' | 'VERIFY_EMAIL' = 'REGISTRATION'
+  ): string {
+    const normalizedEmail = email.toLowerCase().trim();
+    const timestampStr = Date.now().toString();
+    const tokenPayload = `${normalizedEmail}:${purpose}:${timestampStr}`;
+    const signature = crypto
+      .createHmac('sha256', config.SESSION_COOKIE_SECRET)
+      .update(tokenPayload)
+      .digest('hex');
+    return Buffer.from(`${tokenPayload}:${signature}`).toString('base64url');
   }
 
   /**
@@ -176,6 +207,13 @@ export class OtpService {
     for (const [key, record] of this.store.entries()) {
       if (now > record.expiresAt) {
         this.store.delete(key);
+      }
+    }
+    // Strict memory bounding: prevent map from unbounded growth under abusive traffic
+    if (this.store.size > 5000) {
+      const keysToDelete = Array.from(this.store.keys()).slice(0, 1000);
+      for (const k of keysToDelete) {
+        this.store.delete(k);
       }
     }
   }

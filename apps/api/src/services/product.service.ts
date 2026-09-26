@@ -43,9 +43,24 @@ export class ProductService {
       costPrice: formatPriceDecimal(p.costPrice),
     }));
 
+    let extraVariants = [];
+    let extraShippingFee = 0;
+    let extraCompatibleVehicles = [];
+    if (product.description && typeof product.description === 'string' && product.description.startsWith('{')) {
+      try {
+        const parsedDesc = JSON.parse(product.description);
+        if (Array.isArray(parsedDesc.variants)) extraVariants = parsedDesc.variants;
+        if (parsedDesc.shippingFee !== undefined) extraShippingFee = Number(parsedDesc.shippingFee);
+        if (Array.isArray(parsedDesc.compatibleVehicles)) extraCompatibleVehicles = parsedDesc.compatibleVehicles;
+      } catch (_) {}
+    }
+
     return {
       ...product,
       prices: formattedPrices || product.prices,
+      variants: product.variants || extraVariants,
+      shippingFee: product.shippingFee !== undefined ? Number(product.shippingFee) : extraShippingFee,
+      compatibleVehicles: product.compatibleVehicles || extraCompatibleVehicles,
       effectivePrice: tierPrice
         ? {
             amount: formatPriceDecimal(tierPrice.price),
@@ -212,9 +227,25 @@ export class ProductService {
       throw new BadRequestException(`Brand with ID ${input.brandId} does not exist`);
     }
 
-    // 4. Create Product with transaction
+    // 4. Serialize extra fields (variants, shippingFee, compatibleVehicles) into description
+    let finalDesc = input.description;
+    if (input.variants !== undefined || input.shippingFee !== undefined || input.compatibleVehicles !== undefined) {
+      let descObj: any = {};
+      try {
+        if (input.description && input.description.startsWith('{')) {
+          descObj = JSON.parse(input.description);
+        }
+      } catch (_) {}
+      if (input.variants !== undefined) descObj.variants = input.variants;
+      if (input.shippingFee !== undefined) descObj.shippingFee = input.shippingFee;
+      if (input.compatibleVehicles !== undefined) descObj.compatibleVehicles = input.compatibleVehicles;
+      finalDesc = JSON.stringify(descObj);
+    }
+
+    // 5. Create Product with transaction
     const product = await ProductRepository.create({
       ...input,
+      description: finalDesc,
       slug: candidateSlug,
     });
 
@@ -283,6 +314,22 @@ export class ProductService {
       if (!brand || brand.deletedAt) {
         throw new BadRequestException(`Brand with ID ${input.brandId} does not exist`);
       }
+    }
+
+    // Ensure variants, shippingFee, and compatibleVehicles are stored in description JSON if provided
+    if (input.variants !== undefined || input.shippingFee !== undefined || input.compatibleVehicles !== undefined) {
+      let descObj: any = {};
+      try {
+        if (input.description && input.description.startsWith('{')) {
+          descObj = JSON.parse(input.description);
+        } else if (existing?.description && existing.description.startsWith('{')) {
+          descObj = JSON.parse(existing.description);
+        }
+      } catch (_) {}
+      if (input.variants !== undefined) descObj.variants = input.variants;
+      if (input.shippingFee !== undefined) descObj.shippingFee = input.shippingFee;
+      if (input.compatibleVehicles !== undefined) descObj.compatibleVehicles = input.compatibleVehicles;
+      input.description = JSON.stringify(descObj);
     }
 
     const updated = await ProductRepository.update(id, input);

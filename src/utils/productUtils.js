@@ -37,6 +37,10 @@ export const parseBilingualProductDescription = (rawDesc, fallbackShortDesc = ''
 
   // Check if bilingual structure { th: {...}, en: {...} }
   if (parsedObj && typeof parsedObj === 'object') {
+    const extraVariants = Array.isArray(parsedObj.variants) ? parsedObj.variants : [];
+    const extraShippingFee = parsedObj.shippingFee !== undefined ? Number(parsedObj.shippingFee) : 0;
+    const extraCompVehicles = Array.isArray(parsedObj.compatibleVehicles) ? parsedObj.compatibleVehicles : [];
+
     if (parsedObj.th || parsedObj.en) {
       const th = parsedObj.th || {};
       const en = parsedObj.en || {};
@@ -53,6 +57,9 @@ export const parseBilingualProductDescription = (rawDesc, fallbackShortDesc = ''
           specific: (en.specific || '').trim(),
           other: (en.other || '').trim(),
         },
+        variants: extraVariants,
+        shippingFee: extraShippingFee,
+        compatibleVehicles: extraCompVehicles,
       };
     }
 
@@ -120,7 +127,13 @@ export const serializeProductDescription = ({ general = '', specific = '', other
   });
 };
 
-export const serializeBilingualProductDescription = ({ th = {}, en = {} }) => {
+export const serializeBilingualProductDescription = ({
+  th = {},
+  en = {},
+  variants = [],
+  shippingFee = 0,
+  compatibleVehicles = [],
+}) => {
   return JSON.stringify({
     th: {
       shortDescription: (th.shortDescription || '').trim(),
@@ -134,5 +147,9 @@ export const serializeBilingualProductDescription = ({ th = {}, en = {} }) => {
       specific: (en.specific || '').trim(),
       other: (en.other || '').trim(),
     },
+    variants: Array.isArray(variants) ? variants : [],
+    shippingFee: Number(shippingFee || 0),
+    compatibleVehicles: Array.isArray(compatibleVehicles) ? compatibleVehicles : [],
   });
 };
+

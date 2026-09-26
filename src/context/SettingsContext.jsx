@@ -43,13 +43,15 @@ const defaultSettings = {
     slipVerification: { enabled: true, apiKey: 'slip_verify_live_key_998877' },
   },
   shipping: {
+    freeShippingEnabled: false,
+    freeShippingThreshold: 2000,
+    applyFreeShippingToCustomItems: false,
     methods: [
       { id: 'ship-1', code: 'FLASH', name: 'Flash Express', fee: 45, estimatedDays: '1-2 Days', active: true },
       { id: 'ship-2', code: 'KERRY', name: 'Kerry Express', fee: 60, estimatedDays: '1-2 Days', active: true },
       { id: 'ship-3', code: 'SCG', name: 'SCG Express (Cold/Heavy)', fee: 75, estimatedDays: '2-3 Days', active: true },
       { id: 'ship-4', code: 'STANDARD', name: 'Standard Delivery', fee: 35, estimatedDays: '2-4 Days', active: true },
     ],
-    freeShippingThreshold: 2000,
   },
   general: {
     siteName: 'Buy@Unimart Auto Parts',
@@ -225,7 +227,22 @@ ADNEX Auto Parts respects your privacy rights in accordance with the Thailand Pe
 4. Limitation of Liability:
 - ADNEX is not liable for damages resulting from improper third-party installation or mismatched vehicle fitment outside official specifications.`
   },
-  recommendedProductIds: []
+  recommendedProductIds: [],
+  authPage: {
+    brandNameTh: 'AUTOPARTS',
+    brandNameHighlight: 'PRO',
+    titleTh: 'เข้าสู่ระบบสมาชิก',
+    titleEn: 'Member Login',
+    subtitleTh: 'เข้าสู่ระบบเพื่อรับสิทธิ์ราคาส่ง ตรวจสอบอะไหล่ตรงรุ่นด้วยเลขตัวถัง และดูประวัติการสั่งซื้อแบบ Real-time',
+    subtitleEn: 'Sign in to access wholesale pricing, check exact fitment by VIN, and track orders in real-time',
+    benefit1Th: 'ราคาส่งพิเศษสำหรับอู่ซ่อมรถและร้านค้า',
+    benefit1En: 'Special wholesale pricing for repair shops & garages',
+    benefit2Th: 'เช็ครหัส OEM และความตรงรุ่น 100%',
+    benefit2En: '100% exact fitment and OEM part code verification',
+    benefit3Th: 'ติดตามสถานะการจัดส่งพัสดุได้ตลอด 24 ชั่วโมง',
+    benefit3En: 'Track order & parcel shipping status 24/7',
+    copyrightText: '© 2026 AutoParts Pro Platform. All rights reserved.',
+  },
 };
 
 const SettingsContext = createContext({
@@ -261,7 +278,7 @@ export const SettingsProvider = ({ children }) => {
     return defaultSettings;
   });
 
-  const applySettingsData = useCallback((incoming) => {
+  const applySettingsData = useCallback((incoming, shouldBroadcast = false) => {
     if (!incoming) return;
     setSettings((prev) => {
       const updated = {
@@ -277,10 +294,15 @@ export const SettingsProvider = ({ children }) => {
         policies: { ...prev.policies, ...(incoming.policies || {}) },
         menus: Array.isArray(incoming.menus) && incoming.menus.length > 0 ? incoming.menus : prev.menus,
         banners: Array.isArray(incoming.banners) && incoming.banners.length > 0 ? incoming.banners : prev.banners,
+        recommendedProductIds: Array.isArray(incoming.recommendedProductIds)
+          ? incoming.recommendedProductIds
+          : (incoming.recommendedProductIds !== undefined ? incoming.recommendedProductIds : (prev.recommendedProductIds || [])),
       };
       try {
         localStorage.setItem('mobex_app_settings', JSON.stringify(updated));
-        localStorage.setItem('mobex_settings_updated', Date.now().toString());
+        if (shouldBroadcast) {
+          localStorage.setItem('mobex_settings_updated', Date.now().toString());
+        }
       } catch (err) {}
       return updated;
     });
@@ -291,7 +313,8 @@ export const SettingsProvider = ({ children }) => {
       const res = await ApiClient.getSettings();
       const s = res?.data?.settings || res?.settings;
       if (s) {
-        applySettingsData(s);
+        // Do not broadcast on fetch to avoid cross-tab infinite loop
+        applySettingsData(s, false);
         return s;
       }
     } catch (e) {
@@ -300,15 +323,15 @@ export const SettingsProvider = ({ children }) => {
   }, [applySettingsData]);
 
   const updateSettings = useCallback(async (payload) => {
-    // 1. Immediately apply and persist locally so save never fails
-    applySettingsData(payload);
+    // 1. Immediately apply and persist locally with broadcast for other tabs
+    applySettingsData(payload, true);
 
     // 2. Synchronize with backend API
     try {
       const res = await ApiClient.updateSettings(payload);
       const s = res?.data?.settings || res?.settings;
       if (s) {
-        applySettingsData(s);
+        applySettingsData(s, false);
       }
       return res || { success: true };
     } catch (e) {
@@ -320,10 +343,15 @@ export const SettingsProvider = ({ children }) => {
   useEffect(() => {
     refreshSettings();
 
-    // Sync across browser tabs/windows
+    // Sync across browser tabs/windows with throttling to prevent infinite ping-pong
+    let lastRefresh = 0;
     const handleStorage = (e) => {
       if (e.key === 'mobex_settings_updated') {
-        refreshSettings();
+        const now = Date.now();
+        if (now - lastRefresh > 3000) {
+          lastRefresh = now;
+          refreshSettings();
+        }
       }
     };
     window.addEventListener('storage', handleStorage);

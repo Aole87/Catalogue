@@ -119,4 +119,26 @@ export async function authRoutes(app: FastifyInstance) {
     },
     handler: AuthController.changePassword,
   });
+
+  // POST /api/v1/auth/reset-password
+  app.post('/reset-password', {
+    config: {
+      rateLimit: authRateLimitConfig,
+    },
+    schema: {
+      description: 'Reset forgotten password using verified OTP code or token',
+      tags: ['Authentication'],
+      body: {
+        type: 'object',
+        required: ['email', 'newPassword'],
+        properties: {
+          email: { type: 'string', format: 'email' },
+          code: { type: 'string' },
+          verificationToken: { type: 'string' },
+          newPassword: { type: 'string', minLength: 8, maxLength: 100 },
+        },
+      },
+    },
+    handler: AuthController.resetPassword,
+  });
 }

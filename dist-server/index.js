@@ -458,6 +458,12 @@ var changePasswordSchema = import_zod3.z.object({
   currentPassword: import_zod3.z.string().min(1, "Current password is required"),
   newPassword: import_zod3.z.string().min(8, "New password must be at least 8 characters").max(100, "New password cannot exceed 100 characters")
 });
+var resetPasswordSchema = import_zod3.z.object({
+  email: import_zod3.z.string().trim().toLowerCase().email("\u0E23\u0E39\u0E1B\u0E41\u0E1A\u0E1A\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07"),
+  code: import_zod3.z.string().trim().optional(),
+  verificationToken: import_zod3.z.string().trim().optional(),
+  newPassword: import_zod3.z.string().min(8, "\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19\u0E43\u0E2B\u0E21\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E21\u0E35\u0E04\u0E27\u0E32\u0E21\u0E22\u0E32\u0E27\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E19\u0E49\u0E2D\u0E22 8 \u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23").max(100, "\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19\u0E15\u0E49\u0E2D\u0E07\u0E44\u0E21\u0E48\u0E40\u0E01\u0E34\u0E19 100 \u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23")
+});
 
 // apps/api/src/repositories/user.repository.ts
 var import_client3 = require("@prisma/client");
@@ -748,9 +754,26 @@ var MailService = class {
   /**
    * Sends a styled OTP verification email for registration or password reset.
    */
-  static async sendOtpEmail(to, code, purpose = "REGISTRATION") {
+  static async sendOtpEmail(to, code, purpose = "REGISTRATION", resetUrl) {
     const purposeTitle = purpose === "REGISTRATION" ? "\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E01\u0E32\u0E23\u0E2A\u0E21\u0E31\u0E04\u0E23\u0E2A\u0E21\u0E32\u0E0A\u0E34\u0E01" : purpose === "PASSWORD_RESET" ? "\u0E23\u0E35\u0E40\u0E0B\u0E47\u0E15\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19" : "\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E02\u0E2D\u0E07\u0E04\u0E38\u0E13";
-    const subject = `[MOBEX Auto Parts] \u0E23\u0E2B\u0E31\u0E2A OTP \u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A${purposeTitle}: ${code}`;
+    const subject = `[MOBEX Auto Parts] ${purposeTitle}: ${code}`;
+    const resetLinkHtml = resetUrl ? `
+              <!-- Direct Reset Button -->
+              <div style="text-align: center; margin: 0 0 28px;">
+                <a href="${resetUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color: #ffffff; padding: 14px 28px; border-radius: 12px; font-weight: 700; text-decoration: none; font-size: 15px; box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);">
+                  \u{1F511} \u0E04\u0E25\u0E34\u0E01\u0E17\u0E35\u0E48\u0E19\u0E35\u0E48\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E15\u0E31\u0E49\u0E07\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19\u0E43\u0E2B\u0E21\u0E48\u0E17\u0E31\u0E19\u0E17\u0E35
+                </a>
+                <p style="margin: 8px 0 0; color: #64748b; font-size: 11px;">
+                  (\u0E44\u0E21\u0E48\u0E15\u0E49\u0E2D\u0E07\u0E01\u0E23\u0E2D\u0E01\u0E23\u0E2B\u0E31\u0E2A OTP \u0E2A\u0E30\u0E14\u0E27\u0E01\u0E41\u0E25\u0E30\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22 \u0E25\u0E34\u0E07\u0E01\u0E4C\u0E21\u0E35\u0E2D\u0E32\u0E22\u0E38 15 \u0E19\u0E32\u0E17\u0E35)
+                </p>
+              </div>
+
+              <div style="text-align: center; margin: 20px 0 16px;">
+                <span style="color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                  \u2014 \u0E2B\u0E23\u0E37\u0E2D\u0E01\u0E23\u0E2D\u0E01\u0E23\u0E2B\u0E31\u0E2A OTP \u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E15\u0E48\u0E32\u0E07\u0E40\u0E27\u0E47\u0E1A\u0E44\u0E0B\u0E15\u0E4C \u2014
+                </span>
+              </div>
+      ` : "";
     const html = `
 <!DOCTYPE html>
 <html lang="th">
@@ -781,8 +804,10 @@ var MailService = class {
                 ${purposeTitle}
               </h2>
               <p style="margin: 0 0 24px; color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
-                \u0E04\u0E38\u0E13\u0E44\u0E14\u0E49\u0E17\u0E33\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E1A\u0E31\u0E0D\u0E0A\u0E35 <strong>${to}</strong><br>\u0E01\u0E23\u0E38\u0E13\u0E32\u0E19\u0E33\u0E23\u0E2B\u0E31\u0E2A\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19 OTP \u0E14\u0E49\u0E32\u0E19\u0E25\u0E48\u0E32\u0E07\u0E19\u0E35\u0E49\u0E44\u0E1B\u0E01\u0E23\u0E2D\u0E01\u0E43\u0E19\u0E2B\u0E19\u0E49\u0E32\u0E40\u0E27\u0E47\u0E1A\u0E44\u0E0B\u0E15\u0E4C\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E17\u0E33\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E15\u0E48\u0E2D:
+                \u0E04\u0E38\u0E13\u0E44\u0E14\u0E49\u0E17\u0E33\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E1A\u0E31\u0E0D\u0E0A\u0E35 <strong>${to}</strong><br>\u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E25\u0E37\u0E2D\u0E01\u0E27\u0E34\u0E18\u0E35\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E15\u0E31\u0E27\u0E15\u0E19\u0E14\u0E49\u0E32\u0E19\u0E25\u0E48\u0E32\u0E07\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E14\u0E33\u0E40\u0E19\u0E34\u0E19\u0E01\u0E32\u0E23\u0E15\u0E48\u0E2D:
               </p>
+
+              ${resetLinkHtml}
 
               <!-- OTP Box -->
               <div style="background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; margin: 0 0 24px;">
@@ -797,7 +822,7 @@ var MailService = class {
               <!-- Security Advice -->
               <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 14px; margin-bottom: 24px;">
                 <p style="margin: 0; color: #b45309; font-size: 12px; line-height: 1.5;">
-                  \u{1F512} <strong>\u0E04\u0E33\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E04\u0E27\u0E32\u0E21\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22:</strong> \u0E42\u0E1B\u0E23\u0E14\u0E2D\u0E22\u0E48\u0E32\u0E40\u0E1B\u0E34\u0E14\u0E40\u0E1C\u0E22\u0E23\u0E2B\u0E31\u0E2A OTP \u0E19\u0E35\u0E49\u0E41\u0E01\u0E48\u0E1C\u0E39\u0E49\u0E2D\u0E37\u0E48\u0E19 \u0E40\u0E08\u0E49\u0E32\u0E2B\u0E19\u0E49\u0E32\u0E17\u0E35\u0E48\u0E02\u0E2D\u0E07 MOBEX \u0E08\u0E30\u0E44\u0E21\u0E48\u0E21\u0E35\u0E27\u0E31\u0E19\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A OTP \u0E08\u0E32\u0E01\u0E17\u0E48\u0E32\u0E19
+                  \u{1F512} <strong>\u0E04\u0E33\u0E40\u0E15\u0E37\u0E2D\u0E19\u0E04\u0E27\u0E32\u0E21\u0E1B\u0E25\u0E2D\u0E14\u0E20\u0E31\u0E22:</strong> \u0E42\u0E1B\u0E23\u0E14\u0E2D\u0E22\u0E48\u0E32\u0E40\u0E1B\u0E34\u0E14\u0E40\u0E1C\u0E22\u0E23\u0E2B\u0E31\u0E2A OTP \u0E2B\u0E23\u0E37\u0E2D\u0E2A\u0E48\u0E07\u0E15\u0E48\u0E2D\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E19\u0E35\u0E49\u0E41\u0E01\u0E48\u0E1C\u0E39\u0E49\u0E2D\u0E37\u0E48\u0E19 \u0E40\u0E08\u0E49\u0E32\u0E2B\u0E19\u0E49\u0E32\u0E17\u0E35\u0E48\u0E02\u0E2D\u0E07 MOBEX \u0E08\u0E30\u0E44\u0E21\u0E48\u0E21\u0E35\u0E27\u0E31\u0E19\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A\u0E08\u0E32\u0E01\u0E17\u0E48\u0E32\u0E19
                 </p>
               </div>
 
@@ -840,13 +865,20 @@ var MailService = class {
         console.error(`[MailService] \u26A0\uFE0F SMTP delivery failed to ${to}:`, err.message);
       }
     }
-    console.log(`
+    if (env_default.NODE_ENV !== "production") {
+      console.log(`
 =================================================`);
-    console.log(` \u{1F4E7} [EMAIL OTP SIMULATOR] To: ${to}`);
-    console.log(` \u{1F511} OTP CODE: ${code}`);
-    console.log(` \u{1F3AF} PURPOSE: ${purpose} (Valid for ${env_default.OTP_TTL_MINUTES} mins)`);
-    console.log(`=================================================
+      console.log(` \u{1F4E7} [EMAIL NOTIFICATION SIMULATOR] To: ${to}`);
+      console.log(` \u{1F511} OTP CODE: ${code}`);
+      if (resetUrl) {
+        console.log(` \u{1F517} RESET LINK: ${resetUrl}`);
+      }
+      console.log(` \u{1F3AF} PURPOSE: ${purpose} (Valid for ${env_default.OTP_TTL_MINUTES} mins)`);
+      console.log(`=================================================
 `);
+    } else {
+      console.warn(`[MailService] Warning: SMTP not configured or failed for ${to} (${purpose})`);
+    }
     return true;
   }
 };
@@ -889,13 +921,33 @@ var OtpService = class {
       resendAllowedAt
     });
     this.cleanExpired();
-    await MailService.sendOtpEmail(normalizedEmail, code, purpose);
+    let resetUrl;
+    let verificationToken;
+    if (purpose === "PASSWORD_RESET") {
+      verificationToken = this.generateVerificationToken(normalizedEmail, "PASSWORD_RESET");
+      const origin = process.env.FRONTEND_URL || "http://localhost:5173";
+      resetUrl = `${origin.replace(/\/+$/, "")}/#reset-password?email=${encodeURIComponent(normalizedEmail)}&token=${encodeURIComponent(verificationToken)}`;
+    }
+    await MailService.sendOtpEmail(normalizedEmail, code, purpose, resetUrl);
     return {
       success: true,
-      message: `\u0E2A\u0E48\u0E07\u0E23\u0E2B\u0E31\u0E2A OTP \u0E44\u0E1B\u0E22\u0E31\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25 ${normalizedEmail} \u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27 (\u0E23\u0E2B\u0E31\u0E2A\u0E21\u0E35\u0E2D\u0E32\u0E22\u0E38 ${ttlMinutes} \u0E19\u0E32\u0E17\u0E35)`,
+      message: purpose === "PASSWORD_RESET" ? `\u0E2A\u0E48\u0E07\u0E25\u0E34\u0E07\u0E01\u0E4C\u0E41\u0E25\u0E30\u0E23\u0E2B\u0E31\u0E2A\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19 OTP \u0E44\u0E1B\u0E22\u0E31\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25 ${normalizedEmail} \u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27 (\u0E21\u0E35\u0E2D\u0E32\u0E22\u0E38 15 \u0E19\u0E32\u0E17\u0E35)` : `\u0E2A\u0E48\u0E07\u0E23\u0E2B\u0E31\u0E2A OTP \u0E44\u0E1B\u0E22\u0E31\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25 ${normalizedEmail} \u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27 (\u0E23\u0E2B\u0E31\u0E2A\u0E21\u0E35\u0E2D\u0E32\u0E22\u0E38 ${ttlMinutes} \u0E19\u0E32\u0E17\u0E35)`,
       expiresInSeconds: ttlMinutes * 60,
-      resendCooldownSeconds: 60
+      resendCooldownSeconds: 60,
+      debugCode: env_default.NODE_ENV !== "production" ? code : void 0,
+      resetUrl: env_default.NODE_ENV !== "production" ? resetUrl : void 0,
+      verificationToken: env_default.NODE_ENV !== "production" ? verificationToken : void 0
     };
+  }
+  /**
+   * Generates a cryptographic HMAC-signed verification token valid for 15 minutes.
+   */
+  static generateVerificationToken(email, purpose = "REGISTRATION") {
+    const normalizedEmail = email.toLowerCase().trim();
+    const timestampStr = Date.now().toString();
+    const tokenPayload = `${normalizedEmail}:${purpose}:${timestampStr}`;
+    const signature = import_crypto2.default.createHmac("sha256", env_default.SESSION_COOKIE_SECRET).update(tokenPayload).digest("hex");
+    return Buffer.from(`${tokenPayload}:${signature}`).toString("base64url");
   }
   /**
    * Verifies the submitted OTP code.
@@ -967,6 +1019,12 @@ var OtpService = class {
         this.store.delete(key);
       }
     }
+    if (this.store.size > 5e3) {
+      const keysToDelete = Array.from(this.store.keys()).slice(0, 1e3);
+      for (const k of keysToDelete) {
+        this.store.delete(k);
+      }
+    }
   }
 };
 
@@ -981,6 +1039,11 @@ var AuthService = class {
       const existing = await UserRepository.findByEmail(normalizedEmail);
       if (existing) {
         throw new ConflictError("\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E19\u0E35\u0E49\u0E25\u0E07\u0E17\u0E30\u0E40\u0E1A\u0E35\u0E22\u0E19\u0E44\u0E27\u0E49\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A\u0E41\u0E25\u0E49\u0E27 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E2B\u0E23\u0E37\u0E2D\u0E43\u0E0A\u0E49\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E2D\u0E37\u0E48\u0E19");
+      }
+    } else if (input.purpose === "PASSWORD_RESET") {
+      const existing = await UserRepository.findByEmail(normalizedEmail);
+      if (!existing) {
+        throw new NotFoundError("\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E17\u0E35\u0E48\u0E43\u0E0A\u0E49\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E19\u0E35\u0E49\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A \u0E01\u0E23\u0E38\u0E13\u0E32\u0E15\u0E23\u0E27\u0E08\u0E2A\u0E2D\u0E1A\u0E04\u0E27\u0E32\u0E21\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07\u0E02\u0E2D\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25");
       }
     }
     return OtpService.sendOtp(normalizedEmail, input.purpose);
@@ -1113,7 +1176,7 @@ var AuthService = class {
         ipAddress: metadata.ipAddress,
         userAgent: metadata.userAgent
       });
-      throw new UnauthorizedError("Invalid username or password", "AUTH_INVALID_CREDENTIALS");
+      throw new UnauthorizedError("Invalid email or password", "AUTH_INVALID_CREDENTIALS");
     }
     const isValidPassword = await PasswordService.verify(user.passwordHash, input.password);
     if (!isValidPassword) {
@@ -1217,6 +1280,43 @@ var AuthService = class {
       userAgent: metadata.userAgent
     });
   }
+  /**
+   * Reset forgotten password using verified OTP code or token
+   */
+  static async resetPassword(input, metadata) {
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const user = await UserRepository.findByEmail(normalizedEmail);
+    if (!user) {
+      throw new NotFoundError("\u0E44\u0E21\u0E48\u0E1E\u0E1A\u0E1A\u0E31\u0E0D\u0E0A\u0E35\u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49\u0E17\u0E35\u0E48\u0E43\u0E0A\u0E49\u0E2D\u0E35\u0E40\u0E21\u0E25\u0E19\u0E35\u0E49\u0E43\u0E19\u0E23\u0E30\u0E1A\u0E1A");
+    }
+    if (input.verificationToken) {
+      const isValid = OtpService.validateVerificationToken(normalizedEmail, input.verificationToken, "PASSWORD_RESET");
+      if (!isValid) {
+        throw new BadRequestError("\u0E42\u0E17\u0E40\u0E04\u0E47\u0E19\u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E15\u0E31\u0E27\u0E15\u0E19\u0E2B\u0E21\u0E14\u0E2D\u0E32\u0E22\u0E38\u0E2B\u0E23\u0E37\u0E2D\u0E44\u0E21\u0E48\u0E16\u0E39\u0E01\u0E15\u0E49\u0E2D\u0E07 \u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E14\u0E02\u0E2D\u0E23\u0E2B\u0E31\u0E2A OTP \u0E43\u0E2B\u0E21\u0E48\u0E2D\u0E35\u0E01\u0E04\u0E23\u0E31\u0E49\u0E07");
+      }
+    } else if (input.code) {
+      await OtpService.verifyOtp(normalizedEmail, input.code, "PASSWORD_RESET");
+    } else {
+      throw new BadRequestError("\u0E01\u0E23\u0E38\u0E13\u0E32\u0E01\u0E23\u0E2D\u0E01\u0E23\u0E2B\u0E31\u0E2A OTP \u0E22\u0E37\u0E19\u0E22\u0E31\u0E19\u0E15\u0E31\u0E27\u0E15\u0E19\u0E17\u0E35\u0E48\u0E44\u0E14\u0E49\u0E23\u0E31\u0E1A\u0E17\u0E32\u0E07\u0E2D\u0E35\u0E40\u0E21\u0E25");
+    }
+    const newPasswordHash = await PasswordService.hash(input.newPassword);
+    await UserRepository.updatePassword(user.id, newPasswordHash);
+    await SessionRepository.revokeAllForUser(user.id);
+    if (metadata) {
+      await AuditRepository.record({
+        userId: user.id,
+        action: "PASSWORD_RESET_SUCCESS",
+        resource: "User",
+        resourceId: user.id,
+        ipAddress: metadata.ipAddress,
+        userAgent: metadata.userAgent
+      });
+    }
+    return {
+      success: true,
+      message: "\u0E15\u0E31\u0E49\u0E07\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19\u0E43\u0E2B\u0E21\u0E48\u0E40\u0E23\u0E35\u0E22\u0E1A\u0E23\u0E49\u0E2D\u0E22\u0E41\u0E25\u0E49\u0E27 \u0E04\u0E38\u0E13\u0E2A\u0E32\u0E21\u0E32\u0E23\u0E16\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E14\u0E49\u0E27\u0E22\u0E23\u0E2B\u0E31\u0E2A\u0E1C\u0E48\u0E32\u0E19\u0E43\u0E2B\u0E21\u0E48\u0E44\u0E14\u0E49\u0E17\u0E31\u0E19\u0E17\u0E35"
+    };
+  }
 };
 
 // apps/api/src/controllers/auth.controller.ts
@@ -1312,6 +1412,12 @@ var AuthController = class _AuthController {
         message: "Password has been updated successfully"
       }
     });
+  }
+  static async resetPassword(request, reply) {
+    const input = resetPasswordSchema.parse(request.body);
+    const metadata = _AuthController.extractMetadata(request);
+    const result = await AuthService.resetPassword(input, metadata);
+    return reply.status(200).send({ data: result });
   }
 };
 
@@ -1552,6 +1658,26 @@ async function authRoutes(app) {
       }
     },
     handler: AuthController.changePassword
+  });
+  app.post("/reset-password", {
+    config: {
+      rateLimit: authRateLimitConfig
+    },
+    schema: {
+      description: "Reset forgotten password using verified OTP code or token",
+      tags: ["Authentication"],
+      body: {
+        type: "object",
+        required: ["email", "newPassword"],
+        properties: {
+          email: { type: "string", format: "email" },
+          code: { type: "string" },
+          verificationToken: { type: "string" },
+          newPassword: { type: "string", minLength: 8, maxLength: 100 }
+        }
+      }
+    },
+    handler: AuthController.resetPassword
   });
 }
 
@@ -2272,9 +2398,24 @@ var ProductService = class {
       compareAtPrice: formatPriceDecimal(p.compareAtPrice),
       costPrice: formatPriceDecimal(p.costPrice)
     }));
+    let extraVariants = [];
+    let extraShippingFee = 0;
+    let extraCompatibleVehicles = [];
+    if (product.description && typeof product.description === "string" && product.description.startsWith("{")) {
+      try {
+        const parsedDesc = JSON.parse(product.description);
+        if (Array.isArray(parsedDesc.variants)) extraVariants = parsedDesc.variants;
+        if (parsedDesc.shippingFee !== void 0) extraShippingFee = Number(parsedDesc.shippingFee);
+        if (Array.isArray(parsedDesc.compatibleVehicles)) extraCompatibleVehicles = parsedDesc.compatibleVehicles;
+      } catch (_) {
+      }
+    }
     return {
       ...product,
       prices: formattedPrices || product.prices,
+      variants: product.variants || extraVariants,
+      shippingFee: product.shippingFee !== void 0 ? Number(product.shippingFee) : extraShippingFee,
+      compatibleVehicles: product.compatibleVehicles || extraCompatibleVehicles,
       effectivePrice: tierPrice ? {
         amount: formatPriceDecimal(tierPrice.price),
         compareAtPrice: formatPriceDecimal(tierPrice.compareAtPrice),
@@ -2406,8 +2547,23 @@ var ProductService = class {
     if (!brand || brand.deletedAt) {
       throw new BadRequestError(`Brand with ID ${input.brandId} does not exist`);
     }
+    let finalDesc = input.description;
+    if (input.variants !== void 0 || input.shippingFee !== void 0 || input.compatibleVehicles !== void 0) {
+      let descObj = {};
+      try {
+        if (input.description && input.description.startsWith("{")) {
+          descObj = JSON.parse(input.description);
+        }
+      } catch (_) {
+      }
+      if (input.variants !== void 0) descObj.variants = input.variants;
+      if (input.shippingFee !== void 0) descObj.shippingFee = input.shippingFee;
+      if (input.compatibleVehicles !== void 0) descObj.compatibleVehicles = input.compatibleVehicles;
+      finalDesc = JSON.stringify(descObj);
+    }
     const product = await ProductRepository.create({
       ...input,
+      description: finalDesc,
       slug: candidateSlug
     });
     await AuditRepository.record({
@@ -2461,6 +2617,21 @@ var ProductService = class {
       if (!brand || brand.deletedAt) {
         throw new BadRequestError(`Brand with ID ${input.brandId} does not exist`);
       }
+    }
+    if (input.variants !== void 0 || input.shippingFee !== void 0 || input.compatibleVehicles !== void 0) {
+      let descObj = {};
+      try {
+        if (input.description && input.description.startsWith("{")) {
+          descObj = JSON.parse(input.description);
+        } else if (existing?.description && existing.description.startsWith("{")) {
+          descObj = JSON.parse(existing.description);
+        }
+      } catch (_) {
+      }
+      if (input.variants !== void 0) descObj.variants = input.variants;
+      if (input.shippingFee !== void 0) descObj.shippingFee = input.shippingFee;
+      if (input.compatibleVehicles !== void 0) descObj.compatibleVehicles = input.compatibleVehicles;
+      input.description = JSON.stringify(descObj);
     }
     const updated = await ProductRepository.update(id, input);
     await AuditRepository.record({
@@ -2575,7 +2746,10 @@ var createProductSchema = import_zod4.z.object({
   prices: import_zod4.z.array(productPriceInputSchema).optional(),
   images: import_zod4.z.array(productImageInputSchema).optional(),
   attributes: import_zod4.z.array(productAttributeInputSchema).optional(),
-  crossReferences: import_zod4.z.array(productCrossReferenceInputSchema).optional()
+  crossReferences: import_zod4.z.array(productCrossReferenceInputSchema).optional(),
+  variants: import_zod4.z.array(import_zod4.z.any()).optional(),
+  shippingFee: import_zod4.z.coerce.number().min(0).optional(),
+  compatibleVehicles: import_zod4.z.array(import_zod4.z.any()).optional()
 });
 var updateProductSchema = import_zod4.z.object({
   sku: import_zod4.z.string().min(1).max(100).regex(/^[A-Za-z0-9_\-\.\/]+$/, "SKU contains invalid characters").optional(),
@@ -2596,7 +2770,10 @@ var updateProductSchema = import_zod4.z.object({
   prices: import_zod4.z.array(productPriceInputSchema).optional(),
   images: import_zod4.z.array(productImageInputSchema).optional(),
   attributes: import_zod4.z.array(productAttributeInputSchema).optional(),
-  crossReferences: import_zod4.z.array(productCrossReferenceInputSchema).optional()
+  crossReferences: import_zod4.z.array(productCrossReferenceInputSchema).optional(),
+  variants: import_zod4.z.array(import_zod4.z.any()).optional(),
+  shippingFee: import_zod4.z.coerce.number().min(0).optional(),
+  compatibleVehicles: import_zod4.z.array(import_zod4.z.any()).optional()
 });
 var updateProductPricesSchema = import_zod4.z.object({
   prices: import_zod4.z.array(productPriceInputSchema).min(1, "At least one pricing tier must be specified")
@@ -5719,8 +5896,8 @@ var CartService = class {
           const modelName = v.generation?.model?.name || "";
           const genName = v.generation?.name || "";
           const engineName = v.engine?.name ? ` ${v.engine.name}` : "";
-          const variantName = v.name ? ` ${v.name}` : "";
-          const vehicleDisplayName = `${makeName} ${modelName} ${genName}${engineName}${variantName}`.trim();
+          const variantName2 = v.name ? ` ${v.name}` : "";
+          const vehicleDisplayName = `${makeName} ${modelName} ${genName}${engineName}${variantName2}`.trim();
           try {
             const fitmentCheck = await FitmentService.checkProductFitment(item.productId, item.vehicleVariantId);
             fitmentStatus = {
@@ -5734,6 +5911,24 @@ var CartService = class {
               reasonCode: "INVALID_VEHICLE",
               vehicleName: vehicleDisplayName
             };
+          }
+        }
+        let itemShippingFee = 0;
+        let variantName = null;
+        if (item.product?.description && typeof item.product.description === "string" && item.product.description.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(item.product.description);
+            if (item.vehicleVariantId && Array.isArray(parsed.variants)) {
+              const matchedVar = parsed.variants.find((v) => v.id === item.vehicleVariantId || v.sku === item.sku);
+              if (matchedVar) {
+                if (matchedVar.shippingFee !== void 0) itemShippingFee = Number(matchedVar.shippingFee);
+                if (matchedVar.name) variantName = matchedVar.name;
+              }
+            }
+            if (!itemShippingFee && parsed.shippingFee !== void 0) {
+              itemShippingFee = Number(parsed.shippingFee);
+            }
+          } catch (_) {
           }
         }
         return {
@@ -5750,6 +5945,8 @@ var CartService = class {
           compareAtPrice: lineCalc.compareAtPrice,
           quantity: item.quantity,
           lineTotal: lineCalc.lineTotal,
+          shippingFee: itemShippingFee,
+          variantName: variantName || item.vehicleVariant?.name || null,
           vehicleVariantId: item.vehicleVariantId || null,
           vehicleVariant: item.vehicleVariant || null,
           fitmentStatus,
@@ -17793,13 +17990,15 @@ var defaultSettings = {
     slipVerification: { enabled: true, apiKey: "slip_verify_live_key_998877" }
   },
   shipping: {
+    freeShippingEnabled: false,
+    freeShippingThreshold: 2e3,
+    applyFreeShippingToCustomItems: false,
     methods: [
       { id: "ship-1", code: "FLASH", name: "Flash Express", fee: 45, estimatedDays: "1-2 Days", active: true },
       { id: "ship-2", code: "KERRY", name: "Kerry Express", fee: 60, estimatedDays: "1-2 Days", active: true },
       { id: "ship-3", code: "SCG", name: "SCG Express (Cold/Heavy)", fee: 75, estimatedDays: "2-3 Days", active: true },
       { id: "ship-4", code: "STANDARD", name: "Standard Delivery", fee: 35, estimatedDays: "2-4 Days", active: true }
-    ],
-    freeShippingThreshold: 2e3
+    ]
   },
   general: {
     siteName: "Buy@Unimart Auto Parts",
@@ -17909,7 +18108,22 @@ var defaultSettings = {
 2. Access to special member tiered pricing (Garage/Shop/Fleet) requires verified business authentication.
 3. Prices, promotions, and product specifications are subject to updates according to manufacturer guidelines.`
   },
-  recommendedProductIds: []
+  recommendedProductIds: [],
+  authPage: {
+    brandNameTh: "AUTOPARTS",
+    brandNameHighlight: "PRO",
+    titleTh: "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E2A\u0E21\u0E32\u0E0A\u0E34\u0E01",
+    titleEn: "Member Login",
+    subtitleTh: "\u0E40\u0E02\u0E49\u0E32\u0E2A\u0E39\u0E48\u0E23\u0E30\u0E1A\u0E1A\u0E40\u0E1E\u0E37\u0E48\u0E2D\u0E23\u0E31\u0E1A\u0E2A\u0E34\u0E17\u0E18\u0E34\u0E4C\u0E23\u0E32\u0E04\u0E32\u0E2A\u0E48\u0E07 \u0E15\u0E23\u0E27\u0E08\u0E2A\u0E2D\u0E1A\u0E2D\u0E30\u0E44\u0E2B\u0E25\u0E48\u0E15\u0E23\u0E07\u0E23\u0E38\u0E48\u0E19\u0E14\u0E49\u0E27\u0E22\u0E40\u0E25\u0E02\u0E15\u0E31\u0E27\u0E16\u0E31\u0E07 \u0E41\u0E25\u0E30\u0E14\u0E39\u0E1B\u0E23\u0E30\u0E27\u0E31\u0E15\u0E34\u0E01\u0E32\u0E23\u0E2A\u0E31\u0E48\u0E07\u0E0B\u0E37\u0E49\u0E2D\u0E41\u0E1A\u0E1A Real-time",
+    subtitleEn: "Sign in to access wholesale pricing, check exact fitment by VIN, and track orders in real-time",
+    benefit1Th: "\u0E23\u0E32\u0E04\u0E32\u0E2A\u0E48\u0E07\u0E1E\u0E34\u0E40\u0E28\u0E29\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E2D\u0E39\u0E48\u0E0B\u0E48\u0E2D\u0E21\u0E23\u0E16\u0E41\u0E25\u0E30\u0E23\u0E49\u0E32\u0E19\u0E04\u0E49\u0E32",
+    benefit1En: "Special wholesale pricing for repair shops & garages",
+    benefit2Th: "\u0E40\u0E0A\u0E47\u0E04\u0E23\u0E2B\u0E31\u0E2A OEM \u0E41\u0E25\u0E30\u0E04\u0E27\u0E32\u0E21\u0E15\u0E23\u0E07\u0E23\u0E38\u0E48\u0E19 100%",
+    benefit2En: "100% exact fitment and OEM part code verification",
+    benefit3Th: "\u0E15\u0E34\u0E14\u0E15\u0E32\u0E21\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E01\u0E32\u0E23\u0E08\u0E31\u0E14\u0E2A\u0E48\u0E07\u0E1E\u0E31\u0E2A\u0E14\u0E38\u0E44\u0E14\u0E49\u0E15\u0E25\u0E2D\u0E14 24 \u0E0A\u0E31\u0E48\u0E27\u0E42\u0E21\u0E07",
+    benefit3En: "Track order & parcel shipping status 24/7",
+    copyrightText: "\xA9 2026 AutoParts Pro Platform. All rights reserved."
+  }
 };
 var inMemorySettings = { ...defaultSettings };
 var settingsCache = null;
@@ -17927,7 +18141,9 @@ async function settingsRoutes(fastify) {
         records.forEach((r) => {
           result[r.key.toLowerCase()] = r.value;
           if (r.key === "RECOMMENDED_PRODUCTS") result.recommendedProductIds = r.value;
+          if (r.key === "AUTHPAGE" || r.key === "AUTH_PAGE") result.authPage = r.value;
         });
+        inMemorySettings = { ...inMemorySettings, ...result };
         settingsCache = result;
         settingsCacheExpiry = now + 6e4;
         return reply.send({ success: true, settings: result });
@@ -17950,9 +18166,12 @@ async function settingsRoutes(fastify) {
     if (body.navigation) inMemorySettings.navigation = { ...inMemorySettings.navigation, ...body.navigation };
     if (body.storeInfo) inMemorySettings.storeInfo = { ...inMemorySettings.storeInfo, ...body.storeInfo };
     if (body.policies) inMemorySettings.policies = { ...inMemorySettings.policies, ...body.policies };
-    if (body.recommendedProductIds) inMemorySettings.recommendedProductIds = body.recommendedProductIds;
+    if (body.authPage) inMemorySettings.authPage = { ...inMemorySettings.authPage, ...body.authPage };
+    if (body.recommendedProductIds !== void 0) {
+      inMemorySettings.recommendedProductIds = Array.isArray(body.recommendedProductIds) ? body.recommendedProductIds : [];
+    }
     try {
-      if (body.recommendedProductIds) {
+      if (body.recommendedProductIds !== void 0) {
         await prisma.systemSetting.upsert({
           where: { key: "RECOMMENDED_PRODUCTS" },
           update: { value: inMemorySettings.recommendedProductIds },
@@ -18029,6 +18248,13 @@ async function settingsRoutes(fastify) {
           create: { key: "POLICIES", value: inMemorySettings.policies, category: "GENERAL" }
         });
       }
+      if (body.authPage) {
+        await prisma.systemSetting.upsert({
+          where: { key: "AUTHPAGE" },
+          update: { value: inMemorySettings.authPage },
+          create: { key: "AUTHPAGE", value: inMemorySettings.authPage, category: "GENERAL" }
+        });
+      }
     } catch (e) {
     }
     settingsCache = null;
@@ -18084,6 +18310,19 @@ async function buildApp() {
     // 15MB max payload (reduces memory consumption)
   });
   app.setErrorHandler(errorHandler);
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
+    if (!body || typeof body === "string" && body.trim() === "") {
+      done(null, null);
+      return;
+    }
+    try {
+      const json = JSON.parse(body);
+      done(null, json);
+    } catch (err) {
+      err.statusCode = 400;
+      done(err, void 0);
+    }
+  });
   app.addHook("onSend", async (request, reply) => {
     const reqId = request.headers["x-request-id"] || request.id;
     reply.header("x-request-id", reqId);
@@ -18153,13 +18392,31 @@ async function buildApp() {
 // apps/api/src/server.ts
 async function start() {
   const app = await buildApp();
+  const signals = ["SIGINT", "SIGTERM"];
+  for (const signal of signals) {
+    process.on(signal, async () => {
+      app.log.info({ signal }, `Received ${signal}, closing server gracefully...`);
+      try {
+        await app.close();
+        await src_exports.default.$disconnect();
+        process.exit(0);
+      } catch (err) {
+        app.log.error(err, "Error during graceful shutdown");
+        process.exit(1);
+      }
+    });
+  }
   try {
     const address = await app.listen({ port: env_default.PORT, host: env_default.HOST });
-    console.log(`
+    if (env_default.NODE_ENV !== "production") {
+      console.log(`
 \u{1F680} API Server running at ${address}`);
-    console.log(`\u{1F4D6} Swagger API Docs available at ${address}/docs`);
-    console.log(`\u{1FA7A} Health check at ${address}/health
+      console.log(`\u{1F4D6} Swagger API Docs available at ${address}/docs`);
+      console.log(`\u{1FA7A} Health check at ${address}/health
 `);
+    } else {
+      app.log.info(`API Server running at ${address}`);
+    }
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -69,6 +69,9 @@ export const createProductSchema = z.object({
   images: z.array(productImageInputSchema).optional(),
   attributes: z.array(productAttributeInputSchema).optional(),
   crossReferences: z.array(productCrossReferenceInputSchema).optional(),
+  variants: z.array(z.any()).optional(),
+  shippingFee: z.coerce.number().min(0).optional(),
+  compatibleVehicles: z.array(z.any()).optional(),
 });
 
 export const updateProductSchema = z.object({
@@ -96,6 +99,9 @@ export const updateProductSchema = z.object({
   images: z.array(productImageInputSchema).optional(),
   attributes: z.array(productAttributeInputSchema).optional(),
   crossReferences: z.array(productCrossReferenceInputSchema).optional(),
+  variants: z.array(z.any()).optional(),
+  shippingFee: z.coerce.number().min(0).optional(),
+  compatibleVehicles: z.array(z.any()).optional(),
 });
 
 export const updateProductPricesSchema = z.object({

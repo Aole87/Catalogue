@@ -18,21 +18,29 @@ const getCategoryIcon = (name = '') => {
 };
 
 export const CategoryNav = ({
+  categories: propCategories,
   selectedCategoryId,
   onSelectCategory,
   className = '',
 }) => {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState(() => (Array.isArray(propCategories) && propCategories.length > 0 ? propCategories : []));
+  const [loading, setLoading] = useState(() => !propCategories || propCategories.length === 0);
 
   useEffect(() => {
+    if (Array.isArray(propCategories) && propCategories.length > 0) {
+      setCategories(propCategories);
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
     const fetchCategories = async () => {
       try {
         setLoading(true);
-        const res = await ApiClient.getCategoryTree();
+        const res = await ApiClient.getCategories();
         if (mounted) {
-          setCategories(res.data || res.categories || []);
+          const list = res.data || res.categories || [];
+          setCategories(list);
         }
       } catch (err) {
         console.error('Failed to load categories', err);
@@ -42,30 +50,33 @@ export const CategoryNav = ({
     };
     fetchCategories();
     return () => { mounted = false; };
-  }, []);
+  }, [propCategories]);
 
-  if (loading) {
+  if (loading && categories.length === 0) {
     return <CategoryNavSkeleton />;
   }
 
+  // Display top-level / parent categories
+  const displayCategories = categories.filter(c => !c.parentId);
+
   return (
-    <div className={`overflow-x-auto no-scrollbar py-2 -mx-4 px-4 sm:mx-0 sm:px-0 ${className}`}>
+    <div className={`overflow-x-auto no-scrollbar scroll-smooth py-1 -mx-2 px-2 sm:mx-0 sm:px-0 ${className}`}>
       <div className="flex items-center gap-2 min-w-max">
         {/* All Categories Pill */}
         <button
           onClick={() => onSelectCategory?.(null)}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none ${
             !selectedCategoryId
-              ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900 ring-offset-2'
-              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm'
+              ? 'bg-[#0c3175] text-white shadow-md shadow-blue-950/20 scale-[1.02]'
+              : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/90 shadow-2xs'
           }`}
         >
-          <Grid className="w-3.5 h-3.5" />
+          <Grid className={`w-3.5 h-3.5 ${!selectedCategoryId ? 'text-white' : 'text-slate-400'}`} />
           <span>ทุกหมวดหมู่ (All Parts)</span>
         </button>
 
         {/* Dynamic Category Tree Pills */}
-        {categories.map((cat) => {
+        {displayCategories.map((cat) => {
           const Icon = getCategoryIcon(cat.name);
           const isSelected = selectedCategoryId === cat.id;
 
@@ -73,16 +84,16 @@ export const CategoryNav = ({
             <button
               key={cat.id}
               onClick={() => onSelectCategory?.(cat)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer select-none ${
                 isSelected
-                  ? 'bg-brand-600 text-white shadow-sm ring-2 ring-brand-600 ring-offset-2'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm'
+                  ? 'bg-[#0c3175] text-white shadow-md shadow-blue-950/20 scale-[1.02]'
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/90 shadow-2xs'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-500'}`} />
+              <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-blue-600'}`} />
               <span>{cat.name}</span>
               {cat.children && cat.children.length > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   {cat.children.length}
                 </span>
               )}

@@ -86,6 +86,10 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
     return () => { mounted = false; };
   }, []);
 
+  const recKey = Array.isArray(settings?.recommendedProductIds) ? settings.recommendedProductIds.join(',') : '';
+  const brandIdsKey = selectedBrandIds.slice().sort().join(',');
+  const vehicleVariantId = selectedVehicle?.variantId || '';
+
   // Primary Data Fetching Effect
   const fetchProducts = useCallback(async () => {
     try {
@@ -102,7 +106,7 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
       if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       if (selectedCategoryId) params.categoryId = selectedCategoryId;
       if (selectedBrandIds.length > 0) params.brandId = selectedBrandIds.join(',');
-      if (selectedVehicle?.variantId) params.vehicleVariantId = selectedVehicle.variantId;
+      if (vehicleVariantId) params.vehicleVariantId = vehicleVariantId;
 
       const res = await ApiClient.getProducts(params);
 
@@ -116,12 +120,10 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
         });
       }
 
-      // Recommended Products Filtering
-      const recIds = settings?.recommendedProductIds || [];
+      // Recommended Products Filtering - strictly filter when onlyRecommended is active
+      const recIds = Array.isArray(settings?.recommendedProductIds) ? settings.recommendedProductIds : [];
       if (onlyRecommended) {
-        if (recIds.length > 0) {
-          list = list.filter(p => recIds.includes(p.id) || p.isRecommended || p.badge === 'แนะนำ');
-        }
+        list = list.filter(p => recIds.includes(p.id) || p.isRecommended === true || p.badge === 'แนะนำ');
         list = list.map(p => ({
           ...p,
           isRecommended: true,
@@ -172,13 +174,19 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, sortBy, sortOrder, debouncedSearch, selectedCategoryId, selectedBrandIds, selectedVehicle, selectedCarMake, selectedCarModel, selectedCarYear, onlyRecommended, settings?.recommendedProductIds]);
+  }, [page, pageSize, sortBy, sortOrder, debouncedSearch, selectedCategoryId, brandIdsKey, vehicleVariantId, selectedCarMake, selectedCarModel, selectedCarYear, onlyRecommended, recKey]);
 
   useEffect(() => {
-    if (initialFilters.recommended !== undefined) {
-      setOnlyRecommended(Boolean(initialFilters.recommended));
-    }
+    const isRec = Boolean(initialFilters.recommended) || (typeof window !== 'undefined' && window.location.hash.includes('recommended'));
+    setOnlyRecommended(isRec);
   }, [initialFilters.recommended]);
+
+  useEffect(() => {
+    if (initialFilters.categoryId !== undefined) {
+      setSelectedCategoryId(initialFilters.categoryId || null);
+      setPage(1);
+    }
+  }, [initialFilters.categoryId]);
 
   useEffect(() => {
     fetchProducts();
@@ -231,6 +239,8 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
   };
 
   const activeCategory = categories.find((c) => c.id === selectedCategoryId);
+  const hasCarFilter = Boolean(selectedCarMake || selectedCarModel || selectedCarYear);
+  const activeFiltersCount = (hasCarFilter ? 1 : 0) + selectedBrandIds.length;
   const activeBrands = brands.filter((b) => selectedBrandIds.includes(b.id));
 
   return (
@@ -250,16 +260,39 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
       {/* Main Layout Container */}
       <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Mobile Filter Trigger (hidden on desktop) */}
-        <div className="lg:hidden flex items-center justify-between mb-4">
-           <h1 className="text-xl font-black text-[#0e1932]">หมวดหมู่สินค้า</h1>
-           <button
-             onClick={() => setIsMobileFilterOpen(true)}
-             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-slate-700 text-xs font-bold border border-slate-200 shadow-sm"
-           >
-             <Filter className="w-3.5 h-3.5 text-[#215ada]" />
-             <span>ตัวกรอง</span>
-           </button>
+        {/* Mobile Category List & Filter Bar (hidden on desktop / PC layout is completely untouched) */}
+        <div className="lg:hidden mb-5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black text-[#0e1932]">หมวดหมู่สินค้า</h2>
+            <button
+              onClick={() => setIsMobileFilterOpen(true)}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors shadow-2xs ${
+                activeFiltersCount > 0
+                  ? 'bg-blue-50 text-[#0c3175] border-blue-300'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5 text-[#215ada]" />
+              <span>ตัวกรองรถ & แบรนด์</span>
+              {activeFiltersCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-[#f97316] text-white text-[10px] flex items-center justify-center font-bold">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* List of Product Categories Directly on Mobile */}
+          <div className="bg-slate-50/80 p-2 rounded-2xl border border-slate-200/90 shadow-2xs">
+            <CategoryNav
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={(cat) => {
+                setSelectedCategoryId(cat ? cat.id : null);
+                setPage(1);
+              }}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 items-start">
@@ -339,7 +372,13 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
             {/* Header & Sort Control */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
                <div className="text-xs font-bold text-slate-500">
-                  {activeCategory ? (
+                  {onlyRecommended ? (
+                    <span className="flex items-center gap-1.5">
+                      <span>สินค้าแนะนำพิเศษ:</span>
+                      <span className="text-amber-600 font-extrabold flex items-center gap-1">⭐ สินค้าแนะนำ</span>
+                      <span className="text-slate-700 font-bold">({totalCount} รายการ)</span>
+                    </span>
+                  ) : activeCategory ? (
                     <span className="flex items-center gap-1.5">
                       <span>หมวดหมู่:</span>
                       <span className="text-[#2563eb] font-extrabold">{activeCategory.name}</span>
@@ -435,6 +474,8 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
                 onProductClick={handleProductClick}
                 onQuickView={(p) => setQuickViewProduct(p)}
                 onResetFilters={handleResetFilters}
+                emptyTitle={onlyRecommended ? 'ยังไม่มีสินค้าแนะนำในขณะนี้' : undefined}
+                emptyDesc={onlyRecommended ? 'ผู้ดูแลระบบยังไม่ได้เลือกสินค้าแนะนำ หรือยังไม่ได้เผยแพร่สินค้าแนะนำ' : undefined}
               />
 
               {/* Pagination Controls */}
@@ -524,10 +565,11 @@ export const ProductList = ({ navigate, user, setUser, initialFilters = {} }) =>
         isMobile={true}
         isOpen={isMobileFilterOpen}
         onClose={() => setIsMobileFilterOpen(false)}
+        hideCategories={true}
       />
 
       {/* Global Vehicle Selector Modal */}
-      <VehicleSelectorModal onSelectComplete={(v) => {
+      <VehicleSelectorModal onSelectComplete={() => {
         setSelectedBrandIds([]);
         setPage(1);
       }} />

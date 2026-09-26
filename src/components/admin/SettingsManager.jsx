@@ -41,13 +41,15 @@ export default function SettingsManager({ setActiveTab }) {
   });
 
   const [shippingSettings, setShippingSettings] = useState({
+    freeShippingEnabled: false,
+    freeShippingThreshold: 2000,
+    applyFreeShippingToCustomItems: false,
     methods: [
       { id: 'ship-1', code: 'FLASH', name: 'Flash Express', fee: 45, estDays: '1-2 Days', active: true },
       { id: 'ship-2', code: 'KERRY', name: 'Kerry Express', fee: 60, estDays: '1-2 Days', active: true },
       { id: 'ship-3', code: 'SCG', name: 'SCG Express (Cold/Heavy)', fee: 75, estDays: '2-3 Days', active: true },
       { id: 'ship-4', code: 'STANDARD', name: 'Standard Delivery', fee: 35, estDays: '2-4 Days', active: true },
     ],
-    freeShippingThreshold: 2000,
   });
 
   const [generalSettings, setGeneralSettings] = useState({
@@ -107,7 +109,16 @@ export default function SettingsManager({ setActiveTab }) {
         if (res?.data?.settings || res?.settings) {
           const s = res.data?.settings || res.settings;
           if (s.payment) setPaymentSettings((prev) => ({ ...prev, ...s.payment }));
-          if (s.shipping) setShippingSettings((prev) => ({ ...prev, ...s.shipping }));
+          if (s.shipping) {
+            setShippingSettings((prev) => ({
+              ...prev,
+              ...s.shipping,
+              freeShippingEnabled: s.shipping.freeShippingEnabled !== undefined ? Boolean(s.shipping.freeShippingEnabled) : prev.freeShippingEnabled,
+              freeShippingThreshold: s.shipping.freeShippingThreshold !== undefined ? Number(s.shipping.freeShippingThreshold) : prev.freeShippingThreshold,
+              applyFreeShippingToCustomItems: s.shipping.applyFreeShippingToCustomItems !== undefined ? Boolean(s.shipping.applyFreeShippingToCustomItems) : prev.applyFreeShippingToCustomItems,
+              methods: Array.isArray(s.shipping.methods) && s.shipping.methods.length > 0 ? s.shipping.methods : prev.methods,
+            }));
+          }
           if (s.general) setGeneralSettings((prev) => ({ ...prev, ...s.general }));
           if (s.menus) setMenus(s.menus);
           if (s.storeInfo) setStoreInfo((prev) => ({ ...prev, ...s.storeInfo }));
@@ -129,6 +140,9 @@ export default function SettingsManager({ setActiveTab }) {
         payment: paymentSettings,
         shipping: shippingSettings,
         general: generalSettings,
+        menus,
+        storeInfo,
+        policies,
       };
       await updateSettings(payload);
       setSavedSuccess(true);
@@ -384,10 +398,103 @@ export default function SettingsManager({ setActiveTab }) {
         <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-6">
           <div>
             <h3 className="text-base font-black text-slate-900 mb-1">
-              การจัดการผู้ให้บริการขนส่ง & คำนวณค่าจัดส่งแยกต่างหาก
+              การจัดการค่าจัดส่ง & โปรโมชันส่งฟรี (Shipping & Delivery Rules)
             </h3>
             <p className="text-xs text-slate-500">
-              ค่าขนส่งจะถูกคำนวณแยกตามผู้ให้บริการที่สมาชิกเลือกก่อนรวมยอดชำระสุทธิ
+              กำหนดเกณฑ์จัดส่งฟรี และอัตราค่าจัดส่งของผู้ให้บริการแต่ละราย
+            </p>
+          </div>
+
+          {/* Free Shipping Promotion Rule Card */}
+          <div className="bg-gradient-to-r from-blue-50/60 to-emerald-50/60 p-5 rounded-2xl border border-emerald-200/80 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-emerald-200/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">
+                    โปรโมชันจัดส่งฟรี (Free Shipping Promotion)
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    กำหนดให้ลูกค้าได้รับสิทธิ์จัดส่งฟรีอัตโนมัติเมื่อยอดสั่งซื้อถึงเกณฑ์
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer bg-white px-3.5 py-1.5 rounded-xl border border-emerald-300 shadow-2xs hover:bg-emerald-50/30 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={Boolean(shippingSettings.freeShippingEnabled)}
+                  onChange={(e) => setShippingSettings({
+                    ...shippingSettings,
+                    freeShippingEnabled: e.target.checked
+                  })}
+                  className="w-4 h-4 text-emerald-600 rounded focus:ring-0 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-emerald-800">
+                  {shippingSettings.freeShippingEnabled ? 'เปิดใช้งานส่งฟรี' : 'ปิดใช้งาน (ไม่จัดส่งฟรี)'}
+                </span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  ยอดสั่งซื้อขั้นต่ำสำหรับจัดส่งฟรี (บาท)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  disabled={!shippingSettings.freeShippingEnabled}
+                  value={shippingSettings.freeShippingThreshold ?? 2000}
+                  onChange={(e) => setShippingSettings({
+                    ...shippingSettings,
+                    freeShippingThreshold: parseFloat(e.target.value) || 0
+                  })}
+                  placeholder="เช่น 2000"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 font-mono font-bold text-slate-900 disabled:bg-slate-100 disabled:text-slate-400 focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  * หากปิดสิทธิ์ หรือตั้งเป็น 0 ระบบหน้าบ้านจะไม่แสดงป้ายหรือสิทธิ์ส่งฟรีใดๆ (฿0.00 ส่งฟรี จะไม่แสดง)
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  เงื่อนไขกับสินค้าที่มีค่าส่งเฉพาะรายการ (Fixed SKU Rate)
+                </label>
+                <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                  shippingSettings.applyFreeShippingToCustomItems
+                    ? 'bg-white border-emerald-300'
+                    : 'bg-white/70 border-slate-200'
+                }`}>
+                  <input
+                    type="checkbox"
+                    disabled={!shippingSettings.freeShippingEnabled}
+                    checked={Boolean(shippingSettings.applyFreeShippingToCustomItems)}
+                    onChange={(e) => setShippingSettings({
+                      ...shippingSettings,
+                      applyFreeShippingToCustomItems: e.target.checked
+                    })}
+                    className="w-4 h-4 text-emerald-600 rounded mt-0.5 cursor-pointer"
+                  />
+                  <div className="text-[11px] leading-snug">
+                    <span className="font-bold text-slate-800 block">ใช้สิทธิ์ส่งฟรีกับสินค้าที่กำหนดค่าส่งเฉพาะตัวด้วย</span>
+                    <span className="text-slate-500 text-[10px]">
+                      (หากไม่ติ๊ก สินค้าที่กำหนดค่าส่งราย SKU จะยังคงคิดค่าจัดส่งตามจริงเสมอ)
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <h4 className="font-bold text-slate-900 text-sm mb-1">
+              ผู้ให้บริการจัดส่งพัสดุทั่วไป (Carriers List)
+            </h4>
+            <p className="text-[11px] text-slate-500 mb-3">
+              ใช้สำหรับสินค้าทั่วไปที่ไม่มีการระบุค่าจัดส่งเฉพาะตัว สามารถเปิด/ปิด และปรับราคาได้
             </p>
           </div>
 
@@ -395,7 +502,18 @@ export default function SettingsManager({ setActiveTab }) {
             {shippingSettings.methods.map((method, idx) => (
               <div key={method.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
                 <div className="flex items-center gap-3">
-                  <Truck className="w-5 h-5 text-[#0d3c90]" />
+                  <input
+                    type="checkbox"
+                    checked={method.active !== false}
+                    onChange={(e) => {
+                      const updated = [...shippingSettings.methods];
+                      updated[idx].active = e.target.checked;
+                      setShippingSettings({ ...shippingSettings, methods: updated });
+                    }}
+                    title="เปิด/ปิด ผู้ให้บริการนี้"
+                    className="w-4 h-4 text-[#0d3c90] rounded cursor-pointer"
+                  />
+                  <Truck className={`w-5 h-5 ${method.active !== false ? 'text-[#0d3c90]' : 'text-slate-400'}`} />
                   <div>
                     <input
                       type="text"

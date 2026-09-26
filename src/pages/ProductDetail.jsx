@@ -257,11 +257,6 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
 
   const availableTabs = [
     {
-      id: 'all',
-      label: lang === 'en' ? 'All Details' : 'ทั้งหมด (All)',
-      icon: Layers
-    },
-    {
       id: 'general',
       label: lang === 'en' ? 'General Details' : 'รายละเอียดทั่วไป',
       icon: FileText
@@ -278,9 +273,9 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
     },
   ];
 
-  const currentActiveTab = ['all', 'general', 'specific', 'other'].includes(activeTab)
+  const currentActiveTab = ['general', 'specific', 'other'].includes(activeTab)
     ? activeTab
-    : 'all';
+    : 'general';
 
 
   const handleAddToCart = () => {
@@ -603,17 +598,11 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
                     </div>
                   )
                 ) : (
-                  <div className="bg-[#f4f6fb] border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
-                      <HelpCircle className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Select your vehicle to verify 100% exact fitment.</span>
-                    </div>
-                    <button
-                      onClick={openSelectorModal}
-                      className="text-xs font-bold text-[#0c3175] hover:underline"
-                    >
-                      Select Vehicle →
-                    </button>
+                  <div className="bg-[#f4f6fb] border border-slate-200 rounded-2xl p-4 flex items-center gap-3">
+                    <HelpCircle className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="text-xs text-slate-600">
+                      {lang === 'th' ? 'ตรวจสอบรุ่นรถที่รองรับได้จากตารางด้านล่าง' : 'Check compatible vehicle models in the specifications below.'}
+                    </span>
                   </div>
                 )}
 
@@ -724,7 +713,7 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           </div>
 
           {/* 1. รายละเอียดทั่วไป */}
-          {(currentActiveTab === 'all' || currentActiveTab === 'general') && (
+          {currentActiveTab === 'general' && (
             <div className="pt-6 space-y-6">
               <div className="flex items-center gap-2 text-sm font-black text-[#0c3175]">
                 <FileText className="w-5 h-5 text-[#0c3175]" />
@@ -777,8 +766,8 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           )}
 
           {/* 2. หัวข้อเฉพาะ */}
-          {(currentActiveTab === 'all' || currentActiveTab === 'specific') && (
-            <div className={`space-y-6 ${currentActiveTab === 'all' ? 'pt-8 border-t border-slate-200/80' : 'pt-6'}`}>
+          {currentActiveTab === 'specific' && (
+            <div className="space-y-6 pt-6">
               <div className="flex items-center gap-2 text-sm font-black text-slate-800">
                 <Sliders className="w-5 h-5 text-slate-600" />
                 <h3 className="text-base font-black">
@@ -820,8 +809,8 @@ export const ProductDetail = ({ navigate, user, setUser, product: initialProduct
           )}
 
           {/* 3. อื่นๆ */}
-          {(currentActiveTab === 'all' || currentActiveTab === 'other') && (
-            <div className={`space-y-6 ${currentActiveTab === 'all' ? 'pt-8 border-t border-slate-200/80' : 'pt-6'}`}>
+          {currentActiveTab === 'other' && (
+            <div className="space-y-6 pt-6">
               <div className="flex items-center gap-2 text-sm font-black text-amber-800">
                 <Info className="w-5 h-5 text-amber-600" />
                 <h3 className="text-base font-black">
